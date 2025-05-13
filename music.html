@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MELO - Music Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h1 class="logo">MELO</h1>
+      <nav class="nav-links">
+        <a href="#">Feed</a>
+        <a href="#">Playlists</a>
+        <a href="#">Statistics</a>
+        <a href="#">Favourites</a>
+        <a href="#">Listen Later</a>
+        <a href="#">History</a>
+        <a href="#">Podcasts</a>
+      </nav>
+      <div class="playlists">
+        <h4>Your Playlists</h4>
+        <ul>
+          <li><span class="dot metalcore"></span> Metalcore</li>
+          <li><span class="dot electro"></span> Electro</li>
+          <li><span class="dot funk"></span> Funk</li>
+          <li><span class="dot disco"></span> Disco</li>
+        </ul>
+        <button class="create-playlist">+ Create new playlist</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="top-bar">
+        <input type="text" placeholder="Search for artists, songs or albums" />
+      </div>
+
+      <div class="highlight">
+        <div class="playlist-of-day">
+          <h3>Playlist of the Day</h3>
+          <div class="playlist-box"></div>
+        </div>
+        <div class="now-playing">
+          <h3>Between Death and Dreams</h3>
+          <div class="video-box"></div>
+        </div>
+      </div>
+
+      <div class="track-section">
+        <h4>Playlists</h4>
+        <ul class="tracks">
+          <li>Workout at the Gym - 2h 15m</li>
+          <li>Tracks without Lyrics - 1h 25m</li>
+          <li>Funny Stuff - 6h 10m</li>
+          <li>Careful Driving Vibes - 9h 0m</li>
+          <li>Philosophy During Walking - 3h 50m</li>
+        </ul>
+        <div class="upgrade-box">
+          <p>Check the power of Melo</p>
+          <button>Upgrade</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Sidebar -->
+    <aside class="right-sidebar">
+      <button class="channel-btn">My Channel</button>
+      <div class="section">
+        <h4>New Releases</h4>
+        <p>Calamity - 2023</p>
+        <p>Last Resort (Reimagined) - 2023</p>
+      </div>
+      <div class="section">
+        <h4>Listen More Often</h4>
+        <p>Blood Orange ❤️</p>
+        <p>Soul Decay ❤️</p>
+        <p>A Little Bit Off ❤️</p>
+      </div>
+      <div class="section">
+        <h4>Favourite Artists</h4>
+        <ol>
+          <li>Ice Nine Kills</li>
+          <li>Bloodywood</li>
+          <li>Bad Omens</li>
+          <li>Lorna Shore</li>
+          <li>Annisokay</li>
+        </ol>
+      </div>
+    </aside>
+
+    <!-- Footer Player -->
+    <footer class="footer-player">
+      <div class="song-info">
+        <p><strong>Welcome to Horrorwood</strong> - Ice Nine Kills</p>
+      </div>
+      <div class="controls">
+        <button>⏮️</button>
+        <button>▶️</button>
+        <button>⏭️</button>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
