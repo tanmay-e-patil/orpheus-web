@@ -1,5 +1,9 @@
 "use server";
 
+import { insertSong, insertYtMusicVideo } from "@/lib/db/queries/insert";
+import { InsertSong } from "@/lib/db/schema";
+import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
+
 export async function searchSpotify(query: string) {
   try {
     // Get Spotify access token
@@ -108,6 +112,29 @@ export async function searchYouTubeVideo(
     });
   } catch (error) {
     console.error("Error searching YouTube:", error);
+    throw error;
+  }
+}
+
+export async function saveSongAndVideo(
+  song: SpotifyTrack,
+  video: YouTubeVideo
+) {
+  const trackInfo: InsertSong = {
+    spotifyId: song.id,
+    name: song.name,
+    albumName: song.album,
+    artistName: song.artist,
+    duration: video.duration || "00:00",
+    youtubeVideoId: video.id,
+    releaseDate: song.releaseDate,
+  };
+
+  try {
+    await insertYtMusicVideo(video);
+    await insertSong(trackInfo);
+  } catch (error) {
+    console.error("Error storing in db", error);
     throw error;
   }
 }

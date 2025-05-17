@@ -8,31 +8,22 @@ import { ExternalLink, Grid, List, Youtube } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { searchYouTubeVideo } from "@/app/(music-explorer)/search/actions";
 import { YouTubeModal } from "./youtube-modal";
+import { InsertSong } from "@/lib/db/schema";
+import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
 
 type SearchResultsProps = {
   type: "tracks" | "albums" | "artists";
   items: any[];
 };
 
-type YouTubeVideo = {
-  id: string;
-  title: string;
-  thumbnail: string;
-  channelTitle: string;
-  publishedAt: string;
-  duration: string | null;
-  viewCount: string | null;
-};
-
 export function SearchResults({ type, items }: SearchResultsProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState<{
-    name: string;
-    artist: string;
-  } | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<SpotifyTrack | null>(null);
   const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
   const [isLoading, setIsLoading] = useState<string | null>(null);
+
+  const [songInfo, setSongInfo] = useState<InsertSong | null>(null);
 
   if (items.length === 0) {
     return (
@@ -43,11 +34,21 @@ export function SearchResults({ type, items }: SearchResultsProps) {
   const handleFindMusicVideo = async (
     trackName: string,
     artistName: string,
+    albumName: string,
+    albumImageUrl: string,
+    releaseDate: string,
     trackId: string
   ) => {
     setIsLoading(trackId);
     try {
-      setSelectedTrack({ name: trackName, artist: artistName });
+      setSelectedTrack({
+        name: trackName,
+        artist: artistName,
+        album: albumName,
+        albumImageUrl: albumImageUrl,
+        releaseDate: releaseDate,
+        id: trackId,
+      });
       const videos = await searchYouTubeVideo(trackName, artistName);
       setYoutubeVideos(videos);
       setYoutubeModalOpen(true);
@@ -96,6 +97,9 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                 ? item.artists.map((a: any) => a.name).join(", ")
                 : null;
 
+            const albumName = type === "tracks" ? item.album.name : null;
+            const releaseDate =
+              type === "tracks" ? item.album.release_date : null;
             const spotifyUrl = item.external_urls?.spotify;
 
             return (
@@ -137,7 +141,14 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                         size="sm"
                         className="gap-1"
                         onClick={() =>
-                          handleFindMusicVideo(name, artist, item.id)
+                          handleFindMusicVideo(
+                            name,
+                            artist,
+                            albumName,
+                            imageUrl,
+                            releaseDate,
+                            item.id
+                          )
                         }
                         disabled={isLoading === item.id}
                       >
@@ -176,12 +187,15 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                 ? item.artists.map((a: any) => a.name).join(", ")
                 : null;
 
+            const albumName = type === "tracks" ? item.album.name : null;
+
             const spotifyUrl = item.external_urls?.spotify;
 
             // Additional details based on type
             const duration =
               type === "tracks" ? formatDuration(item.duration_ms) : null;
-            const releaseDate = type === "albums" ? item.release_date : null;
+            const releaseDate =
+              type === "albums" ? item.release_date : item.album.release_date;
             const popularity = item.popularity
               ? `${item.popularity}% popularity`
               : null;
@@ -223,7 +237,14 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                       size="sm"
                       className="gap-1"
                       onClick={() =>
-                        handleFindMusicVideo(name, artist, item.id)
+                        handleFindMusicVideo(
+                          name,
+                          artist,
+                          albumName,
+                          imageUrl,
+                          releaseDate,
+                          item.id
+                        )
                       }
                       disabled={isLoading === item.id}
                     >
@@ -259,6 +280,7 @@ export function SearchResults({ type, items }: SearchResultsProps) {
           isOpen={youtubeModalOpen}
           onClose={() => setYoutubeModalOpen(false)}
           videos={youtubeVideos}
+          selectedTrack={selectedTrack}
           trackName={selectedTrack.name}
           artistName={selectedTrack.artist}
         />

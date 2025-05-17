@@ -10,6 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Eye, X } from "lucide-react";
+import { SpotifyTrack } from "@/types/explorer";
+import { ScrollArea } from "./ui/scroll-area";
+import { saveSongAndVideo } from "@/app/(music-explorer)/search/actions";
 
 type YouTubeVideo = {
   id: string;
@@ -25,6 +28,7 @@ type YouTubeModalProps = {
   isOpen: boolean;
   onClose: () => void;
   videos: YouTubeVideo[];
+  selectedTrack: SpotifyTrack;
   trackName: string;
   artistName: string;
 };
@@ -33,6 +37,7 @@ export function YouTubeModal({
   isOpen,
   onClose,
   videos,
+  selectedTrack,
   trackName,
   artistName,
 }: YouTubeModalProps) {
@@ -48,6 +53,10 @@ export function YouTubeModal({
       setSelectedVideo(null);
     }
   }, [videos]);
+
+  async function handleLibraryInsert(video: YouTubeVideo): Promise<void> {
+    await saveSongAndVideo(selectedTrack, video);
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -129,6 +138,15 @@ export function YouTubeModal({
                 );
               })}
             </div>
+            <Button
+              onClick={() =>
+                handleLibraryInsert(
+                  videos.find((v) => v.id === selectedVideo)!
+                )
+              }
+            >
+              Add to Library
+            </Button>
           </div>
         )}
       </DialogContent>
