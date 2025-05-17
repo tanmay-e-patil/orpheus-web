@@ -25,7 +25,7 @@ type YouTubeVideo = {
 };
 
 export function SearchResults({ type, items }: SearchResultsProps) {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState<{
     name: string;
