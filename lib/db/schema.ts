@@ -4,6 +4,7 @@ export const songsTable = pgTable("songs", {
   name: text("name").notNull(),
   artistName: text("artist_name").notNull().default("Unknown"),
   albumName: text("album_name").notNull().default("Unknown"),
+  albumArt: text("album_art").notNull(),
   duration: text("duration").notNull(),
   youtubeVideoId: text("yt_video_id")
     .notNull()

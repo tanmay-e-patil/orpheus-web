@@ -15,6 +15,13 @@
       "when": 1747512645140,
       "tag": "0001_needy_karma",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1747521193528,
+      "tag": "0002_cynical_magma",
+      "breakpoints": true
     }
   ]
 }
