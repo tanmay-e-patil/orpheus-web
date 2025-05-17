@@ -20,6 +20,8 @@ type YouTubeVideo = {
   thumbnail: string;
   channelTitle: string;
   publishedAt: string;
+  duration: string | null;
+  viewCount: string | null;
 };
 
 export function SearchResults({ type, items }: SearchResultsProps) {

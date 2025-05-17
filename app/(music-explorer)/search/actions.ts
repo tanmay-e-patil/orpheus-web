@@ -61,24 +61,51 @@ export async function searchYouTubeVideo(
       throw new Error("YouTube API key is not configured");
     }
 
-    const response = await fetch(
+    // First, search for videos
+    const searchResponse = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(
         query
       )}&type=video&key=${apiKey}`
     );
 
-    if (!response.ok) {
+    if (!searchResponse.ok) {
       throw new Error("YouTube search failed");
     }
 
-    const data = await response.json();
-    return data.items.map((item: any) => ({
-      id: item.id.videoId,
-      title: item.snippet.title,
-      thumbnail: item.snippet.thumbnails.medium.url,
-      channelTitle: item.snippet.channelTitle,
-      publishedAt: item.snippet.publishedAt,
-    }));
+    const searchData = await searchResponse.json();
+
+    // Extract video IDs for the second request
+    const videoIds = searchData.items
+      .map((item: any) => item.id.videoId)
+      .join(",");
+
+    // Second request to get video details including duration
+    const videoDetailsResponse = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds}&key=${apiKey}`
+    );
+
+    if (!videoDetailsResponse.ok) {
+      throw new Error("YouTube video details request failed");
+    }
+
+    const videoDetailsData = await videoDetailsResponse.json();
+
+    // Combine the data from both requests
+    return searchData.items.map((item: any) => {
+      const videoDetails = videoDetailsData.items.find(
+        (detail: any) => detail.id === item.id.videoId
+      );
+
+      return {
+        id: item.id.videoId,
+        title: item.snippet.title,
+        thumbnail: item.snippet.thumbnails.medium.url,
+        channelTitle: item.snippet.channelTitle,
+        publishedAt: item.snippet.publishedAt,
+        duration: videoDetails?.contentDetails?.duration || null,
+        viewCount: videoDetails?.statistics?.viewCount || null,
+      };
+    });
   } catch (error) {
     console.error("Error searching YouTube:", error);
     throw error;
