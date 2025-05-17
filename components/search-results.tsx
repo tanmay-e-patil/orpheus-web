@@ -3,22 +3,58 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
-import { ExternalLink, Grid, List } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ExternalLink, Grid, List, Youtube } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { searchYouTubeVideo } from "@/app/(music-explorer)/search/actions";
+import { YouTubeModal } from "./youtube-modal";
 
 type SearchResultsProps = {
   type: "tracks" | "albums" | "artists";
   items: any[];
 };
 
+type YouTubeVideo = {
+  id: string;
+  title: string;
+  thumbnail: string;
+  channelTitle: string;
+  publishedAt: string;
+};
+
 export function SearchResults({ type, items }: SearchResultsProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<{
+    name: string;
+    artist: string;
+  } | null>(null);
+  const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
+  const [isLoading, setIsLoading] = useState<string | null>(null);
 
   if (items.length === 0) {
     return (
       <p className="text-center text-muted-foreground">No results found</p>
     );
   }
+
+  const handleFindMusicVideo = async (
+    trackName: string,
+    artistName: string,
+    trackId: string
+  ) => {
+    setIsLoading(trackId);
+    try {
+      setSelectedTrack({ name: trackName, artist: artistName });
+      const videos = await searchYouTubeVideo(trackName, artistName);
+      setYoutubeVideos(videos);
+      setYoutubeModalOpen(true);
+    } catch (error) {
+      console.error("Error finding music video:", error);
+    } finally {
+      setIsLoading(null);
+    }
+  };
 
   return (
     <div>
@@ -68,6 +104,7 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                     alt={name}
                     fill
                     className="object-cover"
+                    unoptimized
                   />
                 </div>
                 <CardContent className="p-4">
@@ -80,17 +117,39 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                       {item.album.name}
                     </p>
                   )}
-                  {spotifyUrl && (
-                    <a
-                      href={spotifyUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm mt-2 text-green-600 hover:text-green-700"
-                    >
-                      Open in Spotify
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
+                  <div className="flex items-center justify-between mt-3">
+                    {spotifyUrl && (
+                      <a
+                        href={spotifyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700"
+                      >
+                        Open in Spotify
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                    {type === "tracks" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() =>
+                          handleFindMusicVideo(name, artist, item.id)
+                        }
+                        disabled={isLoading === item.id}
+                      >
+                        {isLoading === item.id ? (
+                          "Loading..."
+                        ) : (
+                          <>
+                            <Youtube className="h-3 w-3" />
+                            Music Video
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -136,6 +195,7 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                     alt={name}
                     fill
                     className="object-cover rounded-md"
+                    unoptimized
                   />
                 </div>
                 <div className="flex-grow min-w-0">
@@ -154,20 +214,52 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                     {popularity && <span>{popularity}</span>}
                   </div>
                 </div>
-                {spotifyUrl && (
-                  <a
-                    href={spotifyUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-shrink-0 text-green-600 hover:text-green-700"
-                  >
-                    <ExternalLink className="h-5 w-5" />
-                  </a>
-                )}
+                <div className="flex items-center gap-2">
+                  {type === "tracks" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() =>
+                        handleFindMusicVideo(name, artist, item.id)
+                      }
+                      disabled={isLoading === item.id}
+                    >
+                      {isLoading === item.id ? (
+                        "Loading..."
+                      ) : (
+                        <>
+                          <Youtube className="h-3 w-3" />
+                          <span className="hidden sm:inline">Music Video</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {spotifyUrl && (
+                    <a
+                      href={spotifyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-shrink-0 text-green-600 hover:text-green-700"
+                    >
+                      <ExternalLink className="h-5 w-5" />
+                    </a>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {selectedTrack && (
+        <YouTubeModal
+          isOpen={youtubeModalOpen}
+          onClose={() => setYoutubeModalOpen(false)}
+          videos={youtubeVideos}
+          trackName={selectedTrack.name}
+          artistName={selectedTrack.artist}
+        />
       )}
     </div>
   );

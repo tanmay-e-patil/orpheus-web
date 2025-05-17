@@ -48,3 +48,39 @@ export async function searchSpotify(query: string) {
     throw error;
   }
 }
+
+export async function searchYouTubeVideo(
+  trackName: string,
+  artistName: string
+) {
+  try {
+    const query = `${trackName} ${artistName} official music video`;
+    const apiKey = process.env.YOUTUBE_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("YouTube API key is not configured");
+    }
+
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(
+        query
+      )}&type=video&key=${apiKey}`
+    );
+
+    if (!response.ok) {
+      throw new Error("YouTube search failed");
+    }
+
+    const data = await response.json();
+    return data.items.map((item: any) => ({
+      id: item.id.videoId,
+      title: item.snippet.title,
+      thumbnail: item.snippet.thumbnails.medium.url,
+      channelTitle: item.snippet.channelTitle,
+      publishedAt: item.snippet.publishedAt,
+    }));
+  } catch (error) {
+    console.error("Error searching YouTube:", error);
+    throw error;
+  }
+}
