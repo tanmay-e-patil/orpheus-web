@@ -56,6 +56,7 @@ export function YouTubeModal({
 
   async function handleLibraryInsert(video: YouTubeVideo): Promise<void> {
     await saveSongAndVideo(selectedTrack, video);
+    onClose();
   }
 
   return (
@@ -91,7 +92,7 @@ export function YouTubeModal({
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
               {videos.map((video) => {
                 const formattedDuration = formatIsoDuration(video.duration);
                 const formattedViews = formatViewCount(video.viewCount);
@@ -140,9 +141,7 @@ export function YouTubeModal({
             </div>
             <Button
               onClick={() =>
-                handleLibraryInsert(
-                  videos.find((v) => v.id === selectedVideo)!
-                )
+                handleLibraryInsert(videos.find((v) => v.id === selectedVideo)!)
               }
             >
               Add to Library
