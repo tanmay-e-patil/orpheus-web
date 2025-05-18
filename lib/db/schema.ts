@@ -1,4 +1,4 @@
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, date, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 export const songsTable = pgTable("songs", {
   spotifyId: text("id").notNull().primaryKey(),
   name: text("name").notNull(),
@@ -10,7 +10,7 @@ export const songsTable = pgTable("songs", {
     .notNull()
     .references(() => ytMusicVideoTable.id),
   isAvailable: boolean("is_available").default(false),
-  releaseDate: text("release_date").notNull(),
+  releaseDate: date("release_date").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

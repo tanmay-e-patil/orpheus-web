@@ -3,6 +3,7 @@
 import { insertSong, insertYtMusicVideo } from "@/lib/db/queries/insert";
 import { InsertSong } from "@/lib/db/schema";
 import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
+import amqp from "amqplib";
 
 export async function searchSpotify(query: string) {
   try {
@@ -136,6 +137,30 @@ export async function saveSongAndVideo(
     await insertSong(trackInfo);
   } catch (error) {
     console.error("Error storing in db", error);
+    throw error;
+  }
+
+  const queue = "job_queue";
+  const jobPayload = {
+    jobId: song.id,
+    action: "process-song-data",
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    const connection = await amqp.connect("amqp://localhost");
+    const channel = await connection.createChannel();
+    await channel.assertQueue(queue, { durable: true });
+
+    channel.sendToQueue(queue, Buffer.from(JSON.stringify(jobPayload)), {
+      persistent: true,
+    });
+
+    console.log(" [x] Sent job:", jobPayload);
+    await channel.close();
+    await connection.close();
+  } catch (error) {
+    console.error("RabbitMQ Error:", error);
     throw error;
   }
 }
