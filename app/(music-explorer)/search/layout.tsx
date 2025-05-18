@@ -5,11 +5,7 @@ const ExplorerLayout = ({
 }: Readonly<{
   children: React.ReactNode;
 }>) => {
-  return (
-    <div className="bg-accent">
-      {children}
-    </div>
-  );
+  return <div>{children}</div>;
 };
 
 export default ExplorerLayout;
