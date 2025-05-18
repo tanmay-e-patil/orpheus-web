@@ -59,7 +59,7 @@ export async function searchYouTubeVideo(
   artistName: string
 ) {
   try {
-    const query = `${trackName} ${artistName} official music audio`;
+    const query = `${trackName} ${artistName} official audio full`;
     const apiKey = process.env.YOUTUBE_API_KEY;
 
     if (!apiKey) {
@@ -68,7 +68,7 @@ export async function searchYouTubeVideo(
 
     // First, search for videos
     const searchResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=15&q=${encodeURIComponent(
         query
       )}&type=video&key=${apiKey}`
     );
