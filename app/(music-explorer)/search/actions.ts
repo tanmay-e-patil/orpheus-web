@@ -59,7 +59,7 @@ export async function searchYouTubeVideo(
   artistName: string
 ) {
   try {
-    const query = `${trackName} ${artistName} official music video`;
+    const query = `${trackName} ${artistName} official music audio`;
     const apiKey = process.env.YOUTUBE_API_KEY;
 
     if (!apiKey) {
