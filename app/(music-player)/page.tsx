@@ -17,12 +17,11 @@ export default function MusicPage() {
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
             All tracks
           </h2>
-          <Link
-            className="mb-2 px-4  font-semibold tracking-tight"
-            href={"/search"}
-          >
-            <PlusCircledIcon></PlusCircledIcon>
-            Add music
+          <Link href="/search">
+            <Button className="mb-2 px-4 font-semibold tracking-tight">
+              <PlusCircledIcon />
+              Add music
+            </Button>
           </Link>
         </div>
       </div>
