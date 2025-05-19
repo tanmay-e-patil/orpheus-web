@@ -85,7 +85,7 @@ export function SearchResults({ type, items }: SearchResultsProps) {
             const images = type === "tracks" ? item.album?.images : item.images;
             const imageUrl =
               images && images.length > 0
-                ? images[1]?.url || images[0]?.url
+                ? images[0]?.url
                 : "/placeholder.svg?height=300&width=300";
 
             // Get the appropriate name and details
@@ -175,7 +175,7 @@ export function SearchResults({ type, items }: SearchResultsProps) {
             const images = type === "tracks" ? item.album?.images : item.images;
             const imageUrl =
               images && images.length > 0
-                ? images[images.length - 1]?.url || images[0]?.url
+                ? images[0]?.url
                 : "/placeholder.svg?height=64&width=64";
 
             // Get the appropriate name and details

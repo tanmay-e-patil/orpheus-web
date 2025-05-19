@@ -1,8 +1,13 @@
 "use server";
 
-import { insertSong, insertYtMusicVideo } from "@/lib/db/queries/insert";
+import {
+  insertSong,
+  insertYtMusicVideo,
+  upsertSongInfo,
+} from "@/lib/db/queries/insert";
 import { InsertSong } from "@/lib/db/schema";
 import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
+import amqp from "amqplib";
 
 export async function searchSpotify(query: string) {
   try {
@@ -34,7 +39,7 @@ export async function searchSpotify(query: string) {
     const searchResponse = await fetch(
       `https://api.spotify.com/v1/search?q=${encodeURIComponent(
         query
-      )}&type=track,album,artist&limit=10`,
+      )}&type=track,album,artist&limit=20`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -58,7 +63,7 @@ export async function searchYouTubeVideo(
   artistName: string
 ) {
   try {
-    const query = `${trackName} ${artistName} official music video`;
+    const query = `${trackName} ${artistName} official audio full`;
     const apiKey = process.env.YOUTUBE_API_KEY;
 
     if (!apiKey) {
@@ -67,7 +72,7 @@ export async function searchYouTubeVideo(
 
     // First, search for videos
     const searchResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=15&q=${encodeURIComponent(
         query
       )}&type=video&key=${apiKey}`
     );
@@ -128,13 +133,38 @@ export async function saveSongAndVideo(
     duration: video.duration || "00:00",
     youtubeVideoId: video.id,
     releaseDate: song.releaseDate,
+    albumArt: song.albumImageUrl,
+    isAvailable: false,
   };
 
   try {
-    await insertYtMusicVideo(video);
-    await insertSong(trackInfo);
+    await upsertSongInfo(trackInfo, video);
   } catch (error) {
     console.error("Error storing in db", error);
+    throw error;
+  }
+
+  const queue = "job_queue";
+  const jobPayload = {
+    jobId: song.id,
+    action: "process-song-data",
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    const connection = await amqp.connect("amqp://localhost");
+    const channel = await connection.createChannel();
+    await channel.assertQueue(queue, { durable: true });
+
+    channel.sendToQueue(queue, Buffer.from(JSON.stringify(jobPayload)), {
+      persistent: true,
+    });
+
+    console.log(" [x] Sent job:", jobPayload);
+    await channel.close();
+    await connection.close();
+  } catch (error) {
+    console.error("RabbitMQ Error:", error);
     throw error;
   }
 }
