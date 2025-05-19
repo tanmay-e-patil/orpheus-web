@@ -1,6 +1,10 @@
 "use server";
 
-import { insertSong, insertYtMusicVideo } from "@/lib/db/queries/insert";
+import {
+  insertSong,
+  insertYtMusicVideo,
+  upsertSongInfo,
+} from "@/lib/db/queries/insert";
 import { InsertSong } from "@/lib/db/schema";
 import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
 import amqp from "amqplib";
@@ -130,11 +134,11 @@ export async function saveSongAndVideo(
     youtubeVideoId: video.id,
     releaseDate: song.releaseDate,
     albumArt: song.albumImageUrl,
+    isAvailable: false,
   };
 
   try {
-    await insertYtMusicVideo(video);
-    await insertSong(trackInfo);
+    await upsertSongInfo(trackInfo, video);
   } catch (error) {
     console.error("Error storing in db", error);
     throw error;

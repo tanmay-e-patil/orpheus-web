@@ -13,3 +13,20 @@ export async function insertSong(data: InsertSong) {
 export async function insertYtMusicVideo(data: InsertYtMusicVideo) {
   await db.insert(ytMusicVideoTable).values(data);
 }
+
+export async function upsertSongInfo(
+  song: InsertSong,
+  video: InsertYtMusicVideo
+) {
+  await db.transaction(async (tx) => {
+    await tx.insert(songsTable).values(song).onConflictDoUpdate({
+      target: songsTable.spotifyId,
+      set: song,
+    });
+
+    await tx.insert(ytMusicVideoTable).values(video).onConflictDoUpdate({
+      target: ytMusicVideoTable.id,
+      set: video,
+    });
+  });
+}
