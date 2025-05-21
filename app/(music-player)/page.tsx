@@ -63,7 +63,7 @@ export default async function MusicPage() {
             </Button>
           </Link>
         </div>
-        <Table>
+        <Table className="bg-accent">
           {/* <TableCaption>A list of your recent invoices.</TableCaption> */}
           <TableHeader>
             <TableRow>
