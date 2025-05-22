@@ -15,11 +15,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-// export const metadata: Metadata = {
-//   title: "Music App",
-//   description: "Example music app using the components.",
-// };
-
 export function formatIsoDuration(isoDuration: string | null): string | null {
   if (!isoDuration) return null;
 
@@ -41,12 +36,7 @@ export function formatIsoDuration(isoDuration: string | null): string | null {
 
 export default async function MusicPage() {
   const songs = await db
-    .select //{
-    // spotifyId: songsTable.spotifyId,
-    // title: songsTable.name,
-    // artist: songsTable.artistName
-    //}
-    ()
+    .select()
     .from(songsTable)
     .orderBy(songsTable.artistName); //await getSongTable();
   return (
@@ -64,7 +54,6 @@ export default async function MusicPage() {
           </Link>
         </div>
         <Table className="bg-accent">
-          {/* <TableCaption>A list of your recent invoices.</TableCaption> */}
           <TableHeader>
             <TableRow>
               <TableHead>#</TableHead>
