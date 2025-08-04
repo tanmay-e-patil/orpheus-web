@@ -7,7 +7,7 @@ export const env = createEnv({
     AUTH_USERNAME: z.string().min(1),
     AUTH_PASSWORD: z.string().min(1),
     AUTH_EMAIL: z.string().email(),
-    REDIS_URL: z.string().url(),
+    RABBITMQ_URL: z.string().url(),
     AUTH_NAME: z.string().min(1),
     BETTER_AUTH_SECRET: z.string().min(1),
     BETTER_AUTH_URL: z.string().url(),
