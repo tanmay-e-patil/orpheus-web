@@ -1,6 +1,5 @@
 // "use client";
 import { Button } from "@/components/ui/button";
-import { Metadata } from "next";
 import { PlusCircledIcon } from "@radix-ui/react-icons";
 import Link from "next/link";
 import { db } from "@/lib/db";
@@ -8,12 +7,14 @@ import { songsTable } from "@/lib/db/schema";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 export function formatIsoDuration(isoDuration: string | null): string | null {
   if (!isoDuration) return null;
@@ -35,6 +36,13 @@ export function formatIsoDuration(isoDuration: string | null): string | null {
 }
 
 export default async function MusicPage() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    redirect("/");
+  }
   const songs = await db
     .select()
     .from(songsTable)
