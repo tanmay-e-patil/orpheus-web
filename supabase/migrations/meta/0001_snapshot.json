@@ -1,6 +1,6 @@
 {
-  "id": "a1143ae5-3d87-4caf-a6da-52bb77f359cb",
-  "prevId": "06e53b9f-7f75-425d-b7ff-6b012b0779c4",
+  "id": "e127f56a-bfe5-4250-81fc-1119750ccd72",
+  "prevId": "d213b51e-cc12-4de7-ad08-891b70b0c13e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -228,6 +228,20 @@
           "primaryKey": false,
           "notNull": true
         },
+        "lyrics": {
+          "name": "lyrics",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "is_lyrics_available": {
+          "name": "is_lyrics_available",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
         "duration": {
           "name": "duration",
           "type": "text",
@@ -252,6 +266,13 @@
           "type": "date",
           "primaryKey": false,
           "notNull": true
+        },
+        "release_year": {
+          "name": "release_year",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Unknown'"
         },
         "created_at": {
           "name": "created_at",
@@ -335,6 +356,18 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_username": {
+          "name": "display_username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -346,6 +379,13 @@
           "nullsNotDistinct": false,
           "columns": [
             "email"
+          ]
+        },
+        "user_username_unique": {
+          "name": "user_username_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "username"
           ]
         }
       },

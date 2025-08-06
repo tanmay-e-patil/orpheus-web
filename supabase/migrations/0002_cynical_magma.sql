@@ -1,1 +1,0 @@
-ALTER TABLE "songs" ADD COLUMN "album_art" text NOT NULL;

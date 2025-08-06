@@ -5,12 +5,15 @@ export const songsTable = pgTable("songs", {
   artistName: text("artist_name").notNull().default("Unknown"),
   albumName: text("album_name").notNull().default("Unknown"),
   albumArt: text("album_art").notNull(),
+  lyrics: text("lyrics").notNull().default(""),
+  isLyricsAvailable: boolean("is_lyrics_available").default(false),
   duration: text("duration").notNull(),
   youtubeVideoId: text("yt_video_id")
     .notNull()
     .references(() => ytMusicVideoTable.id),
   isAvailable: boolean("is_available").default(false),
   releaseDate: date("release_date").notNull(),
+  releaseYear: text("release_year").default("Unknown"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -24,7 +27,6 @@ export const ytMusicVideoTable = pgTable("yt_music_videos", {
   duration: text("duration"),
   viewCount: text("view_count"),
 });
-
 export type InsertSong = typeof songsTable.$inferInsert;
 export type InsertYtMusicVideo = typeof ytMusicVideoTable.$inferInsert;
 
@@ -89,4 +91,3 @@ export const verification = pgTable("verification", {
     () => /* @__PURE__ */ new Date(),
   ),
 });
-
