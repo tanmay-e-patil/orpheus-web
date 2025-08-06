@@ -49,9 +49,9 @@ export default async function MusicPage() {
     .orderBy(songsTable.artistName); //await getSongTable();
   return (
     <div className="container mx-auto w-full">
-      <div className="space-y-4 py-4 px-2">
-        <div className="px-3 py-2 flex justify-between">
-          <h2 className="mb-2 px-3 text-2xl font-semibold tracking-tight">
+      <div className="space-y-4 py-4">
+        <div className="py-2 flex justify-between">
+          <h2 className="mb-2 text-2xl font-semibold tracking-tight">
             All tracks
           </h2>
           <Link href="/search">
@@ -75,9 +75,7 @@ export default async function MusicPage() {
             {songs.map((song, idx) => (
               <TableRow key={song.spotifyId} className="disabled">
                 <TableCell className="font-medium">{idx + 1}</TableCell>
-                <TableCell className="truncate max-w-32">
-                  {song.name}
-                </TableCell>
+                <TableCell className="truncate max-w-32">{song.name}</TableCell>
                 <TableCell className="truncate max-w-32">
                   {song.artistName}
                 </TableCell>
