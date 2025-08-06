@@ -6,6 +6,7 @@ import {
   upsertSongInfo,
 } from "@/lib/db/queries/insert";
 import { InsertSong } from "@/lib/db/schema";
+import { env } from "@/lib/env";
 import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
 import amqp from "amqplib";
 
@@ -19,13 +20,13 @@ export async function searchSpotify(query: string) {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           Authorization: `Basic ${Buffer.from(
-            `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+            `${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`,
           ).toString("base64")}`,
         },
         body: new URLSearchParams({
           grant_type: "client_credentials",
         }),
-      }
+      },
     );
 
     if (!tokenResponse.ok) {
@@ -38,13 +39,13 @@ export async function searchSpotify(query: string) {
     // Search Spotify API
     const searchResponse = await fetch(
       `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-        query
+        query,
       )}&type=track,album,artist&limit=20`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      }
+      },
     );
 
     if (!searchResponse.ok) {
@@ -60,11 +61,11 @@ export async function searchSpotify(query: string) {
 
 export async function searchYouTubeVideo(
   trackName: string,
-  artistName: string
+  artistName: string,
 ) {
   try {
-    const query = `${trackName} ${artistName} official audio full`;
-    const apiKey = process.env.YOUTUBE_API_KEY;
+    const query = `${trackName} ${artistName}`;
+    const apiKey = env.YOUTUBE_API_KEY;
 
     if (!apiKey) {
       throw new Error("YouTube API key is not configured");
@@ -73,8 +74,8 @@ export async function searchYouTubeVideo(
     // First, search for videos
     const searchResponse = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=15&q=${encodeURIComponent(
-        query
-      )}&type=video&key=${apiKey}`
+        query,
+      )}&type=video&key=${apiKey}`,
     );
 
     if (!searchResponse.ok) {
@@ -90,7 +91,7 @@ export async function searchYouTubeVideo(
 
     // Second request to get video details including duration
     const videoDetailsResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds}&key=${apiKey}`
+      `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds}&key=${apiKey}`,
     );
 
     if (!videoDetailsResponse.ok) {
@@ -102,7 +103,7 @@ export async function searchYouTubeVideo(
     // Combine the data from both requests
     return searchData.items.map((item: any) => {
       const videoDetails = videoDetailsData.items.find(
-        (detail: any) => detail.id === item.id.videoId
+        (detail: any) => detail.id === item.id.videoId,
       );
 
       return {
@@ -123,7 +124,7 @@ export async function searchYouTubeVideo(
 
 export async function saveSongAndVideo(
   song: SpotifyTrack,
-  video: YouTubeVideo
+  video: YouTubeVideo,
 ) {
   const trackInfo: InsertSong = {
     spotifyId: song.id,
@@ -152,7 +153,7 @@ export async function saveSongAndVideo(
   };
 
   try {
-    const connection = await amqp.connect("amqp://localhost");
+    const connection = await amqp.connect(env.RABBITMQ_URL);
     const channel = await connection.createChannel();
     await channel.assertQueue(queue, { durable: true });
 
