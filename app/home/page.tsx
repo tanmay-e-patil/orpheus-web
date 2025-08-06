@@ -75,7 +75,7 @@ export default async function MusicPage() {
             {songs.map((song, idx) => (
               <TableRow key={song.spotifyId} className="disabled">
                 <TableCell className="font-medium">{idx + 1}</TableCell>
-                <TableCell className="truncate max-w-32 ">
+                <TableCell className="truncate max-w-32">
                   {song.name}
                 </TableCell>
                 <TableCell className="truncate max-w-32">
