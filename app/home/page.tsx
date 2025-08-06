@@ -48,8 +48,8 @@ export default async function MusicPage() {
     .from(songsTable)
     .orderBy(songsTable.artistName); //await getSongTable();
   return (
-    <>
-      <div className="w-full space-y-4 py-4 px-2">
+    <div className="container mx-auto w-full">
+      <div className="space-y-4 py-4 px-2">
         <div className="px-3 py-2 flex justify-between">
           <h2 className="mb-2 px-3 text-2xl font-semibold tracking-tight">
             All tracks
@@ -75,17 +75,21 @@ export default async function MusicPage() {
             {songs.map((song, idx) => (
               <TableRow key={song.spotifyId} className="disabled">
                 <TableCell className="font-medium">{idx + 1}</TableCell>
-                <TableCell>
-                  <div className="flex">{song.name}</div>
+                <TableCell className="truncate max-w-32">
+                  {song.name}
                 </TableCell>
-                <TableCell>{song.artistName}</TableCell>
-                <TableCell>{song.albumName}</TableCell>
+                <TableCell className="truncate max-w-32">
+                  {song.artistName}
+                </TableCell>
+                <TableCell className="truncate max-w-32">
+                  {song.albumName}
+                </TableCell>
                 <TableCell>{formatIsoDuration(song.duration)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
-    </>
+    </div>
   );
 }
