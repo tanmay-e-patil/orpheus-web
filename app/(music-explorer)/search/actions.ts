@@ -133,7 +133,7 @@ export async function saveSongAndVideo(
     duration: video.duration || "00:00",
     youtubeVideoId: video.id,
     releaseDate: releaseDate,
-    releaseYear: releaseDate.split("-")[0] || "Unknown",
+    releaseYear: releaseDate.split("-")[0],
     albumArt: song.albumImageUrl,
     isAvailable: false,
   };
