@@ -71,7 +71,7 @@ export default async function MusicPage() {
               <TableHead>Duration</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody className="">
+          <TableBody>
             {songs.map((song, idx) => (
               <TableRow key={song.spotifyId} className="disabled">
                 <TableCell className="font-medium">{idx + 1}</TableCell>
