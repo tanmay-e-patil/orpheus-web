@@ -65,7 +65,7 @@ export async function searchYouTubeVideo(
 ) {
   try {
     const query = `${trackName} ${artistName}`;
-    const apiKey = process.env.YOUTUBE_API_KEY;
+    const apiKey = env.YOUTUBE_API_KEY;
 
     if (!apiKey) {
       throw new Error("YouTube API key is not configured");
