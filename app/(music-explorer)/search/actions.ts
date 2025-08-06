@@ -1,8 +1,6 @@
 "use server";
 
-import {
-  upsertSongInfo,
-} from "@/lib/db/queries/insert";
+import { upsertSongInfo } from "@/lib/db/queries/insert";
 import { InsertSong } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
@@ -124,6 +122,9 @@ export async function saveSongAndVideo(
   song: SpotifyTrack,
   video: YouTubeVideo,
 ) {
+  const releaseDate = song.releaseDate.includes("-")
+    ? song.releaseDate
+    : `${song.releaseDate}-01-01`;
   const trackInfo: InsertSong = {
     spotifyId: song.id,
     name: song.name,
@@ -131,7 +132,8 @@ export async function saveSongAndVideo(
     artistName: song.artist,
     duration: video.duration || "00:00",
     youtubeVideoId: video.id,
-    releaseDate: song.releaseDate,
+    releaseDate: releaseDate,
+    releaseYear: releaseDate.split("-")[0],
     albumArt: song.albumImageUrl,
     isAvailable: false,
   };
