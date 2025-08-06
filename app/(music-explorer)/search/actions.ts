@@ -1,8 +1,6 @@
 "use server";
 
 import {
-  insertSong,
-  insertYtMusicVideo,
   upsertSongInfo,
 } from "@/lib/db/queries/insert";
 import { InsertSong } from "@/lib/db/schema";
