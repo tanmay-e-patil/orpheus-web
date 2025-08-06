@@ -35,7 +35,7 @@ export default function RootLayout({
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Oxanium:wght@200..800&display=swap"
           rel="stylesheet"
-        ></link>
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
