@@ -1,5 +1,3 @@
-// "use client";
-
 import { auth } from "@/lib/auth";
 import { LoginForm } from "./_components/LoginForm";
 import { env } from "@/lib/env";
@@ -14,10 +12,9 @@ export default async function LoginPage() {
       },
     });
     if (!response.available) {
-      console.log("Username is available");
-    } else {
       console.log("Username is not available");
-      // Sign up logic here
+    } else {
+      console.log("Username is available. Completing first time sign up.");
       const signUpResponse = await auth.api.signUpEmail({
         body: {
           email: env.AUTH_EMAIL,
@@ -29,8 +26,7 @@ export default async function LoginPage() {
       if (signUpResponse.user === null) {
         console.error("Sign up failed:");
       } else {
-        console.log("Sign up successful:", signUpResponse.user);
-        // Redirect or show success message
+        console.log("Sign up successful");
       }
     }
   }
