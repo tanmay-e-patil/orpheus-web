@@ -1,8 +1,8 @@
-# Feature Design Document: Multi-Stage Music Discovery Workflow
+# Feature Design Document: Multi-Stage Music Discovery Workflow (Updated Implementation Status)
 
 ## Overview
 
-Transform the current single-step music discovery process into a guided, multi-stage workflow that prioritizes data quality, user control, and progressive enhancement. This new workflow inverts the current Spotify-first approach to start with YouTube discovery, then enriches with Spotify metadata and lyrics.
+The multi-stage workflow has been partially implemented. Users now progress through a guided sequence beginning with YouTube discovery, then optional Spotify metadata matching, lyrics enrichment, review/edit, and final commit. This document reflects the CURRENT STATE of what is implemented vs. the original design intent, and outlines gaps & next steps.
 
 ## Problem Statement
 
@@ -16,63 +16,73 @@ The current workflow has several limitations:
 
 ## Solution Architecture
 
-### High-Level Flow
+## High-Level Flow (as implemented)
 
 ```
-Search Input → YouTube Discovery → Spotify Matching → Lyrics Enrichment → Review & Edit → Commit to Library
-     ↓              ↓                   ↓                    ↓                  ↓            ↓
-   Stage 1        Stage 2           Stage 3              Stage 4           Stage 5      Stage 6
+Landing/Search → (Stage 1) YouTube Discovery → (Stage 2) Spotify Matching → (Stage 3) Lyrics Enrichment → (Stage 4) Review & Edit → (Stage 5) Commit
 ```
+
+Notes:
+
+- Original spec listed 6 stages starting at "Search Input" — current implementation folds search into the landing and jumps workflow state directly to `youtube` after initiating discovery.
+- Internal `WorkflowStage` enum still includes `search`, but no dedicated `/discover/search` route exists yet.
 
 ## Detailed Stage Breakdown
 
-### Stage 1: Search Input & YouTube Discovery
+### Stage 1: YouTube Discovery (Implemented)
 
-**Goal**: Find potential music videos based on user search query
+Goal: Find potential music videos based on user search query.
 
-**User Interface**:
+Implemented UI:
 
-- Enhanced search input with search suggestions
-- Real-time YouTube video results grid
-- Video preview functionality
-- Multi-select capability for batch processing
+- Search input (no autocomplete/suggestions yet)
+- Result grid with: thumbnail, duration, view count, channel, confidence score
+- Multi-select with visual selection state & Select All / Deselect All
+- Inline video preview via modal (YouTube embed)
 
-**Technical Implementation**:
+Implemented Backend (`discoverYouTubeVideos`):
 
-```typescript
-// New action: app/(music-explorer)/discover/actions.ts
+```ts
 export async function discoverYouTubeVideos(
   query: string
 ): Promise<YouTubeDiscoveryResult[]>;
-export async function previewVideoMetadata(
-  videoIds: string[]
-): Promise<VideoPreview[]>;
 ```
 
-**Data Flow**:
+Enhancements vs spec:
 
-1. User enters search query
-2. Parallel API calls to YouTube Data API (search + video details)
-3. Results displayed with confidence scoring
-4. User selects videos to proceed with
-5. Draft state saved to localStorage
+- Confidence uses heuristic scoring (keywords + channel + duration window)
+- Combined search + details (two API calls as designed)
 
-**Key Features**:
+Not Yet Implemented (from original spec):
 
-- **Smart filtering**: Filter out non-music content using title/channel analysis
-- **Batch selection**: Select multiple videos for parallel processing
-- **Preview mode**: Quick metadata preview without full processing
+- Search suggestions / typeahead
+- Separate `previewVideoMetadata` action
+- Explicit music content filtering beyond heuristic (no ML layer)
+- Result filtering controls (duration/channel filters)
 
-### Stage 2: Spotify Metadata Matching
+State Persistence:
+
+- Results & selection stored in `WorkflowState.selectedVideos` (with `selected` flag)
+- LocalStorage persistence via `saveWorkflowState()`
+
+### Stage 2: Spotify Metadata Matching (Implemented MVP)
 
 **Goal**: Enrich YouTube videos with structured Spotify metadata
 
-**User Interface**:
+Implemented UI:
 
-- Side-by-side comparison view (YouTube video ↔ Spotify matches)
-- Confidence scoring visualization
-- Manual override options
-- Skip option if no good matches found
+- Per-video card listing top (up to 5) Spotify matches
+- Automatic pre-selection of top match
+- Confidence badge (high/medium/low/none)
+- Ability to select alternative match among top 3 listed (extra matches count hint if >3)
+- Skip (unset selection)
+
+Not Yet Implemented:
+
+- Side-by-side structured diff layout
+- Manual free-form match entry
+- Batch operations / bulk skip
+- Pagination or “view more” expansion logic (placeholder button only)
 
 **Technical Implementation**:
 
@@ -98,24 +108,30 @@ type SpotifyMatchResult = {
 4. User can manually select different matches or skip
 5. Progress saved to draft state
 
-**Matching Algorithm**:
+Matching Logic (current):
 
-- Title similarity (70% weight)
-- Artist name matching (20% weight)
-- Duration proximity (10% weight)
-- Release date correlation (bonus points)
+- Title similarity (Levenshtein-derived) 70%
+- Artist name containment 20%
+- Duration proximity (if available) 10%
+- No explicit release date bonus yet
 
-### Stage 3: Lyrics Enrichment
+### Stage 3: Lyrics Enrichment (Implemented MVP)
 
 **Goal**: Find and select the best lyrics from multiple lrclib.net options with user choice
 
-**User Interface**:
+Implemented UI:
 
-- Multiple lyrics options displayed as cards
-- Preview pane showing selected lyrics with sync timing
-- Quality indicators (sync availability, accuracy score)
-- Manual lyrics input option as fallback
-- Side-by-side comparison mode for similar results
+- Track-level cards with status (found/partial/none)
+- Up to first 3 lyrics options (confidence badge, sync indicator, truncated preview)
+- Selection & skip handling
+- Tabs to view plain vs synced lyrics for the selected option
+
+Not Yet Implemented:
+
+- Manual lyrics input
+- Side-by-side comparison of options
+- Viewing additional (>3) options (button placeholder only)
+- Sync timing visualization UI
 
 **Technical Implementation**:
 
@@ -230,16 +246,23 @@ const calculateMatchConfidence = (
 6. Allow editing of selected lyrics before proceeding
 7. Validate lyrics format (LRC syntax for synced lyrics)
 
-### Stage 4: Comprehensive Review & Editing
+### Stage 4: Review & Edit (Implemented Basic Editor)
 
 **Goal**: Allow fine-tuning of all metadata before committing
 
-**User Interface**:
+Implemented UI:
 
-- Comprehensive edit form with all fields
-- Real-time validation feedback
+- Per-track card with toggle between read-only summary and tabbed edit form (Basic Info / Sources / Lyrics)
+- Basic validation (required fields, simple URL check, duration mismatch warning)
+- Inline errors & warnings display
+
+Not Yet Implemented:
+
 - Before/after comparison view
-- Bulk editing capabilities
+- Bulk edits across tracks
+- Tag management UI (customTags exists but no editor)
+- Duration normalization (Spotify vs YouTube) – currently placeholder values
+- Personal rating input
 
 **Key Editable Fields**:
 
@@ -275,16 +298,23 @@ type EditableTrackData = {
 - Album art URL validation
 - Lyrics format validation (LRC format for synced)
 
-### Stage 5: Batch Operations & Final Commit
+### Stage 5: Commit (Implemented Basic Batch Save)
 
 **Goal**: Efficiently process multiple tracks and commit to database
 
-**User Interface**:
+Implemented UI:
 
-- Batch review table with expandable rows
-- Select/deselect for final commit
-- Progress indicator for database operations
-- Success/error feedback per track
+- Pre-commit summary list (all tracks assumed selected)
+- Incremental progress list while committing
+- Final summary with success/failure counts & retry failed button
+- Workflow completion CTA (Go to Library / Start New)
+
+Not Yet Implemented:
+
+- Select/deselect subset for commit
+- True database transaction rollback semantics (calls existing `saveSongAndVideo` sequentially)
+- Background job queuing (not visible here)
+- Partial retry of only failed items (current retry re-runs full loop logic placeholder)
 
 **Technical Implementation**:
 
@@ -308,49 +338,69 @@ export async function batchUpsertTracks(
 5. Queue background processing jobs
 6. Commit transaction or rollback on error
 
-## State Management Strategy
+## State Management Strategy (Implemented)
 
 ### Local Storage Draft System
 
-```typescript
-type WorkflowState = {
-  id: string; // Unique workflow session ID
-  currentStage: "youtube" | "spotify" | "lyrics" | "review" | "commit";
+Implemented type (see `types/workflow.ts`):
+
+```ts
+export type WorkflowState = {
+  id: string;
+  currentStage: WorkflowStage; // includes 'search' though no dedicated route yet
   searchQuery: string;
-  selectedVideos: YouTubeVideo[];
+  selectedVideos: YouTubeDiscoveryResult[]; // includes confidence & selected
   spotifyMatches: SpotifyMatchResult[];
-  lyricsSearchResults: LyricsSearchResult[]; // Multiple options per track
+  lyricsSearchResults: LyricsSearchResult[];
   editedTracks: EditableTrackData[];
   timestamp: string;
-  expiresAt: string; // Auto-cleanup after 7 days
-};
-
-// Auto-save every 30 seconds and on stage transitions
-const saveWorkflowState = (state: WorkflowState) => {
-  const stateWithTimestamp = {
-    ...state,
-    timestamp: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  };
-  localStorage.setItem(
-    "orpheus-workflow-draft",
-    JSON.stringify(stateWithTimestamp)
-  );
-};
-
-// Support multiple draft sessions
-const saveNamedDraft = (name: string, state: WorkflowState) => {
-  const drafts = getAllDrafts();
-  drafts[name] = {
-    ...state,
-    timestamp: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  };
-  localStorage.setItem("orpheus-workflow-drafts", JSON.stringify(drafts));
+  expiresAt: string;
 };
 ```
 
-## Error Handling & Recovery
+Enhancements vs original draft:
+
+- `selectedVideos` stores selection inline (no separate structure)
+- Lyrics result stores `trackId` for join
+- Confidence scoring integrated across YouTube, Spotify, Lyrics
+  // Auto-save every 30 seconds and on stage transitions
+  const saveWorkflowState = (state: WorkflowState) => {
+  const stateWithTimestamp = {
+  ...state,
+  timestamp: new Date().toISOString(),
+  expiresAt: new Date(Date.now() + 7 _ 24 _ 60 _ 60 _ 1000).toISOString(),
+  };
+  localStorage.setItem(
+  "orpheus-workflow-draft",
+  JSON.stringify(stateWithTimestamp)
+  );
+  };
+
+// Support multiple draft sessions
+const saveNamedDraft = (name: string, state: WorkflowState) => {
+const drafts = getAllDrafts();
+drafts[name] = {
+...state,
+timestamp: new Date().toISOString(),
+expiresAt: new Date(Date.now() + 7 _ 24 _ 60 _ 60 _ 1000).toISOString(),
+};
+localStorage.setItem("orpheus-workflow-drafts", JSON.stringify(drafts));
+};
+
+````
+
+## Error Handling & Recovery (Current Behavior)
+
+Implemented:
+- Try/catch in server actions with console logging
+- LocalStorage recovery on page load for each stage
+- Draft persistence + multiple named drafts (landing page UI to load/delete)
+
+Not Implemented Yet:
+- Explicit exponential backoff & retry strategies
+- UI-level toast notifications for failures (commented as TODO)
+- Expiration cleanup job beyond lazy load pruning
+- Validation gating in earlier stages (only at review stage)
 
 ### Graceful Degradation
 
@@ -430,9 +480,21 @@ const isValidWorkflowState = (state: any): state is WorkflowState => {
     typeof state.expiresAt === "string"
   );
 };
-```
+````
 
-## Performance Optimizations
+## Performance & Optimization Status
+
+Current implementation:
+
+- Sequential network calls per stage (no batching yet)
+- Simple heuristic filtering & matching (no ML, no caching)
+
+Planned (not yet implemented):
+
+- Redis / cache layer
+- Parallel Spotify searches with rate limit handling queue
+- Background prefetch of next stage data
+- Virtualization for large result sets
 
 ### API Efficiency
 
@@ -448,7 +510,7 @@ const isValidWorkflowState = (state: any): state is WorkflowState => {
 - **Background prefetching**: Preload next stage data
 - **Virtual scrolling**: Handle large result sets efficiently
 
-## File Structure Changes
+## File Structure (Current vs Planned)
 
 ### New Route Structure
 
@@ -497,7 +559,14 @@ app/(music-explorer)/
 │       └── DraftManager.tsx
 ```
 
-### Enhanced Database Schema
+### Database Schema / Persistence
+
+Current code reuses existing song/video persistence via `saveSongAndVideo` (from search actions). No dedicated `workflow_sessions` table or schema extensions (e.g., discoverySource, matchConfidence, lyricsSource) are implemented yet.
+
+Planned (not implemented):
+
+- `workflow_sessions` table
+- Extended songs table fields: discoverySource, matchConfidence, userEdited, customTags, personalRating, lyricsSource, syncedLyrics
 
 ```typescript
 // Add workflow tracking table
@@ -526,7 +595,14 @@ export const songsTableV2 = pgTable("songs", {
 });
 ```
 
-### New Type Definitions
+### Type Definitions (Implemented Subset)
+
+Implemented (`types/workflow.ts`): `WorkflowStage`, `YouTubeDiscoveryResult`, `SpotifyMatchResult`, `LyricsOption`, `LyricsSearchResult`, `EditableTrackData`, `ValidationResult`, `ProcessedTrack`, `CommitResult`.
+
+Differences:
+
+- `ProcessedTrack` used only transiently in review stage (not persisted)
+- `userEdits` partial modifications applied; no diff structure maintained
 
 ```typescript
 // types/workflow.ts
@@ -559,37 +635,38 @@ export type ProcessedTrack = {
 };
 ```
 
-## Implementation Timeline
+## Current Completion Snapshot
 
-### Phase 1 (Week 1-2): Foundation
+| Area                               | Status                                                  |
+| ---------------------------------- | ------------------------------------------------------- |
+| YouTube Discovery                  | Implemented (heuristic scoring, selection, preview)     |
+| Spotify Matching                   | Implemented (basic scoring & selection)                 |
+| Lyrics Enrichment                  | Implemented (top options, selection, sync preview tabs) |
+| Review & Edit                      | Implemented (basic per-track editor + validation)       |
+| Commit                             | Implemented (sequential save + progress feedback)       |
+| Workflow Persistence               | Implemented (localStorage + named drafts)               |
+| Advanced Filtering/Batch Ops       | Not implemented                                         |
+| Manual Overrides (lyrics/match)    | Partial (match select only)                             |
+| Bulk Editing                       | Not implemented                                         |
+| Database Workflow Session Tracking | Not implemented                                         |
+| Extended Schema Fields             | Not implemented                                         |
+| Retry/Backoff Logic                | Not implemented                                         |
+| Caching / Performance Layer        | Not implemented                                         |
 
-- [ ] Create new route structure
-- [ ] Implement workflow state management
-- [ ] Build YouTube discovery stage
-- [ ] Add draft recovery system
+## Prioritized Next Steps
 
-### Phase 2 (Week 3-4): Core Workflow
+1. Persist workflow sessions server-side (enable cross-device recovery)
+2. Add manual lyrics input + extended option expansion
+3. Implement batch commit selection & partial retries
+4. Bulk editing tools (tags, ratings, shared edits)
+5. Enhance validation (duration tolerance, artist similarity scoring feedback)
+6. Introduce caching & parallelization for Spotify & lyrics lookups
+7. Extend DB schema (discoverySource, confidence persistence, lyricsSource)
+8. Replace alert() with toast-based UX and structured error surfaces
+9. Add search suggestions / query assist
+10. Implement prefetch for next stage to reduce perceived latency
 
-- [ ] Implement Spotify matching with confidence scoring
-- [ ] Add lyrics integration with lrclib.net
-- [ ] Build comprehensive review interface
-- [ ] Add validation system
-
-### Phase 3 (Week 5-6): Polish & Optimization
-
-- [ ] Implement batch operations
-- [ ] Add performance optimizations
-- [ ] Comprehensive error handling
-- [ ] User testing and refinement
-
-### Phase 4 (Week 7-8): Migration & Rollout
-
-- [ ] Migrate existing search functionality
-- [ ] A/B testing framework
-- [ ] Documentation and training
-- [ ] Gradual rollout with feature flags
-
-## Success Metrics
+## Success Metrics (Planned – Not Yet Instrumented)
 
 - **User Engagement**: Time spent in workflow vs. completion rate
 - **Data Quality**: Validation error rate and user edit frequency
@@ -597,7 +674,13 @@ export type ProcessedTrack = {
 - **User Satisfaction**: Survey feedback on new vs. old workflow
 - **System Reliability**: Error rate and recovery success rate
 
-## Risk Mitigation
+## Risk Mitigation (Revisited)
+
+Current mitigations are minimal; most sophisticated strategies remain to be implemented. Emphasis should shift to adding structured error surfaces and persistence beyond the browser.
+
+---
+
+This updated document should guide future incremental improvements while accurately reflecting the existing baseline.
 
 - **API Dependencies**: Implement robust fallback mechanisms
 - **Performance Impact**: Load testing with realistic user scenarios
