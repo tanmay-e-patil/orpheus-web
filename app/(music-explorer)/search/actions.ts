@@ -128,6 +128,17 @@ export async function saveSongAndVideo(
     ? song.releaseDate
     : `${song.releaseDate}-01-01`;
 
+  // Extract chosen lyrics (plain + synced) if available
+  let plainLyrics = "";
+  let syncedLyrics = "";
+  let isLyricsAvailable = false;
+  if (lyricsSearchResult?.selectedOption) {
+    const opt = lyricsSearchResult.selectedOption;
+    plainLyrics = opt.plainLyrics || "";
+    syncedLyrics = opt.syncedLyrics || "";
+    isLyricsAvailable = !!(plainLyrics || syncedLyrics);
+  }
+
   const trackInfo: InsertSong = {
     spotifyId: song.id,
     name: song.name,
@@ -139,6 +150,9 @@ export async function saveSongAndVideo(
     releaseYear: releaseDate.split("-")[0],
     albumArt: song.albumImageUrl,
     isAvailable: false,
+    lyrics: plainLyrics,
+    syncedLyrics: syncedLyrics,
+    isLyricsAvailable,
   };
 
   try {
