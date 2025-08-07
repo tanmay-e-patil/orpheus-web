@@ -57,7 +57,7 @@ export default function WorkflowProgress({
   return (
     <Card className="mb-6">
       <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-stretch justify-between max-[50rem]:hidden">
           {stages.map((stage, index) => {
             const status = getStageStatus(index);
             const isLast = index === stages.length - 1;
