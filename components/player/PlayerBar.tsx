@@ -84,7 +84,7 @@ export default function PlayerBar() {
               aria-label="Pause"
               onClick={pause}
             >
-              <PauseIcon className="size-6" />
+              <PauseIcon className="size-4" />
             </Button>
           ) : (
             <Button
@@ -93,7 +93,7 @@ export default function PlayerBar() {
               aria-label="Play"
               onClick={play}
             >
-              <PlayIcon className="size-6" />
+              <PlayIcon className="size-4" />
             </Button>
           )}
           <Button variant="ghost" size="icon" aria-label="Next" onClick={next}>
