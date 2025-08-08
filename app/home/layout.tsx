@@ -11,7 +11,7 @@ export default function HomeLayout({
     <div className="flex h-screen">
       {children}
       <LyricsView />
-      <PlayerBar />
+      
     </div>
   );
 }

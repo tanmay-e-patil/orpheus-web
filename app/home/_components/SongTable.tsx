@@ -10,6 +10,7 @@ import {
 import { usePlayerStore } from "@/lib/player/store";
 import type { Song } from "@/lib/player/types";
 import { toastError } from "@/lib/toast";
+import Image from "next/image";
 
 export function formatIsoDuration(isoDuration: string | null): string | null {
   if (!isoDuration) return null;
@@ -41,7 +42,7 @@ export default function SongTable({ songs }: { songs: Song[] }) {
   };
 
   return (
-    <Table className="bg-accent">
+    <Table className="bg-background">
       <TableHeader>
         <TableRow>
           <TableHead>#</TableHead>
@@ -61,7 +62,10 @@ export default function SongTable({ songs }: { songs: Song[] }) {
               onClick={() => onRowClick(idx)}
             >
               <TableCell className="font-medium">{idx + 1}</TableCell>
-              <TableCell className="truncate max-w-32">{song.name}</TableCell>
+              <TableCell className="truncate max-w-48 flex gap-2">
+                <Image src={song.albumArt} width={20} height={20} alt="" />{" "}
+                {song.name}
+              </TableCell>
               <TableCell className="truncate max-w-32">
                 {song.artistName}
               </TableCell>

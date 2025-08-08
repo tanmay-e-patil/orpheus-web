@@ -4,6 +4,7 @@ import "@/app/globals.css";
 import PlayerProvider from "@/components/player/PlayerProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import PlayerBar from "@/components/player/PlayerBar";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -25,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -35,10 +36,6 @@ export default function RootLayout({
         />
         <link rel="preconnect" href="https://www.youtube.com" />
         <link rel="preconnect" href="https://www.google.com" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Oxanium:wght@200..800&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -52,6 +49,7 @@ export default function RootLayout({
           <PlayerProvider>
             {children}
             <Toaster richColors position="bottom-right" />
+            <PlayerBar />
           </PlayerProvider>
         </ThemeProvider>
       </body>
