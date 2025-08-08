@@ -59,19 +59,6 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="sticky top-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="px-4 py-3 flex items-center gap-2">
             <Link href="/home" className="flex items-center gap-2">
-              {/* <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-6 w-6 text-primary"
-              >
-                <path d="M9 18V5l12-2v13" />
-                <circle cx="6" cy="18" r="3" />
-              </svg> */}
               <Music className="h-4 w-4 rounded-full" />
               <span className="font-bold">Orpheus</span>
             </Link>
