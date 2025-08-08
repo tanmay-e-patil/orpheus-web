@@ -11,7 +11,17 @@ export function parseLRC(raw: string): LrcLine[] {
     if (!match) continue;
     const min = Number(match[1] || 0);
     const sec = Number(match[2] || 0);
-    const ms = Number(match[3] || 0);
+    // Fractional part in LRC is typically centiseconds (2 digits) or milliseconds (3 digits)
+    let ms = 0;
+    if (match[3] != null) {
+      const frac = match[3];
+      const n = Number(frac);
+      if (Number.isFinite(n)) {
+        if (frac.length === 1) ms = n * 100; // .1 -> 100ms
+        else if (frac.length === 2) ms = n * 10; // .12 -> 120ms
+        else ms = n; // .123 -> 123ms
+      }
+    }
     const timeMs = min * 60_000 + sec * 1_000 + ms;
     const text = line.replace(timeTag, "").trim();
     if (text.length === 0) continue;
