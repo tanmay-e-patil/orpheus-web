@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
 import PlayerProvider from "@/components/player/PlayerProvider";
@@ -21,10 +21,6 @@ export const metadata: Metadata = {
   title: "Orpheus",
   description: "A music library for your personal collection",
   manifest: "/manifest.webmanifest",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0B0B0B" },
-  ],
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -37,6 +33,13 @@ export const metadata: Metadata = {
       { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0B0B" },
+  ],
 };
 
 export default function RootLayout({
