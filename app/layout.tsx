@@ -73,8 +73,8 @@ export default function RootLayout({
             <PlayerBar />
           </PlayerProvider>
         </ThemeProvider>
+        <MobileLyricsOverlay />
       </body>
-      <MobileLyricsOverlay />
     </html>
   );
 }

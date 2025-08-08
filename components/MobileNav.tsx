@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Sidebar } from "@/components/sidebar";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +41,7 @@ export default function MobileNav({ className }: { className?: string }) {
         <span className="font-semibold">Orpheus</span>
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTitle className="sr-only" />
         <DialogContent
           className="p-0 gap-0 max-w-none w-[100vw] h-[100dvh] top-0 left-0 translate-x-0 translate-y-0 rounded-none border-0"
           onOpenAutoFocus={(e) => e.preventDefault()}

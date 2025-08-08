@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { usePlayerStore } from "@/lib/player/store";
 import LyricsView from "./LyricsView";
@@ -19,6 +19,7 @@ export default function MobileLyricsOverlay() {
 
   return (
     <Dialog open={open} onOpenChange={(v) => (!v ? close() : void 0)}>
+      <DialogTitle className="sr-only" />
       <DialogContent className="md:hidden p-0 gap-0 max-w-none w-[100vw] h-[100dvh] top-0 left-0 translate-x-0 translate-y-0 rounded-none border-0">
         <div className="w-full h-full flex flex-col bg-background">
           <div className="flex items-center justify-between h-12 px-3 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
