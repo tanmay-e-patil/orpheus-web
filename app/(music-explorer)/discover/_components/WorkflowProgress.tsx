@@ -55,8 +55,8 @@ export default function WorkflowProgress({
   };
 
   return (
-    <Card className="mb-6">
-      <CardContent className="pt-6">
+    <Card className="mb-4 sticky top-[calc(env(safe-area-inset-top)+0px)] z-30">
+      <CardContent className="pt-4">
         <div className="flex items-stretch justify-between max-[50rem]:hidden">
           {stages.map((stage, index) => {
             const status = getStageStatus(index);
@@ -83,8 +83,18 @@ export default function WorkflowProgress({
           })}
         </div>
 
+        {/* Compact mobile bar */}
+        <div className="min-[50rem]:hidden">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+            <span>{stages[currentStageIndex]?.label}</span>
+            <span>
+              {currentStageIndex + 1}/{stages.length}
+            </span>
+          </div>
+        </div>
+
         {/* Progress bar */}
-        <div className="mt-6 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+        <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <div
             className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-in-out"
             style={{
@@ -93,7 +103,7 @@ export default function WorkflowProgress({
           />
         </div>
 
-        <div className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+        <div className="mt-2 text-center text-xs md:text-sm text-gray-600 dark:text-gray-400">
           Step {currentStageIndex + 1} of {stages.length}:{" "}
           {stages[currentStageIndex]?.label}
         </div>
