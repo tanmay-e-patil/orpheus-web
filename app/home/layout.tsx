@@ -13,9 +13,11 @@ export default function HomeLayout({
       <aside className="w-64 border-r">
         <Sidebar className="h-full" />
       </aside>
-      <main className="flex-1 overflow-auto">
-        {children}
-        <LyricsView />
+      <main className="flex-1 overflow-hidden">
+        <div className="flex h-full">
+          <div className="flex-1 overflow-auto">{children}</div>
+          <LyricsView />
+        </div>
       </main>
     </div>
   );

@@ -37,12 +37,12 @@ export default function LyricsView() {
   const noSynced = !current.isLyricsAvailable || !current.syncedLyrics;
 
   return (
-    <aside className="fixed right-4 top-4 bottom-24 z-30 w-80 overflow-hidden rounded-md border bg-background/80 p-3 backdrop-blur">
-      <div className="mb-3 flex items-center gap-3">
+    <aside className="ml-auto w-80 shrink-0 overflow-hidden rounded-md border bg-background p-3 md:sticky md:top-20 md:self-start z-0 flex flex-col">
+      <div className="mb-3 flex flex-col items-left gap-3">
         <img
           src={current.albumArt}
           alt="Album"
-          className="size-12 rounded object-cover"
+          className="rounded object-cover"
         />
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{current.name}</div>
@@ -51,10 +51,8 @@ export default function LyricsView() {
           </div>
         </div>
       </div>
-      <div
-        ref={containerRef}
-        className="h-[calc(100%-3.5rem)] overflow-y-auto pr-2"
-      >
+
+      <div ref={containerRef} className="flex-1 overflow-y-auto pr-2">
         {noSynced ? (
           <p className="whitespace-pre-wrap text-sm text-muted-foreground">
             {current.lyrics || "Lyrics not available."}
