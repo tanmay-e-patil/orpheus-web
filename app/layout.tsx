@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import PlayerBar from "@/components/player/PlayerBar";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import MobileLyricsOverlay from "@/components/player/MobileLyricsOverlay";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -68,10 +69,12 @@ export default function RootLayout({
           <PlayerProvider>
             {children}
             <Toaster richColors position="bottom-right" />
+            <MobileLyricsOverlay />
             <PlayerBar />
           </PlayerProvider>
         </ThemeProvider>
       </body>
+      <MobileLyricsOverlay />
     </html>
   );
 }

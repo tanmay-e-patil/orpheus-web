@@ -15,11 +15,11 @@ export default async function YouTubeDiscoveryPage() {
   }
 
   return (
-    <main className="container mx-auto py-8 px-4">
+    <main className="container mx-auto py-6 px-4 sm:px-6">
       <Link href="/home">
         <h1 className="text-3xl font-bold mb-8 text-center">Orpheus</h1>
       </Link>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-screen-md mx-auto">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-semibold mb-4">
             Stage 1: YouTube Discovery

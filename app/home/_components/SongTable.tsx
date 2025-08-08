@@ -45,41 +45,77 @@ export default function SongTable({ songs }: { songs: Song[] }) {
   };
 
   return (
-    <Table className="bg-background">
-      <TableHeader>
-        <TableRow>
-          <TableHead>#</TableHead>
-          <TableHead>Title</TableHead>
-          <TableHead>Artist</TableHead>
-          <TableHead>Album</TableHead>
-          <TableHead>Duration</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <div className="bg-background">
+      {/* Desktop/tablet table */}
+      <Table className="hidden md:table">
+        <TableHeader>
+          <TableRow>
+            <TableHead>#</TableHead>
+            <TableHead>Title</TableHead>
+            <TableHead>Artist</TableHead>
+            <TableHead>Album</TableHead>
+            <TableHead>Duration</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filtered.map((song, idx) => {
+            const isActive = song.spotifyId === activeId;
+            return (
+              <TableRow
+                key={song.spotifyId}
+                className={`cursor-pointer ${isActive ? "bg-primary/10" : ""}`}
+                onClick={() => onRowClick(idx)}
+              >
+                <TableCell className="font-medium">{idx + 1}</TableCell>
+                <TableCell className="truncate max-w-48 flex gap-2 items-center">
+                  <Image src={song.albumArt} width={24} height={24} alt="" />
+                  <span className="truncate">{song.name}</span>
+                </TableCell>
+                <TableCell className="truncate max-w-32">
+                  {song.artistName}
+                </TableCell>
+                <TableCell className="truncate max-w-32">
+                  {song.albumName}
+                </TableCell>
+                <TableCell>{formatIsoDuration(song.duration)}</TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+
+      {/* Mobile list */}
+      <ul className="md:hidden divide-y">
         {filtered.map((song, idx) => {
           const isActive = song.spotifyId === activeId;
           return (
-            <TableRow
+            <li
               key={song.spotifyId}
-              className={`cursor-pointer ${isActive ? "bg-primary/10" : ""}`}
+              className={`flex items-center gap-3 py-3 cursor-pointer ${
+                isActive ? "bg-primary/10" : ""
+              }`}
               onClick={() => onRowClick(idx)}
             >
-              <TableCell className="font-medium">{idx + 1}</TableCell>
-              <TableCell className="truncate max-w-48 flex gap-2">
-                <Image src={song.albumArt} width={20} height={20} alt="" />{" "}
-                {song.name}
-              </TableCell>
-              <TableCell className="truncate max-w-32">
-                {song.artistName}
-              </TableCell>
-              <TableCell className="truncate max-w-32">
-                {song.albumName}
-              </TableCell>
-              <TableCell>{formatIsoDuration(song.duration)}</TableCell>
-            </TableRow>
+              <Image
+                src={song.albumArt}
+                width={48}
+                height={48}
+                alt=""
+                className="rounded object-cover flex-shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium text-sm">{song.name}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {song.artistName}
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {formatIsoDuration(song.duration)}
+              </div>
+            </li>
           );
         })}
-      </TableBody>
-    </Table>
+      </ul>
+    </div>
   );
 }

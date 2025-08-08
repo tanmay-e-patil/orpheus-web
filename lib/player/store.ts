@@ -9,6 +9,8 @@ export type PlayerState = {
   currentTime: number;
   duration: number;
   controller: PlayerController | null;
+  // UI state
+  isLyricsOverlayOpen?: boolean;
   // actions
   setController: (ctrl: PlayerController) => void;
   setQueue: (songs: Song[], startIndex: number) => void;
@@ -20,6 +22,9 @@ export type PlayerState = {
   setTime: (t: number) => void;
   setDuration: (d: number) => void;
   onEnded: () => void;
+  openLyricsOverlay?: () => void;
+  closeLyricsOverlay?: () => void;
+  toggleLyricsOverlay?: () => void;
 };
 
 export const usePlayerStore = create<PlayerState>(
@@ -37,6 +42,7 @@ export const usePlayerStore = create<PlayerState>(
     currentTime: 0,
     duration: 0,
     controller: null,
+    isLyricsOverlayOpen: false,
 
     setController: (ctrl) => set({ controller: ctrl }),
 
@@ -107,5 +113,10 @@ export const usePlayerStore = create<PlayerState>(
     onEnded: () => {
       get().next();
     },
+
+    openLyricsOverlay: () => set({ isLyricsOverlayOpen: true }),
+    closeLyricsOverlay: () => set({ isLyricsOverlayOpen: false }),
+    toggleLyricsOverlay: () =>
+      set((s) => ({ isLyricsOverlayOpen: !s.isLyricsOverlayOpen })),
   })
 );

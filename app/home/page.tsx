@@ -24,7 +24,7 @@ export default async function MusicPage() {
     .from(songsTable)
     .orderBy(songsTable.artistName); //await getSongTable();
   return (
-    <div className="container mx-auto w-full">
+    <div className="container mx-auto w-full px-4 sm:px-6 py-4">
       <SongTable songs={songs as any} />
     </div>
   );

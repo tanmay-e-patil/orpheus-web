@@ -29,9 +29,9 @@ export function Sidebar({ className }: SidebarProps) {
   }
 
   return (
-    <ScrollArea>
-      <div className={cn("pb-12", className)}>
-        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+    <ScrollArea className={cn("h-dvh md:h-full", className)}>
+      <div className={cn("pb-12 flex flex-col h-full", className)}>
+        <div className="md:sticky md:top-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="px-4 py-3 flex items-center gap-2">
             <Link href="/home" className="flex items-center gap-2">
               <Music className="h-4 w-4 rounded-full" />
@@ -39,7 +39,7 @@ export function Sidebar({ className }: SidebarProps) {
             </Link>
           </div>
         </div>
-        <div>
+        <div className="flex-1 overflow-y-auto">
           <div>
             <div>
               <Link
