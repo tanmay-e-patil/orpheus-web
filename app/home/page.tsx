@@ -25,20 +25,7 @@ export default async function MusicPage() {
     .orderBy(songsTable.artistName); //await getSongTable();
   return (
     <div className="container mx-auto w-full">
-      <div className="space-y-4 py-4">
-        <div className="py-2 flex justify-between">
-          <h2 className="mb-2 text-2xl font-semibold tracking-tight">
-            All tracks
-          </h2>
-          <Link href="/discover">
-            <Button className="mb-2 px-4 font-semibold tracking-tight">
-              <PlusCircledIcon />
-              Add music
-            </Button>
-          </Link>
-        </div>
-        <SongTable songs={songs as any} />
-      </div>
+      <SongTable songs={songs as any} />
     </div>
   );
 }
