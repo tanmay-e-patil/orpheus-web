@@ -15,4 +15,6 @@ export type SpotifyTrack = {
   album: string;
   albumImageUrl: string;
   releaseDate: string;
+  // Duration in milliseconds from Spotify API
+  durationMs?: number;
 };

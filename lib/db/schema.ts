@@ -6,6 +6,8 @@ export const songsTable = pgTable("songs", {
   albumName: text("album_name").notNull().default("Unknown"),
   albumArt: text("album_art").notNull(),
   lyrics: text("lyrics").notNull().default(""),
+  // Raw synced lyrics in LRC (or other timecoded) format
+  syncedLyrics: text("synced_lyrics").notNull().default(""),
   isLyricsAvailable: boolean("is_lyrics_available").default(false),
   duration: text("duration").notNull(),
   youtubeVideoId: text("yt_video_id")
@@ -85,9 +87,9 @@ export const verification = pgTable("verification", {
   value: text("value").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").$defaultFn(
-    () => /* @__PURE__ */ new Date(),
+    () => /* @__PURE__ */ new Date()
   ),
   updatedAt: timestamp("updated_at").$defaultFn(
-    () => /* @__PURE__ */ new Date(),
+    () => /* @__PURE__ */ new Date()
   ),
 });

@@ -30,20 +30,35 @@ export default function SpotifySearch() {
   };
   return (
     <div>
-      <form onSubmit={handleSearch} className="max-w-xl mx-auto mb-8">
-        <div className="flex gap-2">
-          <Input
-            type="text"
-            placeholder="Search for songs, artists, or albums..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="flex-1"
-          />
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Searching..." : "Search"}
+      <div className="max-w-xl mx-auto mb-8">
+        <div className="text-center mb-6 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+          <h3 className="font-semibold mb-2">
+            🔥 Try the New Multi-Stage Workflow!
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Discover music through YouTube, enrich with Spotify metadata, add
+            lyrics, and build your perfect library.
+          </p>
+          <Button asChild>
+            <a href="/discover">Try New Workflow</a>
           </Button>
         </div>
-      </form>
+
+        <form onSubmit={handleSearch}>
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="Search for songs, artists, or albums..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Searching..." : "Search"}
+            </Button>
+          </div>
+        </form>
+      </div>
 
       {results && (
         <div className="max-w-5xl mx-auto">

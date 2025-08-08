@@ -15,5 +15,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/home", "/search"], // Specify the routes the middleware applies to
+  matcher: ["/home", "/discover/:path*"], // Protect home and discover workflow
 };
