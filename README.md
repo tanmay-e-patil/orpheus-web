@@ -16,6 +16,13 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Home Audio Player
+
+- Visit `/home` and click any track row to start playback via YouTube audio.
+- A bottom player shows transport controls and a seek bar.
+- A lyrics panel on the right shows synced lyrics (LRC) when available; otherwise it shows unsynced lyrics or a placeholder.
+- Audio is provided via an offscreen YouTube iframe. An attribution link is shown in the player.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
