@@ -37,7 +37,7 @@ export default function LyricsView() {
   const noSynced = !current.isLyricsAvailable || !current.syncedLyrics;
 
   return (
-    <aside className="ml-auto w-80 shrink-0 overflow-hidden rounded-md border bg-background p-3 md:sticky md:top-20 md:self-start z-0 flex flex-col">
+    <aside className="ml-auto w-80 shrink-0 overflow-hidden rounded-md border bg-background p-3 md:sticky md:self-start z-0 flex flex-col">
       <div className="mb-3 flex flex-col items-left gap-3">
         <img
           src={current.albumArt}
