@@ -26,4 +26,9 @@ export type PlayerController = {
   seekTo: (seconds: number) => void;
   getCurrentTime?: () => number;
   getDuration?: () => number;
+  // Optional volume controls
+  setVolume?: (volume: number) => void; // 0-100
+  getVolume?: () => number;
+  toggleMute?: () => void;
+  isMuted?: () => boolean;
 };

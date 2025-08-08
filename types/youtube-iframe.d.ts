@@ -31,6 +31,12 @@ declare namespace YT {
     seekTo(seconds: number, allowSeekAhead: boolean): void;
     getDuration(): number;
     getCurrentTime(): number;
+    // Volume controls
+    setVolume(volume: number): void; // 0-100
+    getVolume(): number;
+    mute(): void;
+    unMute(): void;
+    isMuted(): boolean;
   }
 }
 

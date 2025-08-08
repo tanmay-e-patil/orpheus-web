@@ -57,6 +57,18 @@ export default function PlayerProvider({
       seekTo: (s: number) => playerRef.current?.seekTo?.(s, true),
       getCurrentTime: () => playerRef.current?.getCurrentTime?.() ?? 0,
       getDuration: () => playerRef.current?.getDuration?.() ?? 0,
+      setVolume: (v: number) =>
+        playerRef.current?.setVolume?.(
+          Math.max(0, Math.min(100, Math.round(v)))
+        ),
+      getVolume: () => playerRef.current?.getVolume?.() ?? 100,
+      toggleMute: () => {
+        if (!playerRef.current) return;
+        const muted = playerRef.current.isMuted?.();
+        if (muted) playerRef.current.unMute?.();
+        else playerRef.current.mute?.();
+      },
+      isMuted: () => playerRef.current?.isMuted?.() ?? false,
     };
     setController(ctrl);
   };
