@@ -8,6 +8,9 @@ import {
   LyricsOption,
 } from "@/types/workflow";
 import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
+import { upsertSongInfo } from "@/lib/db/queries/insert";
+import { InsertSong } from "@/lib/db/schema";
+import amqp from "amqplib";
 
 // String similarity helper function
 function stringSimilarity(str1: string, str2: string): number {
@@ -432,6 +435,75 @@ export async function fetchLyricsOptions(
   }
 
   return searchResult;
+}
+
+// Save selected song + video to DB and enqueue background job
+export async function saveSongAndVideo(
+  song: SpotifyTrack,
+  video: YouTubeVideo,
+  lyricsSearchResult: LyricsSearchResult
+) {
+  const releaseDate = song.releaseDate.includes("-")
+    ? song.releaseDate
+    : `${song.releaseDate}-01-01`;
+
+  // Extract chosen lyrics (plain + synced) if available
+  let plainLyrics = "";
+  let syncedLyrics = "";
+  let isLyricsAvailable = false;
+  if (lyricsSearchResult?.selectedOption) {
+    const opt = lyricsSearchResult.selectedOption;
+    plainLyrics = opt.plainLyrics || "";
+    syncedLyrics = opt.syncedLyrics || "";
+    isLyricsAvailable = !!(plainLyrics || syncedLyrics);
+  }
+
+  const trackInfo: InsertSong = {
+    spotifyId: song.id,
+    name: song.name,
+    albumName: song.album,
+    artistName: song.artist,
+    duration: video.duration || "00:00",
+    youtubeVideoId: video.id,
+    releaseDate: releaseDate,
+    releaseYear: releaseDate.split("-")[0],
+    albumArt: song.albumImageUrl,
+    isAvailable: false,
+    lyrics: plainLyrics,
+    syncedLyrics: syncedLyrics,
+    isLyricsAvailable,
+  };
+
+  try {
+    await upsertSongInfo(trackInfo, video);
+  } catch (error) {
+    console.error("Error storing in db", error);
+    throw error;
+  }
+
+  const queue = "job_queue";
+  const jobPayload = {
+    jobId: song.id,
+    action: "process-song-data",
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    const connection = await amqp.connect(env.RABBITMQ_URL);
+    const channel = await connection.createChannel();
+    await channel.assertQueue(queue, { durable: true });
+
+    channel.sendToQueue(queue, Buffer.from(JSON.stringify(jobPayload)), {
+      persistent: true,
+    });
+
+    console.log(" [x] Sent job:", jobPayload);
+    await channel.close();
+    await connection.close();
+  } catch (error) {
+    console.error("RabbitMQ Error:", error);
+    throw error;
+  }
 }
 
 // Calculate match confidence for lyrics

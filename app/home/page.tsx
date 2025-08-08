@@ -54,7 +54,7 @@ export default async function MusicPage() {
           <h2 className="mb-2 text-2xl font-semibold tracking-tight">
             All tracks
           </h2>
-          <Link href="/search">
+          <Link href="/discover">
             <Button className="mb-2 px-4 font-semibold tracking-tight">
               <PlusCircledIcon />
               Add music

@@ -16,7 +16,7 @@ import {
 import { EditableTrackData, CommitResult } from "@/types/workflow";
 import { loadWorkflowState, clearWorkflowState } from "@/lib/workflow-state";
 import WorkflowProgress from "../../_components/WorkflowProgress";
-import { saveSongAndVideo } from "../../../search/actions"; // Import from existing actions
+import { saveSongAndVideo } from "../../actions"; // migrated to discover actions
 import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
 
 export default function CommitToLibrary() {

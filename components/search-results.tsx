@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Grid, List, Youtube } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { searchYouTubeVideo } from "@/app/(music-explorer)/search/actions";
+import { discoverYouTubeVideos } from "@/app/(music-explorer)/discover/actions";
 import { YouTubeModal } from "./youtube-modal";
 import { InsertSong } from "@/lib/db/schema";
 import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
@@ -49,7 +49,8 @@ export function SearchResults({ type, items }: SearchResultsProps) {
         releaseDate: releaseDate,
         id: trackId,
       });
-      const videos = await searchYouTubeVideo(trackName, artistName);
+  // Use the new discover workflow YouTube discovery
+  const videos = await discoverYouTubeVideos(`${trackName} ${artistName}`);
       setYoutubeVideos(videos);
       setYoutubeModalOpen(true);
     } catch (error) {

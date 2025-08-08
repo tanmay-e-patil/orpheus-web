@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Eye, X } from "lucide-react";
 import { SpotifyTrack } from "@/types/explorer";
 import { ScrollArea } from "./ui/scroll-area";
-import { saveSongAndVideo } from "@/app/(music-explorer)/search/actions";
+import { saveSongAndVideo } from "@/app/(music-explorer)/discover/actions";
+import { LyricsSearchResult } from "@/types/workflow";
 
 type YouTubeVideo = {
   id: string;
@@ -55,7 +56,17 @@ export function YouTubeModal({
   }, [videos]);
 
   async function handleLibraryInsert(video: YouTubeVideo): Promise<void> {
-    await saveSongAndVideo(selectedTrack, video);
+    const emptyLyrics: LyricsSearchResult = {
+      trackId: selectedTrack.id,
+      query: {
+        track: selectedTrack.name,
+        artist: selectedTrack.artist,
+        album: selectedTrack.album,
+      },
+      options: [],
+      status: "none",
+    };
+    await saveSongAndVideo(selectedTrack, video, emptyLyrics);
     onClose();
   }
 
