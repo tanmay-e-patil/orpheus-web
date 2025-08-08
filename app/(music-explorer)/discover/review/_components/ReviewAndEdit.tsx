@@ -43,6 +43,15 @@ export default function ReviewAndEdit() {
           (lr) => lr.trackId === spotifyMatch.selectedMatch!.id
         );
 
+        const spotifyMs = spotifyMatch.selectedMatch?.durationMs;
+        const formatMsToClock = (ms?: number): string => {
+          if (typeof ms !== "number") return "Unknown";
+          const totalSeconds = Math.floor(ms / 1000);
+          const minutes = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
+          return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+        };
+
         const processedTrack: ProcessedTrack = {
           youtube: spotifyMatch.youtubeVideo,
           spotify: spotifyMatch.selectedMatch,
@@ -56,7 +65,7 @@ export default function ReviewAndEdit() {
             youtubeTitle: spotifyMatch.youtubeVideo.title,
             youtubeChannel: spotifyMatch.youtubeVideo.channelTitle,
             youtubeDuration: spotifyMatch.youtubeVideo.duration || "Unknown",
-            spotifyDuration: "Unknown", // We'd need to calculate this from Spotify
+            spotifyDuration: formatMsToClock(spotifyMs),
             lyrics: lyricsResult?.selectedOption?.plainLyrics || "",
             syncedLyrics: lyricsResult?.selectedOption?.syncedLyrics,
             customTags: [],
@@ -70,7 +79,7 @@ export default function ReviewAndEdit() {
             youtubeTitle: spotifyMatch.youtubeVideo.title,
             youtubeChannel: spotifyMatch.youtubeVideo.channelTitle,
             youtubeDuration: spotifyMatch.youtubeVideo.duration || "Unknown",
-            spotifyDuration: "Unknown",
+            spotifyDuration: formatMsToClock(spotifyMs),
             lyrics: lyricsResult?.selectedOption?.plainLyrics || "",
             syncedLyrics: lyricsResult?.selectedOption?.syncedLyrics,
             customTags: [],
@@ -100,15 +109,38 @@ export default function ReviewAndEdit() {
       warnings.push("Album art URL appears invalid");
     }
 
-    // Duration consistency check
+    // Duration consistency check (tolerate small differences)
     if (trackData.youtubeDuration && trackData.spotifyDuration) {
-      // This would be a more complex check in practice
-      if (trackData.youtubeDuration !== trackData.spotifyDuration) {
-        const yt = trackData.youtubeDuration || "Unknown";
-        const sp = trackData.spotifyDuration || "Unknown";
-        warnings.push(
-          `YouTube and Spotify durations don't match (YouTube: ${yt}, Spotify: ${sp})`
-        );
+      const parseIso = (duration: string): number => {
+        const m = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+        if (!m) return NaN;
+        const h = parseInt(m[1] || "0");
+        const min = parseInt(m[2] || "0");
+        const s = parseInt(m[3] || "0");
+        return h * 3600 + min * 60 + s;
+      };
+      const parseClock = (clock: string): number => {
+        // Expects m:ss or mm:ss
+        const parts = clock.split(":");
+        if (parts.length !== 2) return NaN;
+        const min = parseInt(parts[0]);
+        const s = parseInt(parts[1]);
+        if (Number.isNaN(min) || Number.isNaN(s)) return NaN;
+        return min * 60 + s;
+      };
+
+      const ytSec = parseIso(trackData.youtubeDuration);
+      const spSec = parseClock(trackData.spotifyDuration);
+
+      if (!Number.isNaN(ytSec) && !Number.isNaN(spSec)) {
+        const diff = Math.abs(ytSec - spSec);
+        if (diff > 5) {
+          warnings.push(
+            `YouTube and Spotify durations don't match (YouTube: ${formatDuration(
+              trackData.youtubeDuration
+            )}, Spotify: ${trackData.spotifyDuration})`
+          );
+        }
       }
     }
 
@@ -358,7 +390,7 @@ export default function ReviewAndEdit() {
                         className="w-full h-48 p-3 border rounded-md resize-none"
                         value={track.userEdits.syncedLyrics || ""}
                         onChange={(e) =>
-                          updateTrackData(index, "lyrics", e.target.value)
+                          updateTrackData(index, "syncedLyrics", e.target.value)
                         }
                         placeholder="Enter lyrics..."
                       />
@@ -381,6 +413,9 @@ export default function ReviewAndEdit() {
                         <strong>Duration:</strong>{" "}
                         {formatDuration(
                           track.userEdits.youtubeDuration || null
+                        )}
+                        {track.userEdits.spotifyDuration && (
+                          <> • Spotify: {track.userEdits.spotifyDuration}</>
                         )}
                       </div>
                       {track.userEdits.customTags &&

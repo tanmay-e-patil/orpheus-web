@@ -271,6 +271,7 @@ export async function findSpotifyMatches(
                 album: track.album.name,
                 albumImageUrl: track.album.images[0]?.url || "",
                 releaseDate: track.album.release_date,
+                durationMs: track.duration_ms,
                 matchScore: Math.round(score * 100),
               };
             });

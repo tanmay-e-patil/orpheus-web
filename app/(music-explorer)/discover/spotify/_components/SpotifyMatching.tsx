@@ -159,6 +159,14 @@ export default function SpotifyMatching() {
     }
   };
 
+  const formatSpotifyMs = (ms?: number): string => {
+    if (!ms && ms !== 0) return "";
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
   if (selectedVideos.length === 0) {
     return (
       <div className="text-center py-12">
@@ -262,6 +270,12 @@ export default function SpotifyMatching() {
                                     </p>
                                     <p className="text-xs text-gray-500">
                                       {match.releaseDate}
+                                      {typeof match.durationMs === "number" && (
+                                        <>
+                                          {" "}
+                                          • {formatSpotifyMs(match.durationMs)}
+                                        </>
+                                      )}
                                     </p>
                                   </div>
                                 </div>
