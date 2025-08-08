@@ -94,7 +94,7 @@ export default function LyricsView() {
   const showSynced = hasFetchedSynced || hasLocalSynced;
 
   return (
-    <aside className="ml-auto w-80 shrink-0 rounded-md border bg-background p-3 md:sticky md:self-start z-0 flex flex-col max-h-[100vh] overflow-hidden">
+    <aside className="ml-auto w-80 shrink-0 rounded-md border bg-background p-3 md:sticky md:self-start z-0 flex flex-col max-h-[93vh] overflow-hidden">
       <div className="mb-3 flex flex-col items-left gap-3 sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-1 pb-2 z-10">
         <img
           src={current.albumArt}
