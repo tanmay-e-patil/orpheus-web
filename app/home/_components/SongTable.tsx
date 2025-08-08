@@ -12,7 +12,6 @@ import { usePlayerStore } from "@/lib/player/store";
 import type { Song } from "@/lib/player/types";
 import { toastError } from "@/lib/toast";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
 
 export function formatIsoDuration(isoDuration: string | null): string | null {
   if (!isoDuration) return null;
@@ -33,17 +32,8 @@ export function formatIsoDuration(isoDuration: string | null): string | null {
 export default function SongTable({ songs }: { songs: Song[] }) {
   const setQueue = usePlayerStore((s) => s.setQueue);
   const activeId = usePlayerStore((s) => s.queue[s.currentIndex]?.spotifyId);
-  const searchParams = useSearchParams();
-  const q = (searchParams.get("q") ?? "").toLowerCase();
-  const filtered = React.useMemo(() => {
-    if (!q) return songs;
-    return songs.filter((s) => {
-      const title = s.name?.toLowerCase() ?? "";
-      const artist = s.artistName?.toLowerCase() ?? "";
-      const album = s.albumName?.toLowerCase() ?? "";
-      return title.includes(q) || artist.includes(q) || album.includes(q);
-    });
-  }, [q, songs]);
+
+  const filtered = songs;
 
   const onRowClick = (idx: number) => {
     const sel = songs[idx];

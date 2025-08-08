@@ -2,11 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { toastError, toastInfo } from "@/lib/toast";
 import { Music } from "lucide-react";
@@ -16,30 +15,6 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
 export function Sidebar({ className }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [query, setQuery] = React.useState<string>(searchParams.get("q") ?? "");
-  const debouncedRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  React.useEffect(() => {
-    // keep local input in sync if URL changes elsewhere
-    const urlQ = searchParams.get("q") ?? "";
-    setQuery((prev) => (prev !== urlQ ? urlQ : prev));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.toString()]);
-
-  function updateUrl(next: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (next.trim()) params.set("q", next.trim());
-    else params.delete("q");
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }
-
-  function onSearchChange(v: string) {
-    setQuery(v);
-    if (debouncedRef.current) clearTimeout(debouncedRef.current);
-    debouncedRef.current = setTimeout(() => updateUrl(v), 250);
-  }
 
   async function handleSignOut() {
     try {
@@ -63,15 +38,7 @@ export function Sidebar({ className }: SidebarProps) {
               <span className="font-bold">Orpheus</span>
             </Link>
           </div>
-          <div className="px-2 pb-2">
-            <Input
-              value={query}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search by title, artist, album"
-            />
-          </div>
         </div>
-
         <div>
           <div>
             <div>
