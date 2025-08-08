@@ -104,7 +104,11 @@ export default function ReviewAndEdit() {
     if (trackData.youtubeDuration && trackData.spotifyDuration) {
       // This would be a more complex check in practice
       if (trackData.youtubeDuration !== trackData.spotifyDuration) {
-        warnings.push("YouTube and Spotify durations don't match");
+        const yt = trackData.youtubeDuration || "Unknown";
+        const sp = trackData.spotifyDuration || "Unknown";
+        warnings.push(
+          `YouTube and Spotify durations don't match (YouTube: ${yt}, Spotify: ${sp})`
+        );
       }
     }
 

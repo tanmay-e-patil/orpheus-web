@@ -38,7 +38,25 @@ export default function SpotifyMatching() {
 
     // Check if we already have Spotify matches
     if (workflowState.spotifyMatches.length > 0) {
-      setMatchResults(workflowState.spotifyMatches);
+      // If selection has changed since matches were generated, recompute
+      const selectedIds = new Set(selected.map((v) => v.id));
+      const matchedIds = new Set(
+        workflowState.spotifyMatches.map((m) => m.youtubeVideo.id)
+      );
+
+      const sameSize = selectedIds.size === matchedIds.size;
+      const sameMembers =
+        sameSize && [...selectedIds].every((id) => matchedIds.has(id));
+
+      if (!sameMembers) {
+        if (selected.length > 0) {
+          findMatches(selected);
+        } else {
+          setMatchResults([]);
+        }
+      } else {
+        setMatchResults(workflowState.spotifyMatches);
+      }
     } else if (selected.length > 0) {
       // Start finding Spotify matches
       findMatches(selected);
@@ -102,6 +120,10 @@ export default function SpotifyMatching() {
   };
 
   const goBack = () => {
+    const state = loadWorkflowState();
+    if (state) {
+      updateWorkflowStage(state, "youtube");
+    }
     router.push("/discover/youtube");
   };
 

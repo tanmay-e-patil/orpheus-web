@@ -50,11 +50,15 @@ export default function YouTubeDiscovery() {
   useEffect(() => {
     // Load existing workflow state
     const existingState = loadWorkflowState();
-    if (existingState && existingState.currentStage === "youtube") {
+    if (existingState && existingState.selectedVideos.length > 0) {
+      // Restore previously discovered videos and selections regardless of stage
       setSearchQuery(existingState.searchQuery);
       setVideos(existingState.selectedVideos);
       setSelectedVideos(existingState.selectedVideos.filter((v) => v.selected));
       setHasSearched(true);
+
+      // Ensure workflow stage reflects current route for progress UI
+      updateWorkflowStage(existingState, "youtube");
     } else if (initialQuery) {
       // Auto-search if we have a query parameter
       handleSearch(initialQuery);
