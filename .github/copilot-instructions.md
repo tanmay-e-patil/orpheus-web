@@ -46,10 +46,10 @@ bun run build    # Production build
 
 ```bash
 # Generate migrations after schema changes
-npx drizzle-kit generate
+bunx drizzle-kit generate
 
 # Apply migrations (uses Supabase-style migration folder)
-npx drizzle-kit migrate
+bunx drizzle-kit migrate
 ```
 
 ### Key Environment Variables
