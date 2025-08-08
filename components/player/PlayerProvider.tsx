@@ -52,11 +52,11 @@ export default function PlayerProvider({
       load: (videoId: string) => {
         playerRef.current?.loadVideoById(videoId);
       },
-      play: () => playerRef.current?.playVideo(),
-      pause: () => playerRef.current?.pauseVideo(),
-      seekTo: (s: number) => playerRef.current?.seekTo(s, true),
-      getCurrentTime: () => playerRef.current?.getCurrentTime() ?? 0,
-      getDuration: () => playerRef.current?.getDuration() ?? 0,
+      play: () => playerRef.current?.playVideo?.(),
+      pause: () => playerRef.current?.pauseVideo?.(),
+      seekTo: (s: number) => playerRef.current?.seekTo?.(s, true),
+      getCurrentTime: () => playerRef.current?.getCurrentTime?.() ?? 0,
+      getDuration: () => playerRef.current?.getDuration?.() ?? 0,
     };
     setController(ctrl);
   };
@@ -98,8 +98,8 @@ export default function PlayerProvider({
       const now = performance.now();
       if (now - last > 250) {
         last = now;
-        const t = playerRef.current?.getCurrentTime() ?? 0;
-        const d = playerRef.current?.getDuration() ?? 0;
+        const t = playerRef.current?.getCurrentTime?.() ?? 0;
+        const d = playerRef.current?.getDuration?.() ?? 0;
         setTime(t);
         setDuration(d);
       }
