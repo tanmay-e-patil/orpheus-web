@@ -13,7 +13,7 @@ export default function ExplorerLayout({
       <main className="flex-1 overflow-hidden">
         <MobileNav />
         <div className="flex h-[calc(100dvh-3rem)] md:h-full">
-          <div className="flex-1 overflow-auto px-4 md:px-0">{children}</div>
+          <div className="flex-1 overflow-auto px-4 pb-24 md:px-0">{children}</div>
           <div className="hidden md:block">
             <LyricsView />
           </div>
