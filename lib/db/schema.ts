@@ -1,24 +1,39 @@
-import { boolean, date, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-export const songsTable = pgTable("songs", {
-  spotifyId: text("id").notNull().primaryKey(),
-  name: text("name").notNull(),
-  artistName: text("artist_name").notNull().default("Unknown"),
-  albumName: text("album_name").notNull().default("Unknown"),
-  albumArt: text("album_art").notNull(),
-  lyrics: text("lyrics").notNull().default(""),
-  // Raw synced lyrics in LRC (or other timecoded) format
-  syncedLyrics: text("synced_lyrics").notNull().default(""),
-  isLyricsAvailable: boolean("is_lyrics_available").default(false),
-  duration: text("duration").notNull(),
-  youtubeVideoId: text("yt_video_id")
-    .notNull()
-    .references(() => ytMusicVideoTable.id),
-  isAvailable: boolean("is_available").default(false),
-  releaseDate: date("release_date").notNull(),
-  releaseYear: text("release_year").default("Unknown"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+import {
+  boolean,
+  date,
+  index,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
+
+export const songsTable = pgTable(
+  "songs",
+  {
+    spotifyId: text("id").notNull().primaryKey(),
+    name: text("name").notNull(),
+    artistName: text("artist_name").notNull().default("Unknown"),
+    albumName: text("album_name").notNull().default("Unknown"),
+    albumArt: text("album_art").notNull(),
+    lyrics: text("lyrics").notNull().default(""),
+    // Raw synced lyrics in LRC (or other timecoded) format
+    syncedLyrics: text("synced_lyrics").notNull().default(""),
+    isLyricsAvailable: boolean("is_lyrics_available").default(false),
+    duration: text("duration").notNull(),
+    youtubeVideoId: text("yt_video_id")
+      .notNull()
+      .references(() => ytMusicVideoTable.id),
+    isAvailable: boolean("is_available").default(false),
+    releaseDate: date("release_date").notNull(),
+    releaseYear: text("release_year").default("Unknown"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("artist_name_idx").on(table.artistName),
+    index("yt_video_id_idx").on(table.youtubeVideoId),
+  ]
+);
 
 export const ytMusicVideoTable = pgTable("yt_music_videos", {
   id: text("id").notNull().primaryKey(),
@@ -50,36 +65,44 @@ export const user = pgTable("user", {
   displayUsername: text("display_username"),
 });
 
-export const session = pgTable("session", {
-  id: text("id").primaryKey(),
-  expiresAt: timestamp("expires_at").notNull(),
-  token: text("token").notNull().unique(),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-});
+export const session = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at").notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("session_user_id_idx").on(table.userId)]
+);
 
-export const account = pgTable("account", {
-  id: text("id").primaryKey(),
-  accountId: text("account_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  accessToken: text("access_token"),
-  refreshToken: text("refresh_token"),
-  idToken: text("id_token"),
-  accessTokenExpiresAt: timestamp("access_token_expires_at"),
-  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-  scope: text("scope"),
-  password: text("password"),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
-});
+export const account = pgTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (table) => [index("account_user_id_idx").on(table.userId)]
+);
 
 export const verification = pgTable("verification", {
   id: text("id").primaryKey(),
