@@ -1,13 +1,11 @@
-// "use client";
-import { Button } from "@/components/ui/button";
-import { PlusCircledIcon } from "@radix-ui/react-icons";
-import Link from "next/link";
 import { db } from "@/lib/db";
 import { songsTable } from "@/lib/db/schema";
 import SongTable from "./_components/SongTable";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { asc } from "drizzle-orm";
+import type { Song } from "@/lib/player/types";
 
 // server component; formatting handled client-side
 
@@ -22,10 +20,11 @@ export default async function MusicPage() {
   const songs = await db
     .select()
     .from(songsTable)
-    .orderBy(songsTable.artistName); //await getSongTable();
+    .orderBy(asc(songsTable.artistName), asc(songsTable.spotifyId))
+    .limit(50);
   return (
     <div className="container mx-auto w-full px-4 sm:px-6 py-4">
-      <SongTable songs={songs as any} />
+      <SongTable initialSongs={songs as unknown as Song[]} />
     </div>
   );
 }
