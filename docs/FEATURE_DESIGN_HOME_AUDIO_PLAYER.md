@@ -33,7 +33,7 @@ This design focuses on client-side playback using the YouTube IFrame Player API,
 ## Data Contracts
 
 - songsTable (drizzle, `lib/db/schema.ts`)
-  - `spotifyId: string` (PK)
+  - `trackId: string` (PK)
   - `name: string`
   - `artistName: string`
   - `albumName: string`
