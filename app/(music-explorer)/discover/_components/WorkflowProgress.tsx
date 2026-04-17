@@ -16,7 +16,7 @@ export default function WorkflowProgress({
   const stages = [
     { key: "search", label: "Search", description: "Enter search query" },
     { key: "youtube", label: "YouTube", description: "Discover videos" },
-    { key: "spotify", label: "Spotify", description: "Match metadata" },
+    { key: "spotify", label: "Deezer", description: "Match metadata" },
     { key: "lyrics", label: "Lyrics", description: "Add lyrics" },
     { key: "review", label: "Review", description: "Edit & validate" },
     { key: "commit", label: "Commit", description: "Save to library" },

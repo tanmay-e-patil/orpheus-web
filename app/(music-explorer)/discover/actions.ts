@@ -53,6 +53,30 @@ function cleanString(str: string): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+async function fetchDeezerTrackDate(trackId: string): Promise<string> {
+  try {
+    const res = await fetch(`https://api.deezer.com/track/${trackId}`);
+    if (!res.ok) return "";
+    const data = await res.json();
+    return sanitizeDeezerDate(data.release_date);
+  } catch {
+    return "";
+  }
+}
+
+function sanitizeDeezerDate(raw: string | null | undefined): string {
+  const s = raw?.trim() ?? "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split("-").map(Number);
+    if (y === 0) return "";
+    const month = m >= 1 && m <= 12 ? m : 1;
+    const day = d >= 1 && d <= 31 ? d : 1;
+    return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+  if (/^\d{4}$/.test(s) && Number(s) > 0) return `${s}-01-01`;
+  return "";
+}
+
 // YouTube Discovery
 export async function discoverYouTubeVideos(
   query: string
@@ -221,7 +245,7 @@ export async function findTrackMatches(
               artist: track.artist.name,
               album: track.album.title,
               albumImageUrl: track.album.cover_xl || track.album.cover_big || track.album.cover_medium || track.album.cover || "",
-              releaseDate: track.release_date ?? "",
+              releaseDate: sanitizeDeezerDate(track.release_date),
               durationMs: track.duration ? track.duration * 1000 : undefined,
               matchScore: Math.round(score * 100),
             };
@@ -244,9 +268,15 @@ export async function findTrackMatches(
 
       uniqueMatches.sort((a, b) => b.matchScore - a.matchScore);
 
+      const top5 = uniqueMatches.slice(0, 5);
+      for (const match of top5) {
+        match.releaseDate = await fetchDeezerTrackDate(match.id);
+        await sleep(80);
+      }
+
       let confidence: "high" | "medium" | "low" | "none" = "none";
-      if (uniqueMatches.length > 0) {
-        const topScore = uniqueMatches[0].matchScore;
+      if (top5.length > 0) {
+        const topScore = top5[0].matchScore;
         if (topScore >= 70) confidence = "high";
         else if (topScore >= 50) confidence = "medium";
         else confidence = "low";
@@ -254,9 +284,9 @@ export async function findTrackMatches(
 
       matchResults.push({
         youtubeVideo: video,
-        trackMatches: uniqueMatches.slice(0, 5),
+        trackMatches: top5,
         confidence,
-        selectedMatch: uniqueMatches[0] || undefined,
+        selectedMatch: top5[0] || undefined,
       });
     } catch (error) {
       console.error(`Error matching video ${video.id}:`, error);
@@ -440,6 +470,130 @@ export async function saveSongAndVideo(
     console.error("RabbitMQ Error:", error);
     throw error;
   }
+}
+
+// Single-video Deezer search with custom query
+export async function searchTrackWithCustomQuery(
+  video: YouTubeVideo,
+  customQuery: string
+): Promise<TrackMatchResult> {
+  try {
+    const searchResponse = await fetch(
+      `https://api.deezer.com/search?q=${encodeURIComponent(customQuery)}&limit=10`
+    );
+
+    if (!searchResponse.ok) {
+      return { youtubeVideo: video, trackMatches: [], confidence: "none" };
+    }
+
+    const searchData = await searchResponse.json();
+    const matches = (searchData.data ?? []).map((track: any) => {
+      let score = 0;
+      const titleSimilarity = stringSimilarity(
+        cleanString(video.title),
+        cleanString(`${track.title} ${track.artist.name}`)
+      );
+      score += titleSimilarity * 0.7;
+      if (cleanString(video.title).includes(cleanString(track.artist.name)))
+        score += 0.2;
+      if (video.duration && track.duration) {
+        const videoDurationMs = parseDuration(video.duration) * 1000;
+        const durationDiff = Math.abs(videoDurationMs - track.duration * 1000);
+        score += Math.max(0, 1 - durationDiff / 30000) * 0.1;
+      }
+      return {
+        id: String(track.id),
+        name: track.title,
+        artist: track.artist.name,
+        album: track.album.title,
+        albumImageUrl:
+          track.album.cover_xl ||
+          track.album.cover_big ||
+          track.album.cover_medium ||
+          track.album.cover ||
+          "",
+        releaseDate: sanitizeDeezerDate(track.release_date),
+        durationMs: track.duration ? track.duration * 1000 : undefined,
+        matchScore: Math.round(score * 100),
+      };
+    });
+
+    matches.sort((a: any, b: any) => b.matchScore - a.matchScore);
+
+    const top5 = matches.slice(0, 5);
+    for (const match of top5) {
+      match.releaseDate = await fetchDeezerTrackDate(match.id);
+      await sleep(80);
+    }
+
+    let confidence: "high" | "medium" | "low" | "none" = "none";
+    if (top5.length > 0) {
+      const topScore = top5[0].matchScore;
+      if (topScore >= 70) confidence = "high";
+      else if (topScore >= 50) confidence = "medium";
+      else confidence = "low";
+    }
+
+    return {
+      youtubeVideo: video,
+      trackMatches: top5,
+      confidence,
+      selectedMatch: top5[0] || undefined,
+    };
+  } catch (error) {
+    console.error("Error in custom track search:", error);
+    return { youtubeVideo: video, trackMatches: [], confidence: "none" };
+  }
+}
+
+// Single-track lyrics search with custom query
+export async function searchLyricsWithCustomQuery(
+  track: MusicTrack,
+  customQuery: string
+): Promise<LyricsSearchResult> {
+  const searchResult: LyricsSearchResult = {
+    trackId: track.id,
+    query: { track: track.name, artist: track.artist, album: track.album },
+    options: [],
+    status: "none",
+  };
+
+  try {
+    const response = await fetch(
+      `https://lrclib.net/api/search?q=${encodeURIComponent(customQuery)}`
+    );
+
+    if (!response.ok) return searchResult;
+
+    const results = await response.json();
+    const options: LyricsOption[] = results.map((result: any) => ({
+      id: result.id,
+      trackName: result.trackName || result.name,
+      artistName: result.artistName || result.artist,
+      albumName: result.albumName || result.album,
+      duration: result.duration,
+      plainLyrics: result.plainLyrics,
+      syncedLyrics: result.syncedLyrics,
+      source: "lrclib" as const,
+      confidence: calculateMatchConfidence(result, {
+        track: track.name,
+        artist: track.artist,
+        album: track.album,
+      }),
+      hasSync: Boolean(result.syncedLyrics),
+    }));
+
+    options.sort((a, b) => b.confidence - a.confidence);
+    searchResult.options = options.slice(0, 10);
+    searchResult.selectedOption = options[0];
+    if (options.length > 0) {
+      searchResult.status = options[0].confidence >= 60 ? "found" : "partial";
+    }
+  } catch (error) {
+    console.error("Error in custom lyrics search:", error);
+  }
+
+  return searchResult;
 }
 
 function calculateMatchConfidence(

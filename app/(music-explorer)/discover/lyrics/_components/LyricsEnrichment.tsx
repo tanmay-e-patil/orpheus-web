@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import {
   ArrowRight,
   ArrowLeft,
@@ -16,9 +17,11 @@ import {
   Check,
   X,
   Clock,
+  Search,
 } from "lucide-react";
-import { fetchLyricsOptions } from "../../actions";
+import { fetchLyricsOptions, searchLyricsWithCustomQuery } from "../../actions";
 import { LyricsSearchResult, TrackMatchResult } from "@/types/workflow";
+import SyncLyricsTest from "./SyncLyricsTest";
 import {
   loadWorkflowState,
   saveWorkflowState,
@@ -31,6 +34,11 @@ export default function LyricsEnrichment() {
   const [lyricsResults, setLyricsResults] = useState<LyricsSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [matchedTracks, setMatchedTracks] = useState<TrackMatchResult[]>([]);
+  const [customQueryOpen, setCustomQueryOpen] = useState<Record<number, boolean>>({});
+  const [customQueryInputs, setCustomQueryInputs] = useState<Record<number, string>>({});
+  const [customQueryLoading, setCustomQueryLoading] = useState<Record<number, boolean>>({});
+  // key: `${resultIndex}-${optionId}` → open
+  const [syncTestOpen, setSyncTestOpen] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     // Load workflow state
@@ -109,6 +117,35 @@ export default function LyricsEnrichment() {
     if (workflowState) {
       workflowState.lyricsSearchResults = updatedResults;
       saveWorkflowState(workflowState);
+    }
+  };
+
+  const runCustomLyricsSearch = async (resultIndex: number) => {
+    const query = customQueryInputs[resultIndex]?.trim();
+    if (!query) return;
+
+    const track = matchedTracks.find(
+      (t) => t.selectedMatch?.id === lyricsResults[resultIndex].trackId
+    )?.selectedMatch;
+    if (!track) return;
+
+    setCustomQueryLoading((prev) => ({ ...prev, [resultIndex]: true }));
+    try {
+      const result = await searchLyricsWithCustomQuery(track, query);
+      const updatedResults = [...lyricsResults];
+      updatedResults[resultIndex] = result;
+      setLyricsResults(updatedResults);
+      setCustomQueryOpen((prev) => ({ ...prev, [resultIndex]: false }));
+
+      const workflowState = loadWorkflowState();
+      if (workflowState) {
+        workflowState.lyricsSearchResults = updatedResults;
+        saveWorkflowState(workflowState);
+      }
+    } catch (error) {
+      console.error("Custom lyrics search failed:", error);
+    } finally {
+      setCustomQueryLoading((prev) => ({ ...prev, [resultIndex]: false }));
     }
   };
 
@@ -327,6 +364,47 @@ export default function LyricsEnrichment() {
                                       </TabsContent>
                                     </Tabs>
                                   )}
+
+                                {/* Test sync button */}
+                                {option.hasSync &&
+                                  option.syncedLyrics &&
+                                  matchedTrack?.youtubeVideo?.id && (
+                                    <div
+                                      className="mt-3"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {syncTestOpen[
+                                        `${resultIndex}-${option.id}`
+                                      ] ? (
+                                        <SyncLyricsTest
+                                          syncedLyrics={option.syncedLyrics}
+                                          youtubeVideoId={
+                                            matchedTrack.youtubeVideo.id
+                                          }
+                                          onClose={() =>
+                                            setSyncTestOpen((prev) => ({
+                                              ...prev,
+                                              [`${resultIndex}-${option.id}`]: false,
+                                            }))
+                                          }
+                                        />
+                                      ) : (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() =>
+                                            setSyncTestOpen((prev) => ({
+                                              ...prev,
+                                              [`${resultIndex}-${option.id}`]: true,
+                                            }))
+                                          }
+                                        >
+                                          <Clock className="w-3 h-3 mr-1" />
+                                          Test Sync
+                                        </Button>
+                                      )}
+                                    </div>
+                                  )}
                               </div>
                             ))}
                         </div>
@@ -342,27 +420,114 @@ export default function LyricsEnrichment() {
                             <X className="w-4 h-4 mr-2" />
                             No Lyrics
                           </Button>
-                          {result.options.length > 3 && (
-                            <Button variant="ghost" size="sm">
-                              View {result.options.length - 3} more options
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setCustomQueryOpen((prev) => ({
+                                ...prev,
+                                [resultIndex]: !prev[resultIndex],
+                              }))
+                            }
+                          >
+                            <Search className="w-4 h-4 mr-1" />
+                            Try different search
+                          </Button>
                         </div>
+                        {customQueryOpen[resultIndex] && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Input
+                              placeholder="Custom lyrics search query..."
+                              value={customQueryInputs[resultIndex] ?? ""}
+                              onChange={(e) =>
+                                setCustomQueryInputs((prev) => ({
+                                  ...prev,
+                                  [resultIndex]: e.target.value,
+                                }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter")
+                                  runCustomLyricsSearch(resultIndex);
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              disabled={customQueryLoading[resultIndex]}
+                              onClick={() => runCustomLyricsSearch(resultIndex)}
+                            >
+                              {customQueryLoading[resultIndex] ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Search className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="text-center py-8">
-                        <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                        <p className="text-gray-600 dark:text-gray-400">
-                          No lyrics found for this track
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          onClick={() => skipLyrics(resultIndex)}
-                        >
-                          Continue without lyrics
-                        </Button>
+                      <div className="space-y-4">
+                        <div className="text-center py-6">
+                          <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                          <p className="text-gray-600 dark:text-gray-400">
+                            No lyrics found for this track
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => skipLyrics(resultIndex)}
+                          >
+                            Continue without lyrics
+                          </Button>
+                        </div>
+                        <Separator />
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="self-start"
+                            onClick={() =>
+                              setCustomQueryOpen((prev) => ({
+                                ...prev,
+                                [resultIndex]: !prev[resultIndex],
+                              }))
+                            }
+                          >
+                            <Search className="w-4 h-4 mr-1" />
+                            Try different search
+                          </Button>
+                          {customQueryOpen[resultIndex] && (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                placeholder="Custom lyrics search query..."
+                                value={customQueryInputs[resultIndex] ?? ""}
+                                onChange={(e) =>
+                                  setCustomQueryInputs((prev) => ({
+                                    ...prev,
+                                    [resultIndex]: e.target.value,
+                                  }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter")
+                                    runCustomLyricsSearch(resultIndex);
+                                }}
+                              />
+                              <Button
+                                size="sm"
+                                disabled={customQueryLoading[resultIndex]}
+                                onClick={() =>
+                                  runCustomLyricsSearch(resultIndex)
+                                }
+                              >
+                                {customQueryLoading[resultIndex] ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Search className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </CardContent>

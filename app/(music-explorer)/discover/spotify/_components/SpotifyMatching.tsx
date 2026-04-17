@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, ArrowLeft, Loader2, Music, Check, X } from "lucide-react";
-import { findTrackMatches } from "../../actions";
+import { Input } from "@/components/ui/input";
+import { ArrowRight, ArrowLeft, Loader2, Music, Check, X, Search } from "lucide-react";
+import { findTrackMatches, searchTrackWithCustomQuery } from "../../actions";
 import { TrackMatchResult, YouTubeDiscoveryResult } from "@/types/workflow";
 import {
   loadWorkflowState,
@@ -20,9 +21,10 @@ export default function SpotifyMatching() {
   const router = useRouter();
   const [matchResults, setMatchResults] = useState<TrackMatchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedVideos, setSelectedVideos] = useState<
-    YouTubeDiscoveryResult[]
-  >([]);
+  const [selectedVideos, setSelectedVideos] = useState<YouTubeDiscoveryResult[]>([]);
+  const [customQueryOpen, setCustomQueryOpen] = useState<Record<number, boolean>>({});
+  const [customQueryInputs, setCustomQueryInputs] = useState<Record<number, string>>({});
+  const [customQueryLoading, setCustomQueryLoading] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     // Load workflow state and selected videos
@@ -107,6 +109,31 @@ export default function SpotifyMatching() {
     if (workflowState) {
       workflowState.trackMatches = updatedResults;
       saveWorkflowState(workflowState);
+    }
+  };
+
+  const runCustomSearch = async (resultIndex: number) => {
+    const query = customQueryInputs[resultIndex]?.trim();
+    if (!query) return;
+
+    setCustomQueryLoading((prev) => ({ ...prev, [resultIndex]: true }));
+    try {
+      const video = matchResults[resultIndex].youtubeVideo;
+      const result = await searchTrackWithCustomQuery(video, query);
+      const updatedResults = [...matchResults];
+      updatedResults[resultIndex] = result;
+      setMatchResults(updatedResults);
+      setCustomQueryOpen((prev) => ({ ...prev, [resultIndex]: false }));
+
+      const workflowState = loadWorkflowState();
+      if (workflowState) {
+        workflowState.trackMatches = updatedResults;
+        saveWorkflowState(workflowState);
+      }
+    } catch (error) {
+      console.error("Custom search failed:", error);
+    } finally {
+      setCustomQueryLoading((prev) => ({ ...prev, [resultIndex]: false }));
     }
   };
 
@@ -301,27 +328,118 @@ export default function SpotifyMatching() {
                           <X className="w-4 h-4 mr-2" />
                           Skip (No match)
                         </Button>
-                        {result.trackMatches.length > 3 && (
-                          <Button variant="ghost" size="sm">
-                            View {result.trackMatches.length - 3} more matches
+                        <div className="flex items-center gap-2">
+                          {result.trackMatches.length > 3 && (
+                            <Button variant="ghost" size="sm">
+                              View {result.trackMatches.length - 3} more matches
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setCustomQueryOpen((prev) => ({
+                                ...prev,
+                                [resultIndex]: !prev[resultIndex],
+                              }))
+                            }
+                          >
+                            <Search className="w-4 h-4 mr-1" />
+                            Try different search
                           </Button>
-                        )}
+                        </div>
                       </div>
+                      {customQueryOpen[resultIndex] && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Input
+                            placeholder="Custom search query..."
+                            value={customQueryInputs[resultIndex] ?? ""}
+                            onChange={(e) =>
+                              setCustomQueryInputs((prev) => ({
+                                ...prev,
+                                [resultIndex]: e.target.value,
+                              }))
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") runCustomSearch(resultIndex);
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            disabled={customQueryLoading[resultIndex]}
+                            onClick={() => runCustomSearch(resultIndex)}
+                          >
+                            {customQueryLoading[resultIndex] ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Search className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="text-center py-8">
-                      <Music className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                      <p className="text-gray-600 dark:text-gray-400">
-                        No matches found for this video
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => skipMatch(resultIndex)}
-                      >
-                        Skip this video
-                      </Button>
+                    <div className="space-y-4">
+                      <div className="text-center py-6">
+                        <Music className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                        <p className="text-gray-600 dark:text-gray-400">
+                          No matches found for this video
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => skipMatch(resultIndex)}
+                        >
+                          Skip this video
+                        </Button>
+                      </div>
+                      <Separator />
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="self-start"
+                          onClick={() =>
+                            setCustomQueryOpen((prev) => ({
+                              ...prev,
+                              [resultIndex]: !prev[resultIndex],
+                            }))
+                          }
+                        >
+                          <Search className="w-4 h-4 mr-1" />
+                          Try different search
+                        </Button>
+                        {customQueryOpen[resultIndex] && (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="Custom search query..."
+                              value={customQueryInputs[resultIndex] ?? ""}
+                              onChange={(e) =>
+                                setCustomQueryInputs((prev) => ({
+                                  ...prev,
+                                  [resultIndex]: e.target.value,
+                                }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter")
+                                  runCustomSearch(resultIndex);
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              disabled={customQueryLoading[resultIndex]}
+                              onClick={() => runCustomSearch(resultIndex)}
+                            >
+                              {customQueryLoading[resultIndex] ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Search className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </CardContent>

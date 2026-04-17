@@ -22,10 +22,10 @@ export default async function SpotifyMatchingPage() {
       <div className="max-w-screen-md mx-auto">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-semibold mb-4">
-            Stage 2: Spotify Matching
+            Stage 2: Deezer Matching
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            Enrich your selected videos with structured Spotify metadata
+            Enrich your selected videos with structured track metadata from Deezer
           </p>
         </div>
         <SpotifyMatching />
