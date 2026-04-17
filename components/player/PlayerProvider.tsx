@@ -37,6 +37,29 @@ export default function PlayerProvider({
       events: {
         onReady: (e) => {
           setDuration(e.target.getDuration() || 0);
+          const ctrl: PlayerController = {
+            load: (videoId: string) => {
+              playerRef.current?.loadVideoById(videoId);
+            },
+            play: () => playerRef.current?.playVideo?.(),
+            pause: () => playerRef.current?.pauseVideo?.(),
+            seekTo: (s: number) => playerRef.current?.seekTo?.(s, true),
+            getCurrentTime: () => playerRef.current?.getCurrentTime?.() ?? 0,
+            getDuration: () => playerRef.current?.getDuration?.() ?? 0,
+            setVolume: (v: number) =>
+              playerRef.current?.setVolume?.(
+                Math.max(0, Math.min(100, Math.round(v)))
+              ),
+            getVolume: () => playerRef.current?.getVolume?.() ?? 100,
+            toggleMute: () => {
+              if (!playerRef.current) return;
+              const muted = playerRef.current.isMuted?.();
+              if (muted) playerRef.current.unMute?.();
+              else playerRef.current.mute?.();
+            },
+            isMuted: () => playerRef.current?.isMuted?.() ?? false,
+          };
+          setController(ctrl);
         },
         onStateChange: (e) => {
           if (e.data === YT.PlayerState.ENDED) onEnded();
@@ -47,30 +70,6 @@ export default function PlayerProvider({
         },
       },
     });
-
-    const ctrl: PlayerController = {
-      load: (videoId: string) => {
-        playerRef.current?.loadVideoById(videoId);
-      },
-      play: () => playerRef.current?.playVideo?.(),
-      pause: () => playerRef.current?.pauseVideo?.(),
-      seekTo: (s: number) => playerRef.current?.seekTo?.(s, true),
-      getCurrentTime: () => playerRef.current?.getCurrentTime?.() ?? 0,
-      getDuration: () => playerRef.current?.getDuration?.() ?? 0,
-      setVolume: (v: number) =>
-        playerRef.current?.setVolume?.(
-          Math.max(0, Math.min(100, Math.round(v)))
-        ),
-      getVolume: () => playerRef.current?.getVolume?.() ?? 100,
-      toggleMute: () => {
-        if (!playerRef.current) return;
-        const muted = playerRef.current.isMuted?.();
-        if (muted) playerRef.current.unMute?.();
-        else playerRef.current.mute?.();
-      },
-      isMuted: () => playerRef.current?.isMuted?.() ?? false,
-    };
-    setController(ctrl);
   };
 
   // Load YouTube IFrame API once

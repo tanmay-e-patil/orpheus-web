@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import { usePlayerStore } from "@/lib/player/store";
+import { useAlbumArt } from "@/lib/player/useAlbumArt";
 import { Button } from "@/components/ui/button";
 import {
   Pause as PauseIcon,
@@ -31,6 +32,7 @@ export default function PlayerBar() {
   const seek = usePlayerStore((s) => s.seek);
 
   const now = queue[currentIndex];
+  const albumArt = useAlbumArt(now?.trackId ?? "", now?.albumArt ?? "");
   const progressPct = useMemo(
     () => (duration > 0 ? (currentTime / duration) * 100 : 0),
     [currentTime, duration]
@@ -101,9 +103,10 @@ export default function PlayerBar() {
           {now && (
             <>
               <img
-                src={now.albumArt || "/placeholder.svg"}
+                src={albumArt.src || "/placeholder.svg"}
                 alt="Now playing"
                 className="w-10 h-10 object-cover"
+                onError={albumArt.onError}
               />
               <div className="flex-shrink min-w-0">
                 <div className="text-sm font-medium truncate max-w-[120px] sm:max-w-[200px] text-gray-200">

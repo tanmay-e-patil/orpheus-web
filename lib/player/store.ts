@@ -14,6 +14,7 @@ export type PlayerState = {
   // actions
   setController: (ctrl: PlayerController) => void;
   setQueue: (songs: Song[], startIndex: number) => void;
+  updateSongAlbumArt: (trackId: string, albumArt: string) => void;
   play: () => void;
   pause: () => void;
   next: () => void;
@@ -45,6 +46,13 @@ export const usePlayerStore = create<PlayerState>(
     isLyricsOverlayOpen: false,
 
     setController: (ctrl) => set({ controller: ctrl }),
+
+    updateSongAlbumArt: (trackId, albumArt) =>
+      set((s) => ({
+        queue: s.queue.map((song) =>
+          song.trackId === trackId ? { ...song, albumArt } : song
+        ),
+      })),
 
     setQueue: (songs, startIndex) => {
       const ctrl = get().controller;

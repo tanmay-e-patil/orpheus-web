@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlayerStore } from "@/lib/player/store";
+import { useAlbumArt } from "@/lib/player/useAlbumArt";
 import { findActiveIndex, parseLRC } from "@/lib/player/lrc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -8,6 +9,7 @@ import { toast } from "sonner";
 export default function LyricsView() {
   const current = usePlayerStore((s) => s.queue[s.currentIndex]);
   const currentTime = usePlayerStore((s) => s.currentTime);
+  const albumArt = useAlbumArt(current?.trackId ?? "", current?.albumArt ?? "");
   const [fetched, setFetched] = useState<{
     plainLyrics: string;
     syncedLyrics: string;
@@ -97,9 +99,10 @@ export default function LyricsView() {
     <aside className="ml-auto w-80 shrink-0 rounded-md border bg-background p-3 md:sticky md:self-start z-0 flex flex-col max-h-[93vh] overflow-hidden">
       <div className="mb-3 flex flex-col items-left gap-3 sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-1 pb-2 z-10">
         <img
-          src={current.albumArt}
+          src={albumArt.src || "/placeholder.svg"}
           alt="Album"
           className="rounded object-cover"
+          onError={albumArt.onError}
         />
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{current.name}</div>

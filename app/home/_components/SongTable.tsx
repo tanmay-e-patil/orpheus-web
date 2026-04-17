@@ -12,7 +12,42 @@ import { usePlayerStore } from "@/lib/player/store";
 import type { Song } from "@/lib/player/types";
 import { toastError } from "@/lib/toast";
 import Image from "next/image";
-import { getMoreSongs } from "../actions";
+import { getMoreSongs, refreshAlbumArtsBatch } from "../actions";
+
+function AlbumArt({
+  src,
+  trackId,
+  size,
+  onError,
+}: {
+  src: string;
+  trackId: string;
+  size: number;
+  onError: (id: string) => void;
+}) {
+  const [failed, setFailed] = React.useState(false);
+
+  React.useEffect(() => { setFailed(false); }, [src]);
+
+  if (!src || failed) {
+    return (
+      <div
+        style={{ width: size, height: size }}
+        className="rounded bg-muted flex-shrink-0"
+      />
+    );
+  }
+  return (
+    <Image
+      src={src}
+      width={size}
+      height={size}
+      alt=""
+      className="rounded object-cover flex-shrink-0"
+      onError={() => { setFailed(true); onError(trackId); }}
+    />
+  );
+}
 
 export function formatIsoDuration(isoDuration: string | null): string | null {
   if (!isoDuration) return null;
@@ -37,6 +72,21 @@ export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
   const [songs, setSongs] = React.useState<Song[]>(initialSongs);
   const [hasMore, setHasMore] = React.useState(initialSongs.length === 50);
   const [loadingMore, setLoadingMore] = React.useState(false);
+  const [refreshedArt, setRefreshedArt] = React.useState<Record<string, string>>({});
+
+  const pendingRefresh = React.useRef<Set<string>>(new Set());
+  const refreshTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleArtError = React.useCallback((trackId: string) => {
+    pendingRefresh.current.add(trackId);
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(async () => {
+      const ids = [...pendingRefresh.current];
+      pendingRefresh.current.clear();
+      const result = await refreshAlbumArtsBatch(ids).catch(() => ({}));
+      setRefreshedArt((prev) => ({ ...prev, ...result }));
+    }, 500);
+  }, []);
 
   const observerRef = React.useRef<IntersectionObserver | null>(null);
   const bottomBoundaryRef = React.useRef<HTMLDivElement | null>(null);
@@ -121,7 +171,7 @@ export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
               >
                 <TableCell className="font-medium">{idx + 1}</TableCell>
                 <TableCell className="truncate max-w-48 flex gap-2 items-center">
-                  <Image src={song.albumArt} width={24} height={24} alt="" />
+                  <AlbumArt src={refreshedArt[song.trackId] ?? song.albumArt} trackId={song.trackId} size={24} onError={handleArtError} />
                   <span className="truncate">{song.name}</span>
                 </TableCell>
                 <TableCell className="truncate max-w-32">
@@ -149,13 +199,7 @@ export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
               }`}
               onClick={() => onRowClick(idx)}
             >
-              <Image
-                src={song.albumArt}
-                width={48}
-                height={48}
-                alt=""
-                className="rounded object-cover flex-shrink-0"
-              />
+              <AlbumArt src={refreshedArt[song.trackId] ?? song.albumArt} trackId={song.trackId} size={48} onError={handleArtError} />
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium text-sm">{song.name}</div>
                 <div className="truncate text-xs text-muted-foreground">
