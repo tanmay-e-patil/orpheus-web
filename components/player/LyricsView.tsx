@@ -88,7 +88,7 @@ export default function LyricsView() {
     run();
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.spotifyId]);
+  }, [current?.trackId]);
 
   if (!current) return null;
   const hasFetchedSynced = Boolean(fetched?.syncedLyrics?.trim()?.length);
@@ -133,7 +133,7 @@ export default function LyricsView() {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
-                        spotifyId: current.spotifyId,
+                        trackId: current.trackId,
                         plainLyrics: fetched.plainLyrics,
                         syncedLyrics: fetched.syncedLyrics,
                       }),
@@ -185,7 +185,7 @@ export default function LyricsView() {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                          spotifyId: current.spotifyId,
+                          trackId: current.trackId,
                           plainLyrics: fetched?.plainLyrics || "",
                           syncedLyrics: fetched?.syncedLyrics || "",
                         }),
