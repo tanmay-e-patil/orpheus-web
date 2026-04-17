@@ -18,21 +18,21 @@ export async function getMoreSongs(
     throw new Error("Unauthorized");
   }
 
-  const query = db.select().from(songsTable);
+  const baseQuery = db.select().from(songsTable);
 
-  if (cursor) {
-    query.where(
-      or(
-        gt(songsTable.artistName, cursor.artistName),
-        and(
-          eq(songsTable.artistName, cursor.artistName),
-          gt(songsTable.trackId, cursor.trackId)
+  const filteredQuery = cursor
+    ? baseQuery.where(
+        or(
+          gt(songsTable.artistName, cursor.artistName),
+          and(
+            eq(songsTable.artistName, cursor.artistName),
+            gt(songsTable.trackId, cursor.trackId)
+          )
         )
       )
-    );
-  }
+    : baseQuery;
 
-  return await query
+  return await filteredQuery
     .orderBy(asc(songsTable.artistName), asc(songsTable.trackId))
     .limit(limit);
 }

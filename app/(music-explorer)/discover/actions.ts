@@ -220,7 +220,7 @@ export async function findTrackMatches(
               name: track.title,
               artist: track.artist.name,
               album: track.album.title,
-              albumImageUrl: track.album.cover_xl || "",
+              albumImageUrl: track.album.cover_xl || track.album.cover_big || track.album.cover_medium || track.album.cover || "",
               releaseDate: track.release_date ?? "",
               durationMs: track.duration ? track.duration * 1000 : undefined,
               matchScore: Math.round(score * 100),

@@ -41,9 +41,9 @@ export function SearchResults({ type, items }: SearchResultsProps) {
   };
 
   const getItemImageUrl = (item: any): string => {
-    if (type === "tracks") return item.album?.cover_xl || "/placeholder.svg";
-    if (type === "albums") return item.cover_xl || "/placeholder.svg";
-    return item.picture_xl || "/placeholder.svg";
+    if (type === "tracks") return item.album?.cover_xl || item.album?.cover_big || item.album?.cover_medium || item.album?.cover || "/placeholder.svg";
+    if (type === "albums") return item.cover_xl || item.cover_big || item.cover_medium || item.cover || "/placeholder.svg";
+    return item.picture_xl || item.picture_big || item.picture_medium || item.picture || "/placeholder.svg";
   };
 
   const getAlbumName = (item: any): string | null =>

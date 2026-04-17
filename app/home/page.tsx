@@ -20,7 +20,7 @@ export default async function MusicPage() {
   const songs = await db
     .select()
     .from(songsTable)
-    .orderBy(asc(songsTable.artistName), asc(songsTable.spotifyId))
+    .orderBy(asc(songsTable.artistName), asc(songsTable.trackId))
     .limit(50);
   return (
     <div className="container mx-auto w-full px-4 sm:px-6 py-4">

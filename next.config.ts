@@ -9,7 +9,7 @@ const runtimeCaching = [
   // Cache images (album art, YouTube thumbs)
   {
     urlPattern:
-      /^https?:\/\/(i\.scdn\.co|i\.ytimg\.com|img\.youtube\.com)\/.*/i,
+      /^https?:\/\/(i\.scdn\.co|i\.ytimg\.com|img\.youtube\.com|e-cdns-images\.dzcdn\.net|cdns-images\.dzcdn\.net)\/.*/i,
     handler: "StaleWhileRevalidate",
     options: {
       cacheName: "remote-images",
@@ -75,6 +75,8 @@ const nextConfig = {
       { protocol: "https", hostname: "i.scdn.co", pathname: "**" },
       { protocol: "https", hostname: "i.ytimg.com", pathname: "**" },
       { protocol: "https", hostname: "img.youtube.com", pathname: "**" },
+      { protocol: "https", hostname: "e-cdns-images.dzcdn.net", pathname: "**" },
+      { protocol: "https", hostname: "cdns-images.dzcdn.net", pathname: "**" },
     ],
   },
 };
