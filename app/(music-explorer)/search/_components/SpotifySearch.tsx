@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Music, Disc, User } from "lucide-react";
 import { useState } from "react";
-import { searchSpotify } from "../actions";
+import { searchMusic } from "../actions";
 
 export default function SpotifySearch() {
   const [query, setQuery] = useState("");
@@ -20,7 +20,7 @@ export default function SpotifySearch() {
 
     setIsLoading(true);
     try {
-      const data = await searchSpotify(query);
+      const data = await searchMusic(query);
       setResults(data);
     } catch (error) {
       console.error("Search failed:", error);
@@ -36,7 +36,7 @@ export default function SpotifySearch() {
             🔥 Try the New Multi-Stage Workflow!
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Discover music through YouTube, enrich with Spotify metadata, add
+            Discover music through YouTube, enrich with Deezer metadata, add
             lyrics, and build your perfect library.
           </p>
           <Button asChild>

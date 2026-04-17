@@ -1,4 +1,4 @@
-import { SpotifyTrack, YouTubeVideo } from "./explorer";
+import { MusicTrack, YouTubeVideo } from "./explorer";
 
 export type WorkflowStage =
   | "search"
@@ -10,14 +10,14 @@ export type WorkflowStage =
 
 export type YouTubeDiscoveryResult = YouTubeVideo & {
   confidence: number;
-  musicProbability: number; // AI-scored likelihood it's music content
+  musicProbability: number;
   selected?: boolean;
 };
 
-export type SpotifyMatchResult = {
+export type TrackMatchResult = {
   youtubeVideo: YouTubeVideo;
-  spotifyMatches: (SpotifyTrack & { matchScore: number })[];
-  selectedMatch?: SpotifyTrack;
+  trackMatches: (MusicTrack & { matchScore: number })[];
+  selectedMatch?: MusicTrack;
   confidence: "high" | "medium" | "low" | "none";
 };
 
@@ -28,14 +28,14 @@ export type LyricsOption = {
   albumName?: string;
   duration?: number;
   plainLyrics?: string;
-  syncedLyrics?: string; // LRC format
+  syncedLyrics?: string;
   source: "lrclib" | "manual";
-  confidence: number; // 0-100 based on metadata match
+  confidence: number;
   hasSync: boolean;
 };
 
 export type LyricsSearchResult = {
-  trackId: string; // Spotify track ID for reference
+  trackId: string;
   query: {
     track: string;
     artist: string;
@@ -48,24 +48,20 @@ export type LyricsSearchResult = {
 };
 
 export type EditableTrackData = {
-  // YouTube metadata
   youtubeTitle: string;
   youtubeChannel: string;
   youtubeDuration: string;
 
-  // Spotify metadata
   trackName: string;
   artistName: string;
   albumName: string;
   albumArt: string;
   releaseDate: string;
-  spotifyDuration: string;
+  trackDuration: string;
 
-  // Lyrics data
   lyrics: string;
   syncedLyrics?: string;
 
-  // User overrides
   customTags: string[];
   personalRating?: number;
 };
@@ -78,22 +74,22 @@ export type ValidationResult = {
 
 export type ProcessedTrack = {
   youtube: YouTubeVideo;
-  spotify?: SpotifyTrack;
+  track?: MusicTrack;
   lyrics?: LyricsSearchResult;
   userEdits: Partial<EditableTrackData>;
   validationStatus: ValidationResult;
 };
 
 export type WorkflowState = {
-  id: string; // Unique workflow session ID
+  id: string;
   currentStage: WorkflowStage;
   searchQuery: string;
   selectedVideos: YouTubeDiscoveryResult[];
-  spotifyMatches: SpotifyMatchResult[];
-  lyricsSearchResults: LyricsSearchResult[]; // Multiple options per track
+  trackMatches: TrackMatchResult[];
+  lyricsSearchResults: LyricsSearchResult[];
   editedTracks: EditableTrackData[];
   timestamp: string;
-  expiresAt: string; // Auto-cleanup after 7 days
+  expiresAt: string;
 };
 
 export type CommitResult = {

@@ -22,7 +22,7 @@ export const createInitialWorkflowState = (
     currentStage: "youtube",
     searchQuery,
     selectedVideos: [],
-    spotifyMatches: [],
+    trackMatches: [],
     lyricsSearchResults: [],
     editedTracks: [],
     timestamp: now.toISOString(),
@@ -145,7 +145,7 @@ export const isValidWorkflowState = (state: any): state is WorkflowState => {
     typeof state.currentStage === "string" &&
     typeof state.searchQuery === "string" &&
     Array.isArray(state.selectedVideos) &&
-    Array.isArray(state.spotifyMatches) &&
+    Array.isArray(state.trackMatches) &&
     Array.isArray(state.lyricsSearchResults) &&
     Array.isArray(state.editedTracks) &&
     typeof state.timestamp === "string" &&

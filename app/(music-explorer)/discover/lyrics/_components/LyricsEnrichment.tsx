@@ -18,7 +18,7 @@ import {
   Clock,
 } from "lucide-react";
 import { fetchLyricsOptions } from "../../actions";
-import { LyricsSearchResult, SpotifyMatchResult } from "@/types/workflow";
+import { LyricsSearchResult, TrackMatchResult } from "@/types/workflow";
 import {
   loadWorkflowState,
   saveWorkflowState,
@@ -30,7 +30,7 @@ export default function LyricsEnrichment() {
   const router = useRouter();
   const [lyricsResults, setLyricsResults] = useState<LyricsSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [matchedTracks, setMatchedTracks] = useState<SpotifyMatchResult[]>([]);
+  const [matchedTracks, setMatchedTracks] = useState<TrackMatchResult[]>([]);
 
   useEffect(() => {
     // Load workflow state
@@ -41,7 +41,7 @@ export default function LyricsEnrichment() {
     }
 
     // Get tracks that have Spotify matches
-    const matched = workflowState.spotifyMatches.filter(
+    const matched = workflowState.trackMatches.filter(
       (result) => result.selectedMatch
     );
     setMatchedTracks(matched);
@@ -55,7 +55,7 @@ export default function LyricsEnrichment() {
     }
   }, [router]);
 
-  const fetchAllLyrics = async (tracks: SpotifyMatchResult[]) => {
+  const fetchAllLyrics = async (tracks: TrackMatchResult[]) => {
     setLoading(true);
     const results: LyricsSearchResult[] = [];
 
@@ -145,10 +145,10 @@ export default function LyricsEnrichment() {
         <Music className="w-16 h-16 mx-auto mb-4 text-gray-400" />
         <h3 className="text-xl font-semibold mb-2">No Matched Tracks</h3>
         <p className="text-gray-600 dark:text-gray-400 mb-4">
-          You need to have some Spotify matches first to fetch lyrics.
+          You need to have some matched tracks first to fetch lyrics.
         </p>
         <Button onClick={() => router.push("/discover/spotify")}>
-          Go Back to Spotify Matching
+          Go Back to Track Matching
         </Button>
       </div>
     );
@@ -377,7 +377,7 @@ export default function LyricsEnrichment() {
       <div className="flex items-center justify-between pt-6">
         <Button variant="outline" onClick={goBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Spotify
+          Back to Matching
         </Button>
         <Button
           onClick={proceedToReview}

@@ -3,16 +3,15 @@
 import { env } from "@/lib/env";
 import {
   YouTubeDiscoveryResult,
-  SpotifyMatchResult,
+  TrackMatchResult,
   LyricsSearchResult,
   LyricsOption,
 } from "@/types/workflow";
-import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
+import { MusicTrack, YouTubeVideo } from "@/types/explorer";
 import { upsertSongInfo } from "@/lib/db/queries/insert";
 import { InsertSong } from "@/lib/db/schema";
 import amqp from "amqplib";
 
-// String similarity helper function
 function stringSimilarity(str1: string, str2: string): number {
   const longer = str1.length > str2.length ? str1 : str2;
   const shorter = str1.length > str2.length ? str2 : str1;
@@ -44,7 +43,6 @@ function levenshteinDistance(str1: string, str2: string): number {
   return matrix[str2.length][str1.length];
 }
 
-// Clean string for better matching
 function cleanString(str: string): string {
   return str
     .toLowerCase()
@@ -52,6 +50,8 @@ function cleanString(str: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // YouTube Discovery
 export async function discoverYouTubeVideos(
@@ -63,7 +63,6 @@ export async function discoverYouTubeVideos(
       throw new Error("YouTube API key is not configured");
     }
 
-    // Search for videos
     const searchResponse = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q=${encodeURIComponent(
         query
@@ -76,12 +75,10 @@ export async function discoverYouTubeVideos(
 
     const searchData = await searchResponse.json();
 
-    // Extract video IDs for detailed request
     const videoIds = searchData.items
       .map((item: any) => item.id.videoId)
       .join(",");
 
-    // Get video details including duration
     const videoDetailsResponse = await fetch(
       `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds}&key=${apiKey}`
     );
@@ -92,7 +89,6 @@ export async function discoverYouTubeVideos(
 
     const videoDetailsData = await videoDetailsResponse.json();
 
-    // Combine and process results
     const results: YouTubeDiscoveryResult[] = searchData.items.map(
       (item: any) => {
         const videoDetails = videoDetailsData.items.find(
@@ -102,10 +98,8 @@ export async function discoverYouTubeVideos(
         const title = item.snippet.title.toLowerCase();
         const channel = item.snippet.channelTitle.toLowerCase();
 
-        // Calculate music probability based on various factors
-        let musicProbability = 0.5; // Base score
+        let musicProbability = 0.5;
 
-        // Music-related keywords in title
         const musicKeywords = [
           "official",
           "audio",
@@ -123,7 +117,6 @@ export async function discoverYouTubeVideos(
         ).length;
         musicProbability += musicWordCount * 0.1;
 
-        // Channel indicators
         if (
           channel.includes("official") ||
           channel.includes("music") ||
@@ -132,7 +125,6 @@ export async function discoverYouTubeVideos(
           musicProbability += 0.2;
         }
 
-        // Duration indicators (music videos are typically 2-8 minutes)
         const duration = videoDetails?.contentDetails?.duration;
         if (duration) {
           const match = duration.match(/PT(\d+M)?(\d+S)?/);
@@ -142,16 +134,12 @@ export async function discoverYouTubeVideos(
             const totalSeconds = minutes * 60 + seconds;
 
             if (totalSeconds >= 120 && totalSeconds <= 480) {
-              // 2-8 minutes
               musicProbability += 0.15;
             }
           }
         }
 
-        // Clamp between 0 and 1
         musicProbability = Math.min(1, Math.max(0, musicProbability));
-
-        // Convert music probability to confidence score (0-100)
         const confidence = Math.round(musicProbability * 100);
 
         return {
@@ -169,7 +157,6 @@ export async function discoverYouTubeVideos(
       }
     );
 
-    // Sort by music probability and confidence
     return results.sort((a, b) => b.confidence - a.confidence);
   } catch (error) {
     console.error("Error discovering YouTube videos:", error);
@@ -177,158 +164,113 @@ export async function discoverYouTubeVideos(
   }
 }
 
-// Spotify Matching
-export async function findSpotifyMatches(
+// Track Matching via Deezer
+export async function findTrackMatches(
   youtubeVideos: YouTubeVideo[]
-): Promise<SpotifyMatchResult[]> {
-  try {
-    // Get Spotify access token
-    const tokenResponse = await fetch(
-      "https://accounts.spotify.com/api/token",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${Buffer.from(
-            `${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`
-          ).toString("base64")}`,
-        },
-        body: new URLSearchParams({
-          grant_type: "client_credentials",
-        }),
-      }
-    );
+): Promise<TrackMatchResult[]> {
+  const matchResults: TrackMatchResult[] = [];
 
-    if (!tokenResponse.ok) {
-      throw new Error("Failed to get Spotify access token");
-    }
+  for (const video of youtubeVideos) {
+    try {
+      const title = cleanString(video.title);
 
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
+      const searchQueries = [
+        title,
+        title.replace(/official|video|audio|lyrics|hd|4k/g, "").trim(),
+        title.split("-")[0].trim(),
+        title.split("|")[0].trim(),
+      ];
 
-    const matchResults: SpotifyMatchResult[] = [];
+      let bestMatches: (MusicTrack & { matchScore: number })[] = [];
 
-    for (const video of youtubeVideos) {
-      try {
-        // Extract potential track and artist from video title
-        const title = cleanString(video.title);
+      for (const searchQuery of searchQueries) {
+        if (!searchQuery) continue;
 
-        // Try different search strategies
-        const searchQueries = [
-          title, // Full title
-          title.replace(/official|video|audio|lyrics|hd|4k/g, "").trim(), // Remove common video terms
-          title.split("-")[0].trim(), // Before first dash
-          title.split("|")[0].trim(), // Before first pipe
-        ];
+        const searchResponse = await fetch(
+          `https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=10`
+        );
 
-        let bestMatches: (SpotifyTrack & { matchScore: number })[] = [];
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
 
-        for (const searchQuery of searchQueries) {
-          if (!searchQuery) continue;
+          const matches = (searchData.data ?? []).map((track: any) => {
+            let score = 0;
 
-          const searchResponse = await fetch(
-            `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-              searchQuery
-            )}&type=track&limit=10`,
-            {
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-              },
+            const titleSimilarity = stringSimilarity(
+              cleanString(video.title),
+              cleanString(`${track.title} ${track.artist.name}`)
+            );
+            score += titleSimilarity * 0.7;
+
+            const artistInTitle = cleanString(video.title).includes(
+              cleanString(track.artist.name)
+            );
+            if (artistInTitle) score += 0.2;
+
+            if (video.duration && track.duration) {
+              const videoDurationMs = parseDuration(video.duration) * 1000;
+              const trackDurationMs = track.duration * 1000;
+              const durationDiff = Math.abs(videoDurationMs - trackDurationMs);
+              const durationScore = Math.max(0, 1 - durationDiff / 30000);
+              score += durationScore * 0.1;
             }
-          );
 
-          if (searchResponse.ok) {
-            const searchData = await searchResponse.json();
+            return {
+              id: String(track.id),
+              name: track.title,
+              artist: track.artist.name,
+              album: track.album.title,
+              albumImageUrl: track.album.cover_xl || "",
+              releaseDate: track.release_date ?? "",
+              durationMs: track.duration ? track.duration * 1000 : undefined,
+              matchScore: Math.round(score * 100),
+            };
+          });
 
-            const matches = searchData.tracks.items.map((track: any) => {
-              // Calculate match score
-              let score = 0;
-
-              // Title similarity (70% weight)
-              const titleSimilarity = stringSimilarity(
-                cleanString(video.title),
-                cleanString(`${track.name} ${track.artists[0].name}`)
-              );
-              score += titleSimilarity * 0.7;
-
-              // Artist name in video title (20% weight)
-              const artistInTitle = cleanString(video.title).includes(
-                cleanString(track.artists[0].name)
-              );
-              if (artistInTitle) score += 0.2;
-
-              // Duration proximity (10% weight) - if we have both durations
-              if (video.duration && track.duration_ms) {
-                const videoDurationMs = parseDuration(video.duration) * 1000;
-                const durationDiff = Math.abs(
-                  videoDurationMs - track.duration_ms
-                );
-                const durationScore = Math.max(0, 1 - durationDiff / 30000); // 30 second tolerance
-                score += durationScore * 0.1;
-              }
-
-              return {
-                id: track.id,
-                name: track.name,
-                artist: track.artists[0].name,
-                album: track.album.name,
-                albumImageUrl: track.album.images[0]?.url || "",
-                releaseDate: track.album.release_date,
-                durationMs: track.duration_ms,
-                matchScore: Math.round(score * 100),
-              };
-            });
-
-            // Keep only high-scoring matches
-            const goodMatches = matches.filter((m: any) => m.matchScore > 30);
-            bestMatches = [...bestMatches, ...goodMatches];
-          }
+          const goodMatches = matches.filter((m: any) => m.matchScore > 30);
+          bestMatches = [...bestMatches, ...goodMatches];
         }
 
-        // Remove duplicates and sort by score
-        const uniqueMatches = bestMatches.reduce((acc, current) => {
-          const existing = acc.find((item) => item.id === current.id);
-          if (!existing || current.matchScore > existing.matchScore) {
-            return acc.filter((item) => item.id !== current.id).concat(current);
-          }
-          return acc;
-        }, [] as typeof bestMatches);
-
-        uniqueMatches.sort((a, b) => b.matchScore - a.matchScore);
-
-        // Determine confidence level
-        let confidence: "high" | "medium" | "low" | "none" = "none";
-        if (uniqueMatches.length > 0) {
-          const topScore = uniqueMatches[0].matchScore;
-          if (topScore >= 70) confidence = "high";
-          else if (topScore >= 50) confidence = "medium";
-          else confidence = "low";
-        }
-
-        matchResults.push({
-          youtubeVideo: video,
-          spotifyMatches: uniqueMatches.slice(0, 5), // Top 5 matches
-          confidence,
-          selectedMatch: uniqueMatches[0] || undefined,
-        });
-      } catch (error) {
-        console.error(`Error matching video ${video.id}:`, error);
-        matchResults.push({
-          youtubeVideo: video,
-          spotifyMatches: [],
-          confidence: "none",
-        });
+        await sleep(120);
       }
-    }
 
-    return matchResults;
-  } catch (error) {
-    console.error("Error finding Spotify matches:", error);
-    throw error;
+      const uniqueMatches = bestMatches.reduce((acc, current) => {
+        const existing = acc.find((item) => item.id === current.id);
+        if (!existing || current.matchScore > existing.matchScore) {
+          return acc.filter((item) => item.id !== current.id).concat(current);
+        }
+        return acc;
+      }, [] as typeof bestMatches);
+
+      uniqueMatches.sort((a, b) => b.matchScore - a.matchScore);
+
+      let confidence: "high" | "medium" | "low" | "none" = "none";
+      if (uniqueMatches.length > 0) {
+        const topScore = uniqueMatches[0].matchScore;
+        if (topScore >= 70) confidence = "high";
+        else if (topScore >= 50) confidence = "medium";
+        else confidence = "low";
+      }
+
+      matchResults.push({
+        youtubeVideo: video,
+        trackMatches: uniqueMatches.slice(0, 5),
+        confidence,
+        selectedMatch: uniqueMatches[0] || undefined,
+      });
+    } catch (error) {
+      console.error(`Error matching video ${video.id}:`, error);
+      matchResults.push({
+        youtubeVideo: video,
+        trackMatches: [],
+        confidence: "none",
+      });
+    }
   }
+
+  return matchResults;
 }
 
-// Helper function to parse YouTube duration format (PT4M33S) to seconds
 function parseDuration(duration: string): number {
   const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!match) return 0;
@@ -342,7 +284,7 @@ function parseDuration(duration: string): number {
 
 // Lyrics Search
 export async function fetchLyricsOptions(
-  track: SpotifyTrack
+  track: MusicTrack
 ): Promise<LyricsSearchResult> {
   const searchResult: LyricsSearchResult = {
     trackId: track.id,
@@ -356,17 +298,13 @@ export async function fetchLyricsOptions(
   };
 
   try {
-    // Multiple search strategies for better results
     const searches = [
-      // Exact match
       {
         track_name: track.name,
         artist_name: track.artist,
         album_name: track.album,
       },
-      // Without album
       { track_name: track.name, artist_name: track.artist },
-      // Fuzzy match (remove special characters)
       {
         track_name: cleanString(track.name),
         artist_name: cleanString(track.artist),
@@ -412,7 +350,6 @@ export async function fetchLyricsOptions(
       }
     }
 
-    // Deduplicate by ID and sort by confidence
     const uniqueResults = allResults.reduce((acc, current) => {
       const existing = acc.find((item) => item.id === current.id);
       if (!existing || current.confidence > existing.confidence) {
@@ -423,7 +360,7 @@ export async function fetchLyricsOptions(
 
     uniqueResults.sort((a, b) => b.confidence - a.confidence);
 
-    searchResult.options = uniqueResults.slice(0, 10); // Top 10 options
+    searchResult.options = uniqueResults.slice(0, 10);
     searchResult.selectedOption = uniqueResults[0];
 
     if (uniqueResults.length > 0) {
@@ -439,7 +376,7 @@ export async function fetchLyricsOptions(
 
 // Save selected song + video to DB and enqueue background job
 export async function saveSongAndVideo(
-  song: SpotifyTrack,
+  song: MusicTrack,
   video: YouTubeVideo,
   lyricsSearchResult: LyricsSearchResult
 ) {
@@ -447,7 +384,6 @@ export async function saveSongAndVideo(
     ? song.releaseDate
     : `${song.releaseDate}-01-01`;
 
-  // Extract chosen lyrics (plain + synced) if available
   let plainLyrics = "";
   let syncedLyrics = "";
   let isLyricsAvailable = false;
@@ -459,7 +395,7 @@ export async function saveSongAndVideo(
   }
 
   const trackInfo: InsertSong = {
-    spotifyId: song.id,
+    trackId: song.id,
     name: song.name,
     albumName: song.album,
     artistName: song.artist,
@@ -506,40 +442,34 @@ export async function saveSongAndVideo(
   }
 }
 
-// Calculate match confidence for lyrics
 function calculateMatchConfidence(
   result: any,
   original: { track: string; artist: string; album?: string; duration?: number }
 ): number {
   let score = 0;
 
-  // Track name similarity (40% weight)
   score +=
     stringSimilarity(result.trackName || result.name || "", original.track) *
     0.4;
 
-  // Artist name similarity (30% weight)
   score +=
     stringSimilarity(
       result.artistName || result.artist || "",
       original.artist
     ) * 0.3;
 
-  // Album match (15% weight)
   if (original.album && (result.albumName || result.album)) {
     score +=
       stringSimilarity(result.albumName || result.album || "", original.album) *
       0.15;
   }
 
-  // Duration proximity (10% weight)
   if (original.duration && result.duration) {
     const durationDiff = Math.abs(original.duration - result.duration);
-    const durationScore = Math.max(0, 1 - durationDiff / 30); // 30 second tolerance
+    const durationScore = Math.max(0, 1 - durationDiff / 30);
     score += durationScore * 0.1;
   }
 
-  // Sync availability bonus (5% weight)
   if (result.syncedLyrics) {
     score += 0.05;
   }

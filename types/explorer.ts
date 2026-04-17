@@ -8,13 +8,12 @@ export type YouTubeVideo = {
   viewCount: string | null;
 };
 
-export type SpotifyTrack = {
+export type MusicTrack = {
   id: string;
   name: string;
   artist: string;
   album: string;
   albumImageUrl: string;
   releaseDate: string;
-  // Duration in milliseconds from Spotify API
   durationMs?: number;
 };

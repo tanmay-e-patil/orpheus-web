@@ -3,55 +3,32 @@
 import { upsertSongInfo } from "@/lib/db/queries/insert";
 import { InsertSong } from "@/lib/db/schema";
 import { env } from "@/lib/env";
-import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
+import { MusicTrack, YouTubeVideo } from "@/types/explorer";
 import { LyricsOption, LyricsSearchResult } from "@/types/workflow";
 import amqp from "amqplib";
 
-export async function searchSpotify(query: string) {
+export async function searchMusic(query: string) {
   try {
-    // Get Spotify access token
-    const tokenResponse = await fetch(
-      "https://accounts.spotify.com/api/token",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${Buffer.from(
-            `${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`
-          ).toString("base64")}`,
-        },
-        body: new URLSearchParams({
-          grant_type: "client_credentials",
-        }),
-      }
-    );
+    const q = encodeURIComponent(query);
+    const [tracksRes, albumsRes, artistsRes] = await Promise.all([
+      fetch(`https://api.deezer.com/search?q=${q}&limit=20`),
+      fetch(`https://api.deezer.com/search/album?q=${q}&limit=20`),
+      fetch(`https://api.deezer.com/search/artist?q=${q}&limit=20`),
+    ]);
 
-    if (!tokenResponse.ok) {
-      throw new Error("Failed to get Spotify access token");
-    }
+    const [tracks, albums, artists] = await Promise.all([
+      tracksRes.json(),
+      albumsRes.json(),
+      artistsRes.json(),
+    ]);
 
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
-
-    // Search Spotify API
-    const searchResponse = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-        query
-      )}&type=track,album,artist&limit=20`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    if (!searchResponse.ok) {
-      throw new Error("Spotify search failed");
-    }
-
-    return searchResponse.json();
+    return {
+      tracks: { items: tracks.data ?? [] },
+      albums: { items: albums.data ?? [] },
+      artists: { items: artists.data ?? [] },
+    };
   } catch (error) {
-    console.error("Error searching Spotify:", error);
+    console.error("Error searching Deezer:", error);
     throw error;
   }
 }
@@ -68,7 +45,6 @@ export async function searchYouTubeVideo(
       throw new Error("YouTube API key is not configured");
     }
 
-    // First, search for videos
     const searchResponse = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=15&q=${encodeURIComponent(
         query
@@ -81,12 +57,10 @@ export async function searchYouTubeVideo(
 
     const searchData = await searchResponse.json();
 
-    // Extract video IDs for the second request
     const videoIds = searchData.items
       .map((item: any) => item.id.videoId)
       .join(",");
 
-    // Second request to get video details including duration
     const videoDetailsResponse = await fetch(
       `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds}&key=${apiKey}`
     );
@@ -97,7 +71,6 @@ export async function searchYouTubeVideo(
 
     const videoDetailsData = await videoDetailsResponse.json();
 
-    // Combine the data from both requests
     return searchData.items.map((item: any) => {
       const videoDetails = videoDetailsData.items.find(
         (detail: any) => detail.id === item.id.videoId
@@ -120,7 +93,7 @@ export async function searchYouTubeVideo(
 }
 
 export async function saveSongAndVideo(
-  song: SpotifyTrack,
+  song: MusicTrack,
   video: YouTubeVideo,
   lyricsSearchResult: LyricsSearchResult
 ) {
@@ -128,7 +101,6 @@ export async function saveSongAndVideo(
     ? song.releaseDate
     : `${song.releaseDate}-01-01`;
 
-  // Extract chosen lyrics (plain + synced) if available
   let plainLyrics = "";
   let syncedLyrics = "";
   let isLyricsAvailable = false;
@@ -140,7 +112,7 @@ export async function saveSongAndVideo(
   }
 
   const trackInfo: InsertSong = {
-    spotifyId: song.id,
+    trackId: song.id,
     name: song.name,
     albumName: song.album,
     artistName: song.artist,

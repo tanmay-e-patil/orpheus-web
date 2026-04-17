@@ -7,7 +7,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
 export async function getMoreSongs(
-  cursor?: { artistName: string; spotifyId: string },
+  cursor?: { artistName: string; trackId: string },
   limit = 50
 ) {
   const session = await auth.api.getSession({
@@ -26,13 +26,13 @@ export async function getMoreSongs(
         gt(songsTable.artistName, cursor.artistName),
         and(
           eq(songsTable.artistName, cursor.artistName),
-          gt(songsTable.spotifyId, cursor.spotifyId)
+          gt(songsTable.trackId, cursor.trackId)
         )
       )
     );
   }
 
   return await query
-    .orderBy(asc(songsTable.artistName), asc(songsTable.spotifyId))
+    .orderBy(asc(songsTable.artistName), asc(songsTable.trackId))
     .limit(limit);
 }

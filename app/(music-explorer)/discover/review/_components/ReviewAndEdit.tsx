@@ -37,7 +37,7 @@ export default function ReviewAndEdit() {
     // Build processed tracks from workflow state
     const tracks: ProcessedTrack[] = [];
 
-    workflowState.spotifyMatches.forEach((spotifyMatch) => {
+    workflowState.trackMatches.forEach((spotifyMatch) => {
       if (spotifyMatch.selectedMatch) {
         const lyricsResult = workflowState.lyricsSearchResults.find(
           (lr) => lr.trackId === spotifyMatch.selectedMatch!.id
@@ -54,7 +54,7 @@ export default function ReviewAndEdit() {
 
         const processedTrack: ProcessedTrack = {
           youtube: spotifyMatch.youtubeVideo,
-          spotify: spotifyMatch.selectedMatch,
+          track: spotifyMatch.selectedMatch,
           lyrics: lyricsResult,
           userEdits: {
             trackName: spotifyMatch.selectedMatch.name,
@@ -65,7 +65,7 @@ export default function ReviewAndEdit() {
             youtubeTitle: spotifyMatch.youtubeVideo.title,
             youtubeChannel: spotifyMatch.youtubeVideo.channelTitle,
             youtubeDuration: spotifyMatch.youtubeVideo.duration || "Unknown",
-            spotifyDuration: formatMsToClock(spotifyMs),
+            trackDuration: formatMsToClock(spotifyMs),
             lyrics: lyricsResult?.selectedOption?.plainLyrics || "",
             syncedLyrics: lyricsResult?.selectedOption?.syncedLyrics,
             customTags: [],
@@ -79,7 +79,7 @@ export default function ReviewAndEdit() {
             youtubeTitle: spotifyMatch.youtubeVideo.title,
             youtubeChannel: spotifyMatch.youtubeVideo.channelTitle,
             youtubeDuration: spotifyMatch.youtubeVideo.duration || "Unknown",
-            spotifyDuration: formatMsToClock(spotifyMs),
+            trackDuration: formatMsToClock(spotifyMs),
             lyrics: lyricsResult?.selectedOption?.plainLyrics || "",
             syncedLyrics: lyricsResult?.selectedOption?.syncedLyrics,
             customTags: [],
@@ -110,7 +110,7 @@ export default function ReviewAndEdit() {
     }
 
     // Duration consistency check (tolerate small differences)
-    if (trackData.youtubeDuration && trackData.spotifyDuration) {
+    if (trackData.youtubeDuration && trackData.trackDuration) {
       const parseIso = (duration: string): number => {
         const m = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
         if (!m) return NaN;
@@ -130,7 +130,7 @@ export default function ReviewAndEdit() {
       };
 
       const ytSec = parseIso(trackData.youtubeDuration);
-      const spSec = parseClock(trackData.spotifyDuration);
+      const spSec = parseClock(trackData.trackDuration);
 
       if (!Number.isNaN(ytSec) && !Number.isNaN(spSec)) {
         const diff = Math.abs(ytSec - spSec);
@@ -138,7 +138,7 @@ export default function ReviewAndEdit() {
           warnings.push(
             `YouTube and Spotify durations don't match (YouTube: ${formatDuration(
               trackData.youtubeDuration
-            )}, Spotify: ${trackData.spotifyDuration})`
+            )}, Spotify: ${trackData.trackDuration})`
           );
         }
       }
@@ -242,7 +242,7 @@ export default function ReviewAndEdit() {
 
       <div className="space-y-6">
         {processedTracks.map((track, index) => (
-          <Card key={`${track.youtube.id}-${track.spotify?.id}`}>
+          <Card key={`${track.youtube.id}-${track.track?.id}`}>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <CardTitle className="text-lg">
@@ -414,8 +414,8 @@ export default function ReviewAndEdit() {
                         {formatDuration(
                           track.userEdits.youtubeDuration || null
                         )}
-                        {track.userEdits.spotifyDuration && (
-                          <> • Spotify: {track.userEdits.spotifyDuration}</>
+                        {track.userEdits.trackDuration && (
+                          <> • Spotify: {track.userEdits.trackDuration}</>
                         )}
                       </div>
                       {track.userEdits.customTags &&
@@ -449,7 +449,7 @@ export default function ReviewAndEdit() {
                         {track.userEdits.youtubeChannel}
                       </div>
                       <div>
-                        <strong>Spotify:</strong> {track.spotify?.album}
+                        <strong>Album:</strong> {track.track?.album}
                       </div>
                       {track.lyrics?.selectedOption && (
                         <div>

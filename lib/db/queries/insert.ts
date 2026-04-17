@@ -24,7 +24,7 @@ export async function upsertSongInfo(
       set: video,
     });
     await tx.insert(songsTable).values(song).onConflictDoUpdate({
-      target: songsTable.spotifyId,
+      target: songsTable.trackId,
       set: song,
     });
   });

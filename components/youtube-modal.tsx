@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Eye, X } from "lucide-react";
-import { SpotifyTrack } from "@/types/explorer";
+import { MusicTrack } from "@/types/explorer";
 import { ScrollArea } from "./ui/scroll-area";
 import { saveSongAndVideo } from "@/app/(music-explorer)/discover/actions";
 import { LyricsSearchResult } from "@/types/workflow";
@@ -29,7 +29,7 @@ type YouTubeModalProps = {
   isOpen: boolean;
   onClose: () => void;
   videos: YouTubeVideo[];
-  selectedTrack: SpotifyTrack;
+  selectedTrack: MusicTrack;
   trackName: string;
   artistName: string;
 };

@@ -7,8 +7,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ArrowLeft, Loader2, Music, Check, X } from "lucide-react";
-import { findSpotifyMatches } from "../../actions";
-import { SpotifyMatchResult, YouTubeDiscoveryResult } from "@/types/workflow";
+import { findTrackMatches } from "../../actions";
+import { TrackMatchResult, YouTubeDiscoveryResult } from "@/types/workflow";
 import {
   loadWorkflowState,
   saveWorkflowState,
@@ -18,7 +18,7 @@ import WorkflowProgress from "../../_components/WorkflowProgress";
 
 export default function SpotifyMatching() {
   const router = useRouter();
-  const [matchResults, setMatchResults] = useState<SpotifyMatchResult[]>([]);
+  const [matchResults, setMatchResults] = useState<TrackMatchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedVideos, setSelectedVideos] = useState<
     YouTubeDiscoveryResult[]
@@ -37,11 +37,11 @@ export default function SpotifyMatching() {
     setSelectedVideos(selected);
 
     // Check if we already have Spotify matches
-    if (workflowState.spotifyMatches.length > 0) {
+    if (workflowState.trackMatches.length > 0) {
       // If selection has changed since matches were generated, recompute
       const selectedIds = new Set(selected.map((v) => v.id));
       const matchedIds = new Set(
-        workflowState.spotifyMatches.map((m) => m.youtubeVideo.id)
+        workflowState.trackMatches.map((m) => m.youtubeVideo.id)
       );
 
       const sameSize = selectedIds.size === matchedIds.size;
@@ -55,7 +55,7 @@ export default function SpotifyMatching() {
           setMatchResults([]);
         }
       } else {
-        setMatchResults(workflowState.spotifyMatches);
+        setMatchResults(workflowState.trackMatches);
       }
     } else if (selected.length > 0) {
       // Start finding Spotify matches
@@ -66,13 +66,13 @@ export default function SpotifyMatching() {
   const findMatches = async (videos: YouTubeDiscoveryResult[]) => {
     setLoading(true);
     try {
-      const results = await findSpotifyMatches(videos);
+      const results = await findTrackMatches(videos);
       setMatchResults(results);
 
       // Update workflow state
       const workflowState = loadWorkflowState();
       if (workflowState) {
-        workflowState.spotifyMatches = results;
+        workflowState.trackMatches = results;
         workflowState.currentStage = "spotify";
         saveWorkflowState(workflowState);
       }
@@ -86,13 +86,13 @@ export default function SpotifyMatching() {
   const selectMatch = (resultIndex: number, matchIndex: number) => {
     const updatedResults = [...matchResults];
     updatedResults[resultIndex].selectedMatch =
-      updatedResults[resultIndex].spotifyMatches[matchIndex];
+      updatedResults[resultIndex].trackMatches[matchIndex];
     setMatchResults(updatedResults);
 
     // Update workflow state
     const workflowState = loadWorkflowState();
     if (workflowState) {
-      workflowState.spotifyMatches = updatedResults;
+      workflowState.trackMatches = updatedResults;
       saveWorkflowState(workflowState);
     }
   };
@@ -105,7 +105,7 @@ export default function SpotifyMatching() {
     // Update workflow state
     const workflowState = loadWorkflowState();
     if (workflowState) {
-      workflowState.spotifyMatches = updatedResults;
+      workflowState.trackMatches = updatedResults;
       saveWorkflowState(workflowState);
     }
   };
@@ -191,7 +191,7 @@ export default function SpotifyMatching() {
           <CardContent className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin mr-3" />
             <div className="text-center">
-              <p className="font-medium">Finding Spotify matches...</p>
+              <p className="font-medium">Finding track matches...</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Processing {selectedVideos.length} videos
               </p>
@@ -236,13 +236,13 @@ export default function SpotifyMatching() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {result.spotifyMatches.length > 0 ? (
+                  {result.trackMatches.length > 0 ? (
                     <div className="space-y-3">
                       <h4 className="font-medium text-sm">
-                        Potential Spotify matches:
+                        Potential matches:
                       </h4>
                       <div className="space-y-2">
-                        {result.spotifyMatches
+                        {result.trackMatches
                           .slice(0, 3)
                           .map((match, matchIndex) => (
                             <div
@@ -301,9 +301,9 @@ export default function SpotifyMatching() {
                           <X className="w-4 h-4 mr-2" />
                           Skip (No match)
                         </Button>
-                        {result.spotifyMatches.length > 3 && (
+                        {result.trackMatches.length > 3 && (
                           <Button variant="ghost" size="sm">
-                            View {result.spotifyMatches.length - 3} more matches
+                            View {result.trackMatches.length - 3} more matches
                           </Button>
                         )}
                       </div>
@@ -312,7 +312,7 @@ export default function SpotifyMatching() {
                     <div className="text-center py-8">
                       <Music className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                       <p className="text-gray-600 dark:text-gray-400">
-                        No Spotify matches found for this video
+                        No matches found for this video
                       </p>
                       <Button
                         variant="outline"

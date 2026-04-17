@@ -1,5 +1,5 @@
 export type Song = {
-  spotifyId: string;
+  trackId: string;
   name: string;
   artistName: string;
   albumName: string;

@@ -10,7 +10,7 @@ import {
 export const songsTable = pgTable(
   "songs",
   {
-    spotifyId: text("id").notNull().primaryKey(),
+    trackId: text("id").notNull().primaryKey(),
     name: text("name").notNull(),
     artistName: text("artist_name").notNull().default("Unknown"),
     albumName: text("album_name").notNull().default("Unknown"),

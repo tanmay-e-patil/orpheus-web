@@ -32,7 +32,7 @@ export function formatIsoDuration(isoDuration: string | null): string | null {
 
 export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
   const setQueue = usePlayerStore((s) => s.setQueue);
-  const activeId = usePlayerStore((s) => s.queue[s.currentIndex]?.spotifyId);
+  const activeId = usePlayerStore((s) => s.queue[s.currentIndex]?.trackId);
 
   const [songs, setSongs] = React.useState<Song[]>(initialSongs);
   const [hasMore, setHasMore] = React.useState(initialSongs.length === 50);
@@ -50,7 +50,7 @@ export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
 
       const cursor = {
         artistName: lastSong.artistName,
-        spotifyId: lastSong.spotifyId,
+        trackId: lastSong.trackId,
       };
 
       const moreSongs = await getMoreSongs(cursor, 50);
@@ -60,8 +60,8 @@ export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
       }
       setSongs((prev) => {
         // Simple deduplication just in case
-        const existingIds = new Set(prev.map(s => s.spotifyId));
-        const newSongs = moreSongs.filter(s => !existingIds.has(s.spotifyId));
+        const existingIds = new Set(prev.map(s => s.trackId));
+        const newSongs = moreSongs.filter(s => !existingIds.has(s.trackId));
         return [...prev, ...(newSongs as unknown as Song[])];
       });
     } catch {
@@ -112,10 +112,10 @@ export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
         </TableHeader>
         <TableBody>
           {songs.map((song, idx) => {
-            const isActive = song.spotifyId === activeId;
+            const isActive = song.trackId === activeId;
             return (
               <TableRow
-                key={song.spotifyId}
+                key={song.trackId}
                 className={`cursor-pointer ${isActive ? "bg-primary/10" : ""}`}
                 onClick={() => onRowClick(idx)}
               >
@@ -140,10 +140,10 @@ export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
       {/* Mobile list */}
       <ul className="md:hidden divide-y">
         {songs.map((song, idx) => {
-          const isActive = song.spotifyId === activeId;
+          const isActive = song.trackId === activeId;
           return (
             <li
-              key={song.spotifyId}
+              key={song.trackId}
               className={`flex items-center gap-3 py-3 cursor-pointer ${
                 isActive ? "bg-primary/10" : ""
               }`}

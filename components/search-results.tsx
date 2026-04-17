@@ -9,7 +9,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { discoverYouTubeVideos } from "@/app/(music-explorer)/discover/actions";
 import { YouTubeModal } from "./youtube-modal";
 import { InsertSong } from "@/lib/db/schema";
-import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
+import { MusicTrack, YouTubeVideo } from "@/types/explorer";
 
 type SearchResultsProps = {
   type: "tracks" | "albums" | "artists";
@@ -19,7 +19,7 @@ type SearchResultsProps = {
 export function SearchResults({ type, items }: SearchResultsProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState<SpotifyTrack | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<MusicTrack | null>(null);
   const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
@@ -31,26 +31,49 @@ export function SearchResults({ type, items }: SearchResultsProps) {
     );
   }
 
-  const handleFindMusicVideo = async (
-    trackName: string,
-    artistName: string,
-    albumName: string,
-    albumImageUrl: string,
-    releaseDate: string,
-    trackId: string
-  ) => {
+  // Deezer shape helpers
+  const getItemName = (item: any) =>
+    type === "artists" ? item.name : item.title;
+
+  const getItemArtist = (item: any): string | null => {
+    if (type === "artists") return null;
+    return item.artist?.name ?? null;
+  };
+
+  const getItemImageUrl = (item: any): string => {
+    if (type === "tracks") return item.album?.cover_xl || "/placeholder.svg";
+    if (type === "albums") return item.cover_xl || "/placeholder.svg";
+    return item.picture_xl || "/placeholder.svg";
+  };
+
+  const getAlbumName = (item: any): string | null =>
+    type === "tracks" ? item.album?.title ?? null : null;
+
+  const getReleaseDate = (item: any): string | null => {
+    if (type === "tracks") return item.album?.release_date ?? null;
+    if (type === "albums") return item.release_date ?? null;
+    return null;
+  };
+
+  const handleFindMusicVideo = async (item: any) => {
+    const trackId = String(item.id);
     setIsLoading(trackId);
     try {
+      const name = getItemName(item);
+      const artist = getItemArtist(item) ?? "";
+      const albumName = getAlbumName(item) ?? "";
+      const imageUrl = getItemImageUrl(item);
+      const releaseDate = getReleaseDate(item) ?? "";
+
       setSelectedTrack({
-        name: trackName,
-        artist: artistName,
+        name,
+        artist,
         album: albumName,
-        albumImageUrl: albumImageUrl,
-        releaseDate: releaseDate,
+        albumImageUrl: imageUrl,
+        releaseDate,
         id: trackId,
       });
-  // Use the new discover workflow YouTube discovery
-  const videos = await discoverYouTubeVideos(`${trackName} ${artistName}`);
+      const videos = await discoverYouTubeVideos(`${name} ${artist}`);
       setYoutubeVideos(videos);
       setYoutubeModalOpen(true);
     } catch (error) {
@@ -82,32 +105,16 @@ export function SearchResults({ type, items }: SearchResultsProps) {
       {viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((item) => {
-            // Get the appropriate image based on the result type
-            const images = type === "tracks" ? item.album?.images : item.images;
-            const imageUrl =
-              images && images.length > 0
-                ? images[0]?.url
-                : "/placeholder.svg?height=300&width=300";
-
-            // Get the appropriate name and details
-            const name = item.name;
-            const artist =
-              type === "tracks"
-                ? item.artists.map((a: any) => a.name).join(", ")
-                : type === "albums"
-                ? item.artists.map((a: any) => a.name).join(", ")
-                : null;
-
-            const albumName = type === "tracks" ? item.album.name : null;
-            const releaseDate =
-              type === "tracks" ? item.album.release_date : null;
-            const spotifyUrl = item.external_urls?.spotify;
+            const name = getItemName(item);
+            const artist = getItemArtist(item);
+            const imageUrl = getItemImageUrl(item);
+            const trackUrl = item.link;
 
             return (
               <Card key={item.id} className="overflow-hidden">
                 <div className="aspect-square relative">
                   <Image
-                    src={imageUrl || "/placeholder.svg"}
+                    src={imageUrl}
                     alt={name}
                     fill
                     className="object-cover"
@@ -121,18 +128,18 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                   )}
                   {type === "tracks" && (
                     <p className="text-sm text-muted-foreground mt-1">
-                      {item.album.name}
+                      {item.album?.title}
                     </p>
                   )}
                   <div className="flex items-center justify-between mt-3">
-                    {spotifyUrl && (
+                    {trackUrl && (
                       <a
-                        href={spotifyUrl}
+                        href={trackUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700"
+                        className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
                       >
-                        Open in Spotify
+                        Open in Deezer
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     )}
@@ -141,19 +148,10 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                         variant="outline"
                         size="sm"
                         className="gap-1"
-                        onClick={() =>
-                          handleFindMusicVideo(
-                            name,
-                            artist,
-                            albumName,
-                            imageUrl,
-                            releaseDate,
-                            item.id
-                          )
-                        }
-                        disabled={isLoading === item.id}
+                        onClick={() => handleFindMusicVideo(item)}
+                        disabled={isLoading === String(item.id)}
                       >
-                        {isLoading === item.id ? (
+                        {isLoading === String(item.id) ? (
                           "Loading..."
                         ) : (
                           <>
@@ -172,34 +170,20 @@ export function SearchResults({ type, items }: SearchResultsProps) {
       ) : (
         <div className="space-y-3">
           {items.map((item) => {
-            // Get the appropriate image based on the result type
-            const images = type === "tracks" ? item.album?.images : item.images;
-            const imageUrl =
-              images && images.length > 0
-                ? images[0]?.url
-                : "/placeholder.svg?height=64&width=64";
-
-            // Get the appropriate name and details
-            const name = item.name;
-            const artist =
-              type === "tracks"
-                ? item.artists.map((a: any) => a.name).join(", ")
-                : type === "albums"
-                ? item.artists.map((a: any) => a.name).join(", ")
-                : null;
-
-            const albumName = type === "tracks" ? item.album.name : null;
-
-            const spotifyUrl = item.external_urls?.spotify;
-
-            // Additional details based on type
+            const name = getItemName(item);
+            const artist = getItemArtist(item);
+            const imageUrl = getItemImageUrl(item);
+            const albumName = getAlbumName(item);
+            const trackUrl = item.link;
             const duration =
-              type === "tracks" ? formatDuration(item.duration_ms) : null;
-            const releaseDate =
-              type === "albums" ? item.release_date : item.album.release_date;
-            const popularity = item.popularity
-              ? `${item.popularity}% popularity`
-              : null;
+              type === "tracks" && item.duration
+                ? formatDuration(item.duration * 1000)
+                : null;
+            const releaseDate = getReleaseDate(item);
+            const fanCount =
+              type === "artists" && item.nb_fan
+                ? formatFanCount(item.nb_fan)
+                : null;
 
             return (
               <div
@@ -208,7 +192,7 @@ export function SearchResults({ type, items }: SearchResultsProps) {
               >
                 <div className="relative h-16 w-16 flex-shrink-0">
                   <Image
-                    src={imageUrl || "/placeholder.svg"}
+                    src={imageUrl}
                     alt={name}
                     fill
                     className="object-cover rounded-md"
@@ -223,12 +207,12 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                     </p>
                   )}
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                    {type === "tracks" && item.album?.name && (
-                      <span className="truncate">{item.album.name}</span>
+                    {albumName && (
+                      <span className="truncate">{albumName}</span>
                     )}
                     {duration && <span>{duration}</span>}
                     {releaseDate && <span>{releaseDate}</span>}
-                    {popularity && <span>{popularity}</span>}
+                    {fanCount && <span>{fanCount}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -237,19 +221,10 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                       variant="outline"
                       size="sm"
                       className="gap-1"
-                      onClick={() =>
-                        handleFindMusicVideo(
-                          name,
-                          artist,
-                          albumName,
-                          imageUrl,
-                          releaseDate,
-                          item.id
-                        )
-                      }
-                      disabled={isLoading === item.id}
+                      onClick={() => handleFindMusicVideo(item)}
+                      disabled={isLoading === String(item.id)}
                     >
-                      {isLoading === item.id ? (
+                      {isLoading === String(item.id) ? (
                         "Loading..."
                       ) : (
                         <>
@@ -259,12 +234,12 @@ export function SearchResults({ type, items }: SearchResultsProps) {
                       )}
                     </Button>
                   )}
-                  {spotifyUrl && (
+                  {trackUrl && (
                     <a
-                      href={spotifyUrl}
+                      href={trackUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-shrink-0 text-green-600 hover:text-green-700"
+                      className="flex-shrink-0 text-blue-600 hover:text-blue-700"
                     >
                       <ExternalLink className="h-5 w-5" />
                     </a>
@@ -290,10 +265,15 @@ export function SearchResults({ type, items }: SearchResultsProps) {
   );
 }
 
-// Helper function to format duration from milliseconds to MM:SS
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function formatFanCount(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M fans`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K fans`;
+  return `${count} fans`;
 }

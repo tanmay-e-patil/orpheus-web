@@ -17,7 +17,7 @@ import { EditableTrackData, CommitResult } from "@/types/workflow";
 import { loadWorkflowState, clearWorkflowState } from "@/lib/workflow-state";
 import WorkflowProgress from "../../_components/WorkflowProgress";
 import { saveSongAndVideo } from "../../actions"; // migrated to discover actions
-import { SpotifyTrack, YouTubeVideo } from "@/types/explorer";
+import { MusicTrack, YouTubeVideo } from "@/types/explorer";
 
 export default function CommitToLibrary() {
   const router = useRouter();
@@ -51,18 +51,18 @@ export default function CommitToLibrary() {
       const track = tracks[i];
       try {
         // Find the corresponding Spotify and YouTube data
-        const spotifyMatch = workflowState.spotifyMatches[i];
+        const spotifyMatch = workflowState.trackMatches[i];
         const youtubeVideo = workflowState.selectedVideos.find(
           (v) => v.id === spotifyMatch?.youtubeVideo.id
         );
         const lyrics = workflowState.lyricsSearchResults[i];
 
         if (!spotifyMatch?.selectedMatch || !youtubeVideo) {
-          throw new Error("Missing Spotify or YouTube data");
+          throw new Error("Missing track or YouTube data");
         }
 
         // Convert to the format expected by existing saveSongAndVideo function
-        const spotifyTrack: SpotifyTrack = {
+        const spotifyTrack: MusicTrack = {
           id: spotifyMatch.selectedMatch.id,
           name: track.trackName || spotifyMatch.selectedMatch.name,
           artist: track.artistName || spotifyMatch.selectedMatch.artist,

@@ -6,13 +6,13 @@ import { eq } from "drizzle-orm";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const spotifyId: string = body.spotifyId;
+    const spotifyId: string = body.trackId ?? body.spotifyId;
     const plainLyrics: string = body.plainLyrics ?? "";
     const syncedLyrics: string = body.syncedLyrics ?? "";
 
     if (!spotifyId) {
       return NextResponse.json(
-        { error: "spotifyId required" },
+        { error: "trackId required" },
         { status: 400 }
       );
     }
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
         isLyricsAvailable,
         updatedAt: new Date(),
       })
-      .where(eq(songsTable.spotifyId, spotifyId));
+      .where(eq(songsTable.trackId, spotifyId));
 
     return NextResponse.json({ ok: true });
   } catch (err) {
