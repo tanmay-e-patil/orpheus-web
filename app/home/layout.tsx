@@ -1,7 +1,6 @@
-import "@/app/globals.css";
-import PlayerBar from "@/components/player/PlayerBar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/sidebar";
 import LyricsView from "@/components/player/LyricsView";
-import { Sidebar } from "@/components/sidebar";
 import MobileNav from "@/components/MobileNav";
 
 export default function HomeLayout({
@@ -10,19 +9,17 @@ export default function HomeLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex h-dvh">
-      <aside className="hidden md:block w-64 border-r md:sticky md:top-0">
-        <Sidebar className="h-dvh" />
-      </aside>
-      <main className="flex-1 overflow-hidden">
+    <SidebarProvider className="h-dvh">
+      <AppSidebar />
+      <SidebarInset className="overflow-hidden">
         <MobileNav />
-        <div className="flex h-[calc(100dvh-3rem)] md:h-full">
+        <div className="flex h-[calc(100dvh-3rem)]">
           <div className="flex-1 overflow-auto px-4 md:px-0">{children}</div>
           <div className="hidden md:block">
             <LyricsView />
           </div>
         </div>
-      </main>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
