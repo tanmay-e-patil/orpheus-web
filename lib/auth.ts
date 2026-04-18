@@ -15,4 +15,5 @@ export const auth = betterAuth({
   }),
   plugins: [username()],
   secret: env.BETTER_AUTH_SECRET,
+  trustedOrigins: [env.DOMAIN],
 });
