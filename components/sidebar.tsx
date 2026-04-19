@@ -80,7 +80,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="pb-20">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
