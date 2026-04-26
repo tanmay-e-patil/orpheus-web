@@ -1,5 +1,8 @@
 "use client";
+
 import * as React from "react";
+import Image from "next/image";
+import { Loader2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -11,8 +14,27 @@ import {
 import { usePlayerStore } from "@/lib/player/store";
 import type { Song } from "@/lib/player/types";
 import { toastError } from "@/lib/toast";
-import Image from "next/image";
-import { getMoreSongs, refreshAlbumArtsBatch } from "../actions";
+import { refreshAlbumArtsBatch } from "../actions";
+import {
+  dispatchSongLibraryInvalidated,
+  markAllPagesStale,
+  markLaterPagesStale,
+  readSongsCache,
+  SONG_LIBRARY_INVALIDATED_EVENT,
+  upsertSongsPage,
+} from "@/lib/songs/cache";
+import { getSongPageRevision } from "@/lib/songs/revision";
+import {
+  SONGS_PAGE_SIZE,
+  type LibrarySong,
+  type SongCursor,
+  type SongsPageResponse,
+} from "@/lib/songs/types";
+
+type LoadedPage = SongsPageResponse & {
+  cursorIn: SongCursor | null;
+  stale: boolean;
+};
 
 function AlbumArt({
   src,
@@ -27,7 +49,9 @@ function AlbumArt({
 }) {
   const [failed, setFailed] = React.useState(false);
 
-  React.useEffect(() => { setFailed(false); }, [src]);
+  React.useEffect(() => {
+    setFailed(false);
+  }, [src]);
 
   if (!src || failed) {
     return (
@@ -44,7 +68,10 @@ function AlbumArt({
       height={size}
       alt=""
       className="rounded object-cover flex-shrink-0"
-      onError={() => { setFailed(true); onError(trackId); }}
+      onError={() => {
+        setFailed(true);
+        onError(trackId);
+      }}
     />
   );
 }
@@ -60,96 +87,345 @@ export function formatIsoDuration(isoDuration: string | null): string | null {
     return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds
       .toString()
       .padStart(2, "0")}`;
-  } else {
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }
+
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
+function createPageFromSongs(
+  songs: LibrarySong[],
+  cursorIn: SongCursor | null,
+  hasMore: boolean
+): LoadedPage {
+  const lastSong = songs[songs.length - 1];
+  return {
+    cursorIn,
+    songs,
+    hasMore,
+    nextCursor:
+      hasMore && lastSong
+        ? { artistName: lastSong.artistName, trackId: lastSong.trackId }
+        : null,
+    pageRevision: getSongPageRevision(songs),
+    stale: false,
+  };
+}
+
+function mergePagesToSongs(pages: LoadedPage[]): LibrarySong[] {
+  const merged: LibrarySong[] = [];
+  const seen = new Set<string>();
+
+  for (const page of pages) {
+    for (const song of page.songs) {
+      if (seen.has(song.trackId)) {
+        continue;
+      }
+      seen.add(song.trackId);
+      merged.push(song);
+    }
+  }
+
+  return merged;
+}
+
+function replacePage(pages: LoadedPage[], page: LoadedPage): LoadedPage[] {
+  const nextPages = [...pages];
+  const targetKey = getCursorKey(page.cursorIn);
+  const existingIndex = nextPages.findIndex(
+    (candidate) => getCursorKey(candidate.cursorIn) === targetKey
+  );
+
+  if (existingIndex >= 0) {
+    nextPages[existingIndex] = page;
+    return nextPages;
+  }
+
+  nextPages.push(page);
+  return nextPages;
+}
+
+function getCursorKey(cursor: SongCursor | null): string {
+  return cursor ? `${cursor.artistName}::${cursor.trackId}` : "first";
+}
+
+function pagesFromCache(cache: Awaited<ReturnType<typeof readSongsCache>>): LoadedPage[] {
+  if (!cache) {
+    return [];
+  }
+
+  const songMap = new Map(cache.songs.map((song) => [song.trackId, song]));
+  return cache.pages.map((page) => ({
+    cursorIn: page.cursorIn,
+    songs: page.songIds.map((songId) => songMap.get(songId)).filter(Boolean) as LibrarySong[],
+    nextCursor: page.nextCursor,
+    hasMore: page.hasMore,
+    pageRevision: page.pageRevision,
+    stale: page.stale,
+  }));
+}
+
+async function fetchSongsPage(cursor?: SongCursor | null): Promise<SongsPageResponse> {
+  const params = new URLSearchParams();
+  if (cursor) {
+    params.set("artistName", cursor.artistName);
+    params.set("trackId", cursor.trackId);
+  }
+
+  const url = params.size > 0 ? `/api/songs?${params.toString()}` : "/api/songs";
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Songs request failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function logSongsMetric(event: string, payload: Record<string, unknown>) {
+  console.debug("[songs-cache]", event, payload);
+}
+
+export default function SongTable({
+  initialSongs,
+  userId,
+}: {
+  initialSongs: LibrarySong[];
+  userId: string;
+}) {
   const setQueue = usePlayerStore((s) => s.setQueue);
   const activeId = usePlayerStore((s) => s.queue[s.currentIndex]?.trackId);
+  const initialPage = React.useMemo(
+    () => createPageFromSongs(initialSongs, null, initialSongs.length === SONGS_PAGE_SIZE),
+    [initialSongs]
+  );
 
-  const [songs, setSongs] = React.useState<Song[]>(initialSongs);
-  const [hasMore, setHasMore] = React.useState(initialSongs.length === 50);
+  const [pages, setPages] = React.useState<LoadedPage[]>([initialPage]);
   const [loadingMore, setLoadingMore] = React.useState(false);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [refreshedArt, setRefreshedArt] = React.useState<Record<string, string>>({});
+  const songs = React.useMemo(() => mergePagesToSongs(pages), [pages]);
+  const hasMore = pages[pages.length - 1]?.hasMore ?? false;
+
+  const pagesRef = React.useRef(pages);
+  React.useEffect(() => {
+    pagesRef.current = pages;
+  }, [pages]);
 
   const pendingRefresh = React.useRef<Set<string>>(new Set());
   const refreshTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleArtError = React.useCallback((trackId: string) => {
-    pendingRefresh.current.add(trackId);
-    if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    refreshTimer.current = setTimeout(async () => {
-      const ids = [...pendingRefresh.current];
-      pendingRefresh.current.clear();
-      const result = await refreshAlbumArtsBatch(ids).catch(() => ({}));
-      setRefreshedArt((prev) => ({ ...prev, ...result }));
-    }, 500);
-  }, []);
-
   const observerRef = React.useRef<IntersectionObserver | null>(null);
   const bottomBoundaryRef = React.useRef<HTMLDivElement | null>(null);
 
-  const loadMore = React.useCallback(async () => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    try {
-      const lastSong = songs[songs.length - 1];
-      if (!lastSong) return;
+  const persistPage = React.useCallback(
+    async (cursorIn: SongCursor | null, page: SongsPageResponse, stale = false) => {
+      try {
+        await upsertSongsPage(userId, cursorIn, page, { stale });
+      } catch (error) {
+        logSongsMetric("cache_write_failed", {
+          userId,
+          cursor: getCursorKey(cursorIn),
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    },
+    [userId]
+  );
 
-      const cursor = {
-        artistName: lastSong.artistName,
-        trackId: lastSong.trackId,
+  const revalidateFirstPage = React.useCallback(async () => {
+    const startedAt = performance.now();
+    setIsRefreshing(true);
+    try {
+      const freshPage = await fetchSongsPage(null);
+      const currentFirstPage = pagesRef.current[0];
+      const changed = currentFirstPage?.pageRevision !== freshPage.pageRevision;
+
+      logSongsMetric("page1_refresh", {
+        changed,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
+
+      const hydratedPage: LoadedPage = {
+        cursorIn: null,
+        stale: false,
+        ...freshPage,
       };
 
-      const moreSongs = await getMoreSongs(cursor, 50);
-      
-      if (moreSongs.length < 50) {
-        setHasMore(false);
-      }
-      setSongs((prev) => {
-        // Simple deduplication just in case
-        const existingIds = new Set(prev.map(s => s.trackId));
-        const newSongs = moreSongs.filter(s => !existingIds.has(s.trackId));
-        return [...prev, ...(newSongs as unknown as Song[])];
+      setPages((prevPages) => {
+        let nextPages = replacePage(prevPages, hydratedPage);
+        if (changed) {
+          nextPages = nextPages.map((page, index) =>
+            index === 0 ? page : { ...page, stale: true }
+          );
+        }
+        return nextPages;
       });
+
+      await persistPage(null, freshPage);
+      if (changed) {
+        await markLaterPagesStale(userId);
+      }
+    } catch {
+      toastError("Failed to refresh library");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [persistPage, userId]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const hydrate = async () => {
+      const startedAt = performance.now();
+      try {
+        const cache = await readSongsCache(userId);
+        if (cancelled) {
+          return;
+        }
+
+        if (cache) {
+          logSongsMetric("cache_hit", {
+            durationMs: Math.round(performance.now() - startedAt),
+            pageCount: cache.pages.length,
+            songCount: cache.songs.length,
+          });
+          setPages(pagesFromCache(cache));
+        } else {
+          logSongsMetric("cache_miss", {
+            durationMs: Math.round(performance.now() - startedAt),
+          });
+          await persistPage(null, initialPage);
+        }
+      } catch (error) {
+        logSongsMetric("cache_read_failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        await persistPage(null, initialPage);
+      } finally {
+        if (!cancelled) {
+          void revalidateFirstPage();
+        }
+      }
+    };
+
+    void hydrate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialPage, persistPage, revalidateFirstPage, userId]);
+
+  React.useEffect(() => {
+    const handleLibraryInvalidated = () => {
+      setPages((prevPages) => prevPages.map((page) => ({ ...page, stale: true })));
+      void revalidateFirstPage();
+    };
+
+    window.addEventListener(SONG_LIBRARY_INVALIDATED_EVENT, handleLibraryInvalidated);
+    return () => {
+      window.removeEventListener(SONG_LIBRARY_INVALIDATED_EVENT, handleLibraryInvalidated);
+    };
+  }, [revalidateFirstPage]);
+
+  const handleArtError = React.useCallback(
+    (trackId: string) => {
+      pendingRefresh.current.add(trackId);
+      if (refreshTimer.current) {
+        clearTimeout(refreshTimer.current);
+      }
+
+      refreshTimer.current = setTimeout(async () => {
+        const ids = [...pendingRefresh.current];
+        pendingRefresh.current.clear();
+        const result = await refreshAlbumArtsBatch(ids).catch(() => ({}));
+
+        setRefreshedArt((prev) => ({ ...prev, ...result }));
+
+        if (Object.keys(result).length > 0) {
+          await markAllPagesStale(userId).catch(() => undefined);
+          dispatchSongLibraryInvalidated();
+        }
+      }, 500);
+    },
+    [userId]
+  );
+
+  const loadMore = React.useCallback(async () => {
+    if (loadingMore || !hasMore) {
+      return;
+    }
+
+    const currentPages = pagesRef.current;
+    const lastPage = currentPages[currentPages.length - 1];
+    if (!lastPage) {
+      return;
+    }
+
+    const cursorToFetch = lastPage.stale ? lastPage.cursorIn : lastPage.nextCursor;
+    if (!cursorToFetch) {
+      return;
+    }
+
+    setLoadingMore(true);
+    const startedAt = performance.now();
+    try {
+      const freshPage = await fetchSongsPage(cursorToFetch);
+      logSongsMetric("page_fetch", {
+        cursor: getCursorKey(cursorToFetch),
+        durationMs: Math.round(performance.now() - startedAt),
+        replacedStalePage: lastPage.stale,
+      });
+
+      const hydratedPage: LoadedPage = {
+        cursorIn: cursorToFetch,
+        stale: false,
+        ...freshPage,
+      };
+
+      setPages((prevPages) => replacePage(prevPages, hydratedPage));
+      await persistPage(cursorToFetch, freshPage);
     } catch {
       toastError("Failed to load more songs");
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, songs]);
+  }, [hasMore, loadingMore, persistPage]);
 
   React.useEffect(() => {
     if (!bottomBoundaryRef.current) return;
-    
+
     observerRef.current = new IntersectionObserver((entries) => {
       const [entry] = entries;
       if (entry.isIntersecting) {
-        loadMore();
+        void loadMore();
       }
     });
-    
+
     observerRef.current.observe(bottomBoundaryRef.current);
-    
+
     return () => {
       if (observerRef.current) observerRef.current.disconnect();
     };
   }, [loadMore]);
 
   const onRowClick = (idx: number) => {
-    const sel = songs[idx];
+    const sel = songs[idx] as Song | undefined;
     if (!sel?.youtubeVideoId) {
       toastError("No playable source.");
       return;
     }
-    setQueue(songs, idx);
+    setQueue(songs as Song[], idx);
   };
 
   return (
     <div className="bg-background pb-20">
-      {/* Desktop/tablet table */}
+      <div className="mb-3 flex items-center justify-end text-xs text-muted-foreground min-h-5">
+        {isRefreshing ? (
+          <span className="inline-flex items-center gap-2">
+            <Loader2 className="size-3 animate-spin" />
+            Refreshing library...
+          </span>
+        ) : null}
+      </div>
+
       <Table className="hidden md:table">
         <TableHeader>
           <TableRow>
@@ -171,15 +447,16 @@ export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
               >
                 <TableCell className="font-medium">{idx + 1}</TableCell>
                 <TableCell className="truncate max-w-48 flex gap-2 items-center">
-                  <AlbumArt src={refreshedArt[song.trackId] ?? song.albumArt} trackId={song.trackId} size={24} onError={handleArtError} />
+                  <AlbumArt
+                    src={refreshedArt[song.trackId] ?? song.albumArt}
+                    trackId={song.trackId}
+                    size={24}
+                    onError={handleArtError}
+                  />
                   <span className="truncate">{song.name}</span>
                 </TableCell>
-                <TableCell className="truncate max-w-32">
-                  {song.artistName}
-                </TableCell>
-                <TableCell className="truncate max-w-32">
-                  {song.albumName}
-                </TableCell>
+                <TableCell className="truncate max-w-32">{song.artistName}</TableCell>
+                <TableCell className="truncate max-w-32">{song.albumName}</TableCell>
                 <TableCell>{formatIsoDuration(song.duration)}</TableCell>
               </TableRow>
             );
@@ -187,7 +464,6 @@ export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
         </TableBody>
       </Table>
 
-      {/* Mobile list */}
       <ul className="md:hidden divide-y">
         {songs.map((song, idx) => {
           const isActive = song.trackId === activeId;
@@ -199,22 +475,22 @@ export default function SongTable({ initialSongs }: { initialSongs: Song[] }) {
               }`}
               onClick={() => onRowClick(idx)}
             >
-              <AlbumArt src={refreshedArt[song.trackId] ?? song.albumArt} trackId={song.trackId} size={48} onError={handleArtError} />
+              <AlbumArt
+                src={refreshedArt[song.trackId] ?? song.albumArt}
+                trackId={song.trackId}
+                size={48}
+                onError={handleArtError}
+              />
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium text-sm">{song.name}</div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {song.artistName}
-                </div>
+                <div className="truncate text-xs text-muted-foreground">{song.artistName}</div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                {formatIsoDuration(song.duration)}
-              </div>
+              <div className="text-xs text-muted-foreground">{formatIsoDuration(song.duration)}</div>
             </li>
           );
         })}
       </ul>
 
-      {/* Loading sentinel */}
       {hasMore && (
         <div ref={bottomBoundaryRef} className="py-4 text-center text-sm text-muted-foreground">
           {loadingMore ? "Loading more..." : "Scroll for more"}

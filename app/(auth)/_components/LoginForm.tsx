@@ -30,18 +30,26 @@ export function LoginForm() {
 
   const [formPending, formTransition] = useTransition();
 
-  async function signInWithEmail() {
+  async function signInWithUsername() {
+    const username = loginForm.username.trim();
+    const password = loginForm.password;
+
+    if (!username || !password) {
+      toast.error("Username and password are required");
+      return;
+    }
+
     formTransition(() => {
       authClient.signIn.username({
-        username: loginForm.username,
-        password: loginForm.password,
+        username,
+        password,
         fetchOptions: {
           onSuccess: () => {
             toast.success("Signed in successfully. You will be redirected...");
             router.push("/home");
           },
-          onError: () => {
-            toast.error("Internal Server Error");
+          onError: (ctx) => {
+            toast.error(ctx.error.message || "Sign in failed");
           },
         },
       });
@@ -59,7 +67,7 @@ export function LoginForm() {
           <div className="grid gap-2">
             <Label htmlFor="username">Username</Label>
             <Input
-              type="username"
+              type="text"
               placeholder="your_username"
               value={loginForm.username}
               onChange={(e) =>
@@ -79,7 +87,7 @@ export function LoginForm() {
             ></Input>
           </div>
 
-          <Button onClick={signInWithEmail} disabled={formPending}>
+          <Button onClick={signInWithUsername} disabled={formPending}>
             Login
             {formPending && (
               <div>

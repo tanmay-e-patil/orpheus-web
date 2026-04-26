@@ -18,6 +18,10 @@ import { loadWorkflowState, clearWorkflowState } from "@/lib/workflow-state";
 import WorkflowProgress from "../../_components/WorkflowProgress";
 import { saveSongAndVideo } from "../../actions"; // migrated to discover actions
 import { MusicTrack, YouTubeVideo } from "@/types/explorer";
+import {
+  dispatchSongLibraryInvalidated,
+  markAllPagesStaleForAllUsers,
+} from "@/lib/songs/cache";
 
 export default function CommitToLibrary() {
   const router = useRouter();
@@ -104,6 +108,11 @@ export default function CommitToLibrary() {
 
     setLoading(false);
     setCompleted(true);
+
+    if (results.some((result) => result.success)) {
+      await markAllPagesStaleForAllUsers().catch(() => undefined);
+      dispatchSongLibraryInvalidated();
+    }
   };
 
   const startNewWorkflow = () => {

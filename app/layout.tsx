@@ -65,8 +65,8 @@ export default function RootLayout({
         <ServiceWorkerRegister />
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
+          enableSystem={false}
           disableTransitionOnChange
         >
           <PlayerProvider>

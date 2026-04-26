@@ -4,9 +4,9 @@ export type Song = {
   artistName: string;
   albumName: string;
   albumArt: string;
-  lyrics: string;
-  syncedLyrics: string;
-  isLyricsAvailable: boolean | null;
+  lyrics?: string;
+  syncedLyrics?: string;
+  isLyricsAvailable?: boolean | null;
   duration: string; // ISO-8601 duration string
   youtubeVideoId: string;
 };
