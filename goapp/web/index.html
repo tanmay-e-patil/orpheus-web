@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0b0b" />
+    <title>Orpheus</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/assets/css/app.css" />
+    <link rel="preconnect" href="https://www.youtube.com" />
+    <link rel="preconnect" href="https://www.google.com" />
+  </head>
+  <body>
+    <div class="app-shell" data-auth-shell hidden>
+      <aside class="sidebar">
+        <a class="brand" href="/home" data-link aria-label="Orpheus home">Orpheus</a>
+        <nav class="nav-list" aria-label="Primary">
+          <a href="/home" data-link data-nav-path="/home">Tracks</a>
+          <a href="/discover" data-link data-nav-path="/discover">Discover</a>
+        </nav>
+        <button class="button secondary danger sign-out-button" type="button">Sign out</button>
+      </aside>
+
+      <header class="mobile-nav">
+        <a class="brand compact" href="/home" data-link>Orpheus</a>
+        <nav class="mobile-nav-links" aria-label="Mobile primary">
+          <a href="/home" data-link data-nav-path="/home">Tracks</a>
+          <a href="/discover" data-link data-nav-path="/discover">Discover</a>
+        </nav>
+      </header>
+
+      <div class="content-frame">
+        <main id="route-outlet" class="route-outlet" tabindex="-1"></main>
+        <aside class="lyrics-panel-shell" aria-label="Lyrics">
+          <lyrics-view></lyrics-view>
+        </aside>
+      </div>
+    </div>
+
+    <main id="public-route-outlet" class="public-route-outlet" tabindex="-1">
+      <section class="login-page" data-login-fallback>
+        <form class="login-card">
+          <h1>Orpheus</h1>
+          <p class="muted">Login with Account</p>
+          <label>
+            Username
+            <input class="input" type="text" autocomplete="username" placeholder="your_username" />
+          </label>
+          <label>
+            Password
+            <input class="input" type="password" autocomplete="current-password" placeholder="********" />
+          </label>
+          <button class="button" type="button">Login</button>
+          <p class="muted">Loading sign-in...</p>
+        </form>
+      </section>
+    </main>
+
+    <div id="youtube-player-host" class="youtube-player-host" aria-hidden="true"></div>
+    <player-bar></player-bar>
+    <dialog id="lyrics-overlay" class="lyrics-overlay">
+      <div class="dialog-header">
+        <h2>Lyrics</h2>
+        <button class="icon-button" type="button" data-close-lyrics aria-label="Close lyrics">×</button>
+      </div>
+      <lyrics-view data-mobile-overlay="true"></lyrics-view>
+    </dialog>
+    <dialog id="app-dialog" class="app-dialog">
+      <form method="dialog">
+        <p id="app-dialog-message"></p>
+        <button class="button" value="ok">OK</button>
+      </form>
+    </dialog>
+
+    <script type="module" src="/assets/js/app.js"></script>
+  </body>
+</html>
