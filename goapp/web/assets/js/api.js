@@ -33,6 +33,18 @@ async function request(path, options = {}) {
   return payload;
 }
 
+function toYouTubeVideoPayload(video) {
+  return {
+    id: video.id,
+    title: video.title,
+    thumbnail: video.thumbnail,
+    channelTitle: video.channelTitle,
+    publishedAt: video.publishedAt,
+    duration: video.duration,
+    viewCount: video.viewCount,
+  };
+}
+
 export const API = {
   login: (username, password) =>
     request("/api/auth/login", {
@@ -72,13 +84,13 @@ export const API = {
   matchDeezerTracks: (videos, signal) =>
     request("/api/discover/deezer/matches", {
       method: "POST",
-      body: JSON.stringify({ videos }),
+      body: JSON.stringify({ videos: videos.map(toYouTubeVideoPayload) }),
       signal,
     }),
   customDeezerMatch: (video, customQuery) =>
     request("/api/discover/deezer/custom-match", {
       method: "POST",
-      body: JSON.stringify({ video, customQuery }),
+      body: JSON.stringify({ video: toYouTubeVideoPayload(video), customQuery }),
     }),
   lyricsOptions: (track, signal) =>
     request("/api/discover/lyrics/options", {

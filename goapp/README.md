@@ -17,6 +17,11 @@ export DOMAIN='http://localhost:8080'
 export PORT='8080'
 ```
 
+`RABBITMQ_URL` is required in production so committed songs can be queued for
+`orpheus-consumer`. In development, leaving it empty disables queue publishing:
+the song metadata is stored, but the downloaded file will not be created and
+`songs.is_available` remains false until a consumer processes the job.
+
 Then run:
 
 ```sh

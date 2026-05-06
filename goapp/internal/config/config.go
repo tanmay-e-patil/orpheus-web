@@ -61,6 +61,9 @@ func Load() (Config, error) {
 	if cfg.AuthPassword == "" && cfg.AuthPasswordHash == "" {
 		missing = append(missing, "AUTH_PASSWORD or AUTH_PASSWORD_HASH")
 	}
+	if cfg.AppEnv == "production" && strings.TrimSpace(cfg.RabbitMQURL) == "" {
+		missing = append(missing, "RABBITMQ_URL")
+	}
 	if len(missing) > 0 {
 		return Config{}, errors.New("missing required config: " + strings.Join(missing, ", "))
 	}

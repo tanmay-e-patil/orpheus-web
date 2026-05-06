@@ -3,10 +3,16 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+)
+
+const (
+	ProcessSongAction = "process-song-data"
+	JobQueueName      = "job_queue"
 )
 
 type QueuePublisher struct {
@@ -34,25 +40,25 @@ func (q *QueuePublisher) PublishProcessSong(ctx context.Context, trackID string)
 	if err != nil {
 		return err
 	}
-	if _, err := ch.QueueDeclare("job_queue", true, false, false, false, nil); err != nil {
+	if _, err := ch.QueueDeclare(JobQueueName, true, false, false, false, nil); err != nil {
 		q.reset()
-		return err
+		return fmt.Errorf("declare RabbitMQ queue %s: %w", JobQueueName, err)
 	}
 	body, err := json.Marshal(JobPayload{
 		JobID:     trackID,
-		Action:    "process-song-data",
+		Action:    ProcessSongAction,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
 		return err
 	}
-	if err := ch.PublishWithContext(ctx, "", "job_queue", false, false, amqp.Publishing{
+	if err := ch.PublishWithContext(ctx, "", JobQueueName, false, false, amqp.Publishing{
 		DeliveryMode: amqp.Persistent,
 		ContentType:  "application/json",
 		Body:         body,
 	}); err != nil {
 		q.reset()
-		return err
+		return fmt.Errorf("publish RabbitMQ job to %s: %w", JobQueueName, err)
 	}
 	return nil
 }
@@ -78,12 +84,12 @@ func (q *QueuePublisher) channel() (*amqp.Channel, error) {
 	}
 	conn, err := amqp.Dial(q.url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("connect to RabbitMQ: %w", err)
 	}
 	ch, err := conn.Channel()
 	if err != nil {
 		_ = conn.Close()
-		return nil, err
+		return nil, fmt.Errorf("open RabbitMQ channel: %w", err)
 	}
 	q.conn = conn
 	q.ch = ch
