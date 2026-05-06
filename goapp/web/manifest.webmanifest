@@ -1,0 +1,12 @@
+{
+  "name": "Orpheus",
+  "short_name": "Orpheus",
+  "description": "A music library for your personal collection",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B0B0B",
+  "theme_color": "#0B0B0B",
+  "orientation": "portrait-primary",
+  "categories": ["music", "audio", "entertainment"]
+}

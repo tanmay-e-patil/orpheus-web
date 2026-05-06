@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# go
+goapp/tmp/
+goapp/*.exe
+goapp/*.exe~
+goapp/*.dll
+goapp/*.so
+goapp/*.dylib
+goapp/*.test
+goapp/*.out
