@@ -22,6 +22,17 @@ import "./components/commit-library.js";
 const router = new Router();
 window.Orpheus = { router };
 
+const authShell = document.querySelector("[data-auth-shell]");
+const sidebar = authShell?.querySelector(".sidebar");
+const sidebarCollapsed = localStorage.getItem("orpheus-sidebar-collapsed") === "true";
+setSidebarCollapsed(sidebarCollapsed);
+
+function setSidebarCollapsed(collapsed) {
+  authShell?.classList.toggle("sidebar-collapsed", collapsed);
+  sidebar?.toggleAttribute("inert", collapsed);
+  sidebar?.setAttribute("aria-hidden", String(collapsed));
+}
+
 document.querySelectorAll(".sign-out-button").forEach((button) => {
   button.addEventListener("click", async () => {
     await API.logout();
@@ -35,6 +46,15 @@ window.addEventListener("orpheus:unauthorized", () => clearPlayer());
 
 document.querySelector("[data-close-lyrics]")?.addEventListener("click", () => {
   document.getElementById("lyrics-overlay")?.close();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key.toLowerCase() !== "b" || (!event.metaKey && !event.ctrlKey) || event.altKey || event.shiftKey) return;
+  if (!authShell || authShell.hidden) return;
+  event.preventDefault();
+  const collapsed = !authShell.classList.contains("sidebar-collapsed");
+  setSidebarCollapsed(collapsed);
+  localStorage.setItem("orpheus-sidebar-collapsed", String(collapsed));
 });
 
 initYouTubePlayer();

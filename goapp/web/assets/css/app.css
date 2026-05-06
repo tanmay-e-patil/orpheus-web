@@ -52,6 +52,10 @@ img {
   min-height: 100dvh;
 }
 
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 0 1fr;
+}
+
 .sidebar {
   position: sticky;
   top: 0;
@@ -62,6 +66,12 @@ img {
   padding: 20px 14px calc(var(--player-height) + 20px);
   border-right: 1px solid var(--border);
   background: #111;
+  overflow: hidden;
+}
+
+.app-shell.sidebar-collapsed .sidebar {
+  padding-inline: 0;
+  border-right: 0;
 }
 
 .brand {
@@ -103,6 +113,14 @@ img {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   height: 100dvh;
+}
+
+.lyrics-panel-shell[hidden] {
+  display: none;
+}
+
+.content-frame:has(.lyrics-panel-shell[hidden]) {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .route-outlet {
@@ -373,6 +391,43 @@ h2 {
 .lyrics-view {
   display: grid;
   gap: 12px;
+}
+
+.lyrics-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+  padding-bottom: 8px;
+  background: color-mix(in srgb, var(--background) 94%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.lyrics-header img,
+.lyrics-header .album-placeholder {
+  width: 96px;
+  height: 96px;
+}
+
+.lyrics-header h2 {
+  margin-bottom: 4px;
+}
+
+.lyrics-header p {
+  margin: 0;
+}
+
+.lyrics-save {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
 }
 
 .lyrics-lines {

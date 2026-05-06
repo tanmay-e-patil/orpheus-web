@@ -52,6 +52,16 @@ export function updateSongAlbumArt(trackId, albumArt) {
   emit();
 }
 
+export function updateSongLyrics(trackId, plainLyrics, syncedLyrics) {
+  state.queue = state.queue.map((song) => song.trackId === trackId ? {
+    ...song,
+    lyrics: plainLyrics,
+    syncedLyrics,
+    isLyricsAvailable: true,
+  } : song);
+  emit();
+}
+
 export function play() {
   state.controller?.play();
   state.status = "playing";

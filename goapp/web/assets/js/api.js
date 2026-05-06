@@ -61,8 +61,8 @@ export const API = {
       method: "POST",
       body: JSON.stringify({ trackId, plainLyrics, syncedLyrics }),
     }),
-  lrclibExact: (body) =>
-    request("/api/lyrics/lrclib", { method: "POST", body: JSON.stringify(body) }),
+  lrclibExact: (body, signal) =>
+    request("/api/lyrics/lrclib", { method: "POST", body: JSON.stringify(body), signal }),
   discoverYouTube: (query, signal) =>
     request("/api/discover/youtube", {
       method: "POST",
