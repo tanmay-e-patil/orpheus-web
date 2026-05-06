@@ -11,11 +11,22 @@ export class SongTable extends HTMLElement {
     return this._songs || [];
   }
 
+  set loading(value) {
+    const previous = this.loading;
+    this._loading = Boolean(value);
+    if (previous !== this.loading && !this.songs.length) this.render();
+  }
+
+  get loading() {
+    return Boolean(this._loading);
+  }
+
   connectedCallback() {
     this.render();
   }
 
   render() {
+    const songs = this.songs;
     const table = el("table", { class: "song-table" }, [
       el("thead", {}, [
         el("tr", {}, [
@@ -28,7 +39,12 @@ export class SongTable extends HTMLElement {
     ]);
     const tbody = el("tbody");
     const list = el("div", { class: "song-list" });
-    this.songs.forEach((song, index) => {
+    if (this.loading && !songs.length) {
+      renderSkeletonRows(tbody, list);
+      this.replaceChildren(table, list);
+      return;
+    }
+    songs.forEach((song, index) => {
       const playSong = () => setQueue(this.songs, index);
       const art = song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" });
       art.addEventListener?.("error", () => this.dispatchEvent(new CustomEvent("albumartfailed", { detail: song.trackId, bubbles: true })));
@@ -50,6 +66,27 @@ export class SongTable extends HTMLElement {
     });
     table.append(tbody);
     this.replaceChildren(table, list);
+  }
+}
+
+function renderSkeletonRows(tbody, list) {
+  for (let index = 0; index < 10; index += 1) {
+    tbody.append(el("tr", { class: "skeleton-row", "aria-hidden": "true" }, [
+      el("td", {}, [el("div", { class: "track-cell" }, [
+        el("span", { class: "skeleton skeleton-art" }),
+        el("span", { class: "skeleton skeleton-text wide" }),
+      ])]),
+      el("td", {}, [el("span", { class: "skeleton skeleton-text medium" })]),
+      el("td", {}, [el("span", { class: "skeleton skeleton-text wide" })]),
+      el("td", {}, [el("span", { class: "skeleton skeleton-text short" })]),
+    ]));
+    list.append(el("div", { class: "song-list-item skeleton-row", "aria-hidden": "true" }, [
+      el("span", { class: "skeleton skeleton-art" }),
+      el("span", {}, [
+        el("span", { class: "skeleton skeleton-text wide" }),
+        el("span", { class: "skeleton skeleton-text medium" }),
+      ]),
+    ]));
   }
 }
 

@@ -38,12 +38,8 @@ export class Router {
 
   async render() {
     const route = routes.find((candidate) => candidate.path === window.location.pathname) || routes[0];
-    if (route.public) {
-      this.authShell.hidden = true;
-      this.publicOutlet.hidden = false;
-      this.publicOutlet.replaceChildren(document.createElement(route.component));
-      this.publicOutlet.focus({ preventScroll: true });
-    }
+    this.authShell.hidden = true;
+    this.publicOutlet.hidden = true;
 
     let session = null;
     try {
@@ -57,11 +53,17 @@ export class Router {
       return this.render();
     }
     if (route.public) {
+      if (session?.authenticated) {
+        history.replaceState({}, "", "/home");
+        return this.render();
+      }
+      this.publicOutlet.hidden = false;
+      this.publicOutlet.replaceChildren(document.createElement(route.component));
+      this.publicOutlet.focus({ preventScroll: true });
       return;
     }
 
-    this.authShell.hidden = !route.protected;
-    this.publicOutlet.hidden = route.protected;
+    this.authShell.hidden = false;
     const outlet = route.protected ? this.privateOutlet : this.publicOutlet;
     outlet.replaceChildren(document.createElement(route.component));
     outlet.focus({ preventScroll: true });

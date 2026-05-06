@@ -281,6 +281,10 @@ h2 {
   cursor: pointer;
 }
 
+.song-table .skeleton-row {
+  cursor: default;
+}
+
 .song-table tr:hover,
 .song-list-item:hover,
 .match-row:hover {
@@ -310,6 +314,34 @@ h2 {
 
 .song-list {
   display: none;
+}
+
+.skeleton {
+  display: inline-block;
+  background: color-mix(in srgb, var(--input) 72%, var(--border));
+  border-radius: 6px;
+}
+
+.skeleton-art {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+}
+
+.skeleton-text {
+  height: 14px;
+}
+
+.skeleton-text.short {
+  width: 48px;
+}
+
+.skeleton-text.medium {
+  width: min(140px, 75%);
+}
+
+.skeleton-text.wide {
+  width: min(220px, 90%);
 }
 
 .song-list-item,

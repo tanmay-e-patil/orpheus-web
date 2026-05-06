@@ -11,7 +11,10 @@ export class LyricsView extends HTMLElement {
     this.abortController = null;
     this.lastTrackId = "";
     this.lookupComplete = false;
-    this.onChange = () => this.render();
+    this.activeIndex = -1;
+    this.lineElements = [];
+    this.songSignature = "";
+    this.onChange = () => this.handlePlayerChange();
     playerStore.addEventListener("change", this.onChange);
     this.render();
   }
@@ -21,10 +24,23 @@ export class LyricsView extends HTMLElement {
     this.abortController?.abort();
   }
 
+  handlePlayerChange() {
+    const song = currentSong();
+    const signature = song ? songSignature(song, this.fetched) : "";
+    if (song?.trackId === this.lastTrackId && signature === this.songSignature && this.lineElements.length) {
+      this.updateActiveLine();
+      return;
+    }
+    this.render();
+  }
+
   render() {
     const song = currentSong();
     this.closest(".lyrics-panel-shell")?.toggleAttribute("hidden", !song);
     if (!song) {
+      this.activeIndex = -1;
+      this.lineElements = [];
+      this.songSignature = "";
       this.replaceChildren();
       return;
     }
@@ -36,17 +52,19 @@ export class LyricsView extends HTMLElement {
       this.abortController?.abort();
       this.abortController = null;
       this.lookupComplete = false;
+      this.activeIndex = -1;
+      this.lineElements = [];
     }
     this.fetchMissingLyrics(song);
+    this.songSignature = songSignature(song, this.fetched);
 
     const fetchedSynced = this.fetched?.syncedLyrics?.trim() ? this.fetched.syncedLyrics : "";
     const synced = parseLRC(fetchedSynced || song.syncedLyrics || "");
     const header = this.renderHeader(song);
     if (synced.length) {
-      const active = findActiveIndex(synced, getPlayerState().currentTime * 1000);
       const list = el("div", { class: "lyrics-lines" });
       synced.forEach((line, index) => {
-        list.append(el("p", { class: index === active ? "active" : "", text: line.text }));
+        list.append(el("p", { text: line.text }));
       });
       const children = [header];
       const bodyChildren = [];
@@ -56,10 +74,16 @@ export class LyricsView extends HTMLElement {
       bodyChildren.push(list);
       children.push(el("div", { class: "lyrics-body" }, bodyChildren));
       this.replaceChildren(el("div", { class: "lyrics-view" }, children));
-      list.querySelector(".active")?.scrollIntoView({ block: "center", behavior: "smooth" });
+      this.synced = synced;
+      this.lineElements = [...list.querySelectorAll("p")];
+      this.activeIndex = -1;
+      this.updateActiveLine({ scroll: false });
       return;
     }
 
+    this.activeIndex = -1;
+    this.lineElements = [];
+    this.synced = [];
     const plainLyrics = song.lyrics || this.fetched?.plainLyrics || "";
     if (plainLyrics || this.fetching) {
       const body = this.fetching && !plainLyrics ? "Looking up lyrics from LRCLIB..." : plainLyrics;
@@ -156,6 +180,29 @@ export class LyricsView extends HTMLElement {
       this.render();
     }
   }
+
+  updateActiveLine({ scroll = true } = {}) {
+    if (!this.synced?.length || !this.lineElements.length) return;
+    const active = findActiveIndex(this.synced, getPlayerState().currentTime * 1000);
+    if (active === this.activeIndex) return;
+    this.lineElements[this.activeIndex]?.classList.remove("active");
+    this.lineElements[active]?.classList.add("active");
+    this.activeIndex = active;
+    if (scroll) this.lineElements[active]?.scrollIntoView({ block: "center", behavior: "auto" });
+  }
+}
+
+function songSignature(song, fetched) {
+  return [
+    song.trackId,
+    song.name,
+    song.artistName,
+    song.albumArt,
+    song.lyrics,
+    song.syncedLyrics,
+    fetched?.plainLyrics,
+    fetched?.syncedLyrics,
+  ].join("\u0000");
 }
 
 customElements.define("lyrics-view", LyricsView);

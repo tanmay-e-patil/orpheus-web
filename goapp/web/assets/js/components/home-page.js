@@ -20,6 +20,7 @@ export class HomePage extends HTMLElement {
 
   renderShell() {
     this.table = document.createElement("song-table");
+    this.table.loading = true;
     this.boundary = el("div", { class: "scroll-boundary" });
     this.replaceChildren(el("section", { class: "page home-page" }, [
       el("div", { class: "page-header" }, [
@@ -41,16 +42,18 @@ export class HomePage extends HTMLElement {
     const cached = await readSongsCache(userId).catch(() => null);
     if (cached?.songs?.length) {
       this.songs = cached.songs;
-      this.table.songs = this.songs;
+      this.updateTableSongs(this.songs);
     }
     try {
       const first = await API.songs(null);
       this.pages = [{ cursorIn: null, ...first }];
       this.songs = first.songs;
-      this.table.songs = this.songs;
+      this.updateTableSongs(this.songs);
       await upsertSongsPage(userId, null, first);
     } catch (error) {
       showDialog(error.message || "Could not load songs");
+    } finally {
+      this.table.loading = false;
     }
   }
 
@@ -68,7 +71,7 @@ export class HomePage extends HTMLElement {
         seen.add(song.trackId);
         return true;
       });
-      this.table.songs = this.songs;
+      this.updateTableSongs(this.songs);
       await upsertSongsPage(appState.session?.user?.id || "single-user", last.nextCursor, page);
     } catch (error) {
       toast(error.message || "Could not load more songs", "error");
@@ -89,12 +92,31 @@ export class HomePage extends HTMLElement {
           this.songs = this.songs.map((song) => song.trackId === id ? { ...song, albumArt: art } : song);
           updateSongAlbumArt(id, art);
         }
-        this.table.songs = this.songs;
+        this.updateTableSongs(this.songs);
       } catch (error) {
         console.warn("album art refresh failed", error);
       }
     }, 300);
   }
+
+  updateTableSongs(songs) {
+    if (sameSongList(this.table.songs, songs)) return;
+    this.table.songs = songs;
+  }
+}
+
+function sameSongList(a = [], b = []) {
+  if (a.length !== b.length) return false;
+  return a.every((song, index) => {
+    const candidate = b[index];
+    return candidate &&
+      song.trackId === candidate.trackId &&
+      song.name === candidate.name &&
+      song.artistName === candidate.artistName &&
+      song.albumName === candidate.albumName &&
+      song.duration === candidate.duration &&
+      song.albumArt === candidate.albumArt;
+  });
 }
 
 customElements.define("home-page", HomePage);
