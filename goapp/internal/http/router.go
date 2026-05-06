@@ -56,7 +56,7 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("POST /api/discover/commit", s.requireAuth(method(http.MethodPost, handlers.CommitWorkflow(s.Store, s.Queue))))
 
 	mux.HandleFunc("/", s.staticOrShell)
-	return mux
+	return logRequests(mux)
 }
 
 func (s *Server) staticOrShell(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,9 @@
+.air.toml
+.infisical.json
+.git
+tmp
+Dockerfile
+*.test
+coverage.out
+dist
+node_modules
