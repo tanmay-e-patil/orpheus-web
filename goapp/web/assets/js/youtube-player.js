@@ -35,6 +35,7 @@ function createPlayer() {
           load: (videoId) => player?.loadVideoById(videoId),
           play: () => player?.playVideo?.(),
           pause: () => player?.pauseVideo?.(),
+          stop: () => player?.stopVideo?.(),
           seekTo: (seconds) => player?.seekTo?.(seconds, true),
           getCurrentTime: () => player?.getCurrentTime?.() || 0,
           getDuration: () => player?.getDuration?.() || 0,

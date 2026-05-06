@@ -22,6 +22,17 @@ export function setController(controller) {
   emit();
 }
 
+export function clearPlayer() {
+  state.controller?.stop?.();
+  state.controller?.pause?.();
+  state.queue = [];
+  state.currentIndex = 0;
+  state.status = "idle";
+  state.currentTime = 0;
+  state.duration = 0;
+  emit();
+}
+
 export function setQueue(queue, currentIndex) {
   state.queue = queue;
   state.currentIndex = currentIndex;
