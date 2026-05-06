@@ -1,4 +1,4 @@
-import { next, setController, setDuration, setTime, getPlayerState } from "./player-store.js";
+import { next, setController, setDuration, setPlaybackStatus, setTime, getPlayerState } from "./player-store.js";
 import { toast } from "./store.js";
 
 let player = null;
@@ -52,6 +52,9 @@ function createPlayer() {
         }
       },
       onStateChange: (event) => {
+        if (event.data === YT.PlayerState.PLAYING) setPlaybackStatus("playing");
+        if (event.data === YT.PlayerState.PAUSED) setPlaybackStatus("paused");
+        if (event.data === YT.PlayerState.BUFFERING) setPlaybackStatus("loading");
         if (event.data === YT.PlayerState.ENDED) next();
       },
       onError: () => {

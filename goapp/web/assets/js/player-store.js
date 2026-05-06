@@ -74,6 +74,12 @@ export function pause() {
   emit();
 }
 
+export function setPlaybackStatus(status) {
+  if (state.status === status) return;
+  state.status = status;
+  emit();
+}
+
 export function next() {
   const nextIndex = state.currentIndex + 1;
   if (nextIndex >= state.queue.length) {

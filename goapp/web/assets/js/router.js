@@ -26,14 +26,20 @@ export class Router {
       event.preventDefault();
       this.go(link.pathname + link.search);
     });
-    window.addEventListener("popstate", () => this.render());
+    window.addEventListener("popstate", () => this.transitionRender());
     window.addEventListener("orpheus:unauthorized", () => this.go("/"));
     this.render();
   }
 
   async go(url) {
     history.pushState({}, "", url);
-    await this.render();
+    await this.transitionRender();
+  }
+
+  async transitionRender() {
+    if (!document.startViewTransition) return this.render();
+    const transition = document.startViewTransition(() => this.render());
+    return transition.finished.catch(() => {});
   }
 
   async render() {

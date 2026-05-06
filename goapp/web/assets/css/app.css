@@ -12,6 +12,11 @@
   --success: #86efac;
   --radius: 8px;
   --player-height: 88px;
+  --motion-fast: 120ms;
+  --motion-medium: 220ms;
+  --motion-slow: 360ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -33,6 +38,14 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+::view-transition-old(root) {
+  animation: route-out var(--motion-medium) var(--ease-in-out);
+}
+
+::view-transition-new(root) {
+  animation: route-in var(--motion-medium) var(--ease-out);
 }
 
 button,
@@ -96,6 +109,16 @@ img {
   border-radius: var(--radius);
   padding: 0 12px;
   color: var(--muted);
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.nav-list a:hover,
+.mobile-nav-links a:hover {
+  color: var(--foreground);
+  transform: translateX(1px);
 }
 
 .nav-list a[aria-current],
@@ -126,6 +149,11 @@ img {
 .route-outlet {
   overflow: auto;
   padding-bottom: calc(var(--player-height) + 24px);
+}
+
+.route-outlet > *,
+.public-route-outlet > * {
+  animation: page-enter var(--motion-medium) var(--ease-out);
 }
 
 .lyrics-panel-shell {
@@ -221,6 +249,12 @@ h2 {
   background: var(--accent);
   color: var(--accent-foreground);
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out),
+    opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
 }
 
 .button.secondary,
@@ -228,6 +262,35 @@ h2 {
   border: 1px solid var(--border);
   background: transparent;
   color: var(--foreground);
+}
+
+.icon-button {
+  width: 40px;
+  min-width: 40px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+}
+
+.button:hover,
+.icon-button:hover {
+  transform: translateY(-1px);
+}
+
+.button:active,
+.icon-button:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.button:focus-visible,
+.icon-button:focus-visible,
+.nav-list a:focus-visible,
+.mobile-nav-links a:focus-visible,
+.song-list-item:focus-visible,
+.match-row:focus-visible,
+.youtube-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .button.danger,
@@ -268,6 +331,7 @@ h2 {
 .song-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .song-table th,
@@ -275,10 +339,34 @@ h2 {
   text-align: left;
   border-bottom: 1px solid var(--border);
   padding: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-table th:first-child,
+.song-table td:first-child {
+  width: 42%;
+}
+
+.song-table th:nth-child(2),
+.song-table td:nth-child(2) {
+  width: 22%;
+}
+
+.song-table th:nth-child(3),
+.song-table td:nth-child(3) {
+  width: 26%;
+}
+
+.song-table th:nth-child(4),
+.song-table td:nth-child(4) {
+  width: 10%;
 }
 
 .song-table tr {
   cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
 }
 
 .song-table .skeleton-row {
@@ -299,6 +387,10 @@ h2 {
   min-width: 0;
 }
 
+.track-cell {
+  width: 100%;
+}
+
 .track-cell img,
 .song-list-item img,
 .match-row img,
@@ -312,14 +404,38 @@ h2 {
   background: var(--input);
 }
 
+.player-meta > div,
+.track-cell span,
+.song-list-item span,
+.match-row span {
+  min-width: 0;
+}
+
+.player-meta strong,
+.player-meta .muted,
+.track-cell span,
+.song-list-item strong,
+.song-list-item .muted,
+.match-row strong,
+.match-row .muted {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .song-list {
   display: none;
 }
 
 .skeleton {
   display: inline-block;
-  background: color-mix(in srgb, var(--input) 72%, var(--border));
+  background:
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--foreground) 8%, transparent), transparent),
+    color-mix(in srgb, var(--input) 72%, var(--border));
+  background-size: 220% 100%, 100% 100%;
   border-radius: 6px;
+  animation: skeleton-shimmer 1.2s var(--ease-in-out) infinite;
 }
 
 .skeleton-art {
@@ -357,6 +473,15 @@ h2 {
   gap: 12px;
   padding: 10px 0;
   text-align: left;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.song-list-item:hover,
+.match-row:hover {
+  transform: translateY(-1px);
 }
 
 .song-list-item span,
@@ -380,6 +505,16 @@ h2 {
   padding: 12px;
   display: grid;
   gap: 10px;
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    outline-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+
+.result-card:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--card) 92%, var(--foreground));
 }
 
 .result-card.selected,
@@ -477,12 +612,16 @@ h2 {
 .lyrics-lines p {
   margin: 0;
   color: var(--muted);
-  transition: color 0.15s ease, transform 0.15s ease;
+  transition:
+    color var(--motion-medium) var(--ease-out),
+    text-shadow var(--motion-medium) var(--ease-out),
+    transform var(--motion-medium) var(--ease-out);
 }
 
 .lyrics-lines p.active {
   color: var(--foreground);
   transform: translateX(4px);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--foreground) 26%, transparent);
 }
 
 .lyrics-view pre,
@@ -501,6 +640,7 @@ player-bar {
 }
 
 .player-bar-inner {
+  position: relative;
   min-height: var(--player-height);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -512,16 +652,65 @@ player-bar {
 .seek {
   position: absolute;
   inset: 0 0 auto 0;
+  z-index: 1;
   width: 100%;
+  height: 6px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.player-meta,
+.player-controls,
+player-bar .youtube-link {
+  position: relative;
+  z-index: 2;
 }
 
 .player-controls {
   display: flex;
   gap: 8px;
+  flex-wrap: nowrap;
+}
+
+player-bar .icon-button,
+player-bar .youtube-link {
+  transition: none;
+}
+
+player-bar .icon-button:hover,
+player-bar .icon-button:active,
+player-bar .youtube-link:hover {
+  transform: none;
 }
 
 .youtube-link {
   color: var(--muted);
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius);
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.youtube-link:hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+player-bar .youtube-link:hover {
+  background: transparent;
+  color: var(--muted);
+}
+
+.player-toggle.is-playing {
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .youtube-player-host {
@@ -539,6 +728,17 @@ player-bar {
   background: var(--card);
   color: var(--foreground);
   max-width: min(720px, calc(100vw - 32px));
+}
+
+.app-dialog[open],
+.lyrics-overlay[open] {
+  animation: dialog-in var(--motion-medium) var(--ease-out);
+}
+
+.app-dialog::backdrop,
+.lyrics-overlay::backdrop {
+  background: rgb(0 0 0 / 0.56);
+  animation: backdrop-in var(--motion-medium) var(--ease-out);
 }
 
 .lyrics-overlay {
@@ -638,5 +838,82 @@ player-bar {
   .input-row > *,
   .actions > * {
     flex: 1 1 auto;
+  }
+}
+
+@keyframes route-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes route-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 140% 0, 0 0;
+  }
+
+  to {
+    background-position: -80% 0, 0 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
   }
 }
