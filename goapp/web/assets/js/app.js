@@ -2,6 +2,7 @@ import { Router } from "./router.js";
 import { API } from "./api.js";
 import { toast } from "./store.js";
 import { initYouTubePlayer } from "./youtube-player.js";
+import { clearPlayer } from "./player-store.js";
 
 import "./components/app-shell.js";
 import "./components/login-page.js";
@@ -24,10 +25,13 @@ window.Orpheus = { router };
 document.querySelectorAll(".sign-out-button").forEach((button) => {
   button.addEventListener("click", async () => {
     await API.logout();
+    clearPlayer();
     toast("Signed out");
     router.go("/");
   });
 });
+
+window.addEventListener("orpheus:unauthorized", () => clearPlayer());
 
 document.querySelector("[data-close-lyrics]")?.addEventListener("click", () => {
   document.getElementById("lyrics-overlay")?.close();
