@@ -49,10 +49,12 @@ export class LyricsView extends HTMLElement {
         list.append(el("p", { class: index === active ? "active" : "", text: line.text }));
       });
       const children = [header];
+      const bodyChildren = [];
       if (fetchedSynced && !song.syncedLyrics?.trim()) {
-        children.push(this.renderSavePrompt(song, "Preview from LRCLIB"));
+        bodyChildren.push(this.renderSavePrompt(song, "Preview from LRCLIB"));
       }
-      children.push(list);
+      bodyChildren.push(list);
+      children.push(el("div", { class: "lyrics-body" }, bodyChildren));
       this.replaceChildren(el("div", { class: "lyrics-view" }, children));
       list.querySelector(".active")?.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
@@ -61,18 +63,21 @@ export class LyricsView extends HTMLElement {
     const plainLyrics = song.lyrics || this.fetched?.plainLyrics || "";
     if (plainLyrics || this.fetching) {
       const body = this.fetching && !plainLyrics ? "Looking up lyrics from LRCLIB..." : plainLyrics;
-      const children = [header, el("pre", { text: body })];
+      const bodyChildren = [el("pre", { text: body })];
       if (this.fetched?.plainLyrics || this.fetched?.syncedLyrics) {
-        children.push(this.renderSavePrompt(song, "Found lyrics from LRCLIB"));
+        bodyChildren.push(this.renderSavePrompt(song, "Found lyrics from LRCLIB"));
       }
       this.replaceChildren(el("div", { class: "lyrics-view" }, [
-        ...children,
+        header,
+        el("div", { class: "lyrics-body" }, bodyChildren),
       ]));
       return;
     }
     this.replaceChildren(el("div", { class: "lyrics-view" }, [
       header,
-      el("div", { class: "lyrics-empty", text: "No lyrics available." }),
+      el("div", { class: "lyrics-body" }, [
+        el("div", { class: "lyrics-empty", text: "No lyrics available." }),
+      ]),
     ]));
   }
 

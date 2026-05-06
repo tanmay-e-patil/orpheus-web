@@ -130,7 +130,7 @@ img {
 
 .lyrics-panel-shell {
   border-left: 1px solid var(--border);
-  overflow: auto;
+  overflow: hidden;
   padding: 16px 16px calc(var(--player-height) + 16px);
 }
 
@@ -390,20 +390,25 @@ h2 {
 
 .lyrics-view {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
+  height: 100%;
+}
+
+.lyrics-body {
+  min-height: 0;
+  overflow: auto;
+  scroll-padding-block: 48%;
 }
 
 .lyrics-header {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  z-index: 2;
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
   gap: 12px;
   align-items: end;
   padding-bottom: 8px;
-  background: color-mix(in srgb, var(--background) 94%, transparent);
-  backdrop-filter: blur(10px);
+  background: var(--background);
 }
 
 .lyrics-header img,
@@ -431,6 +436,8 @@ h2 {
 }
 
 .lyrics-lines {
+  position: relative;
+  z-index: 0;
   display: grid;
   gap: 8px;
 }
@@ -450,8 +457,6 @@ h2 {
 .lyrics-preview {
   white-space: pre-wrap;
   color: var(--muted);
-  max-height: 220px;
-  overflow: auto;
 }
 
 player-bar {
