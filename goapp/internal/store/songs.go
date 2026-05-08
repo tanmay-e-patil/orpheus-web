@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -11,6 +13,13 @@ import (
 )
 
 const maxSongLimit = 100
+
+type RedownloadSongsFilter struct {
+	IncludeAvailable bool
+	UpdatedAfter     *time.Time
+	UpdatedBefore    *time.Time
+	Limit            int
+}
 
 func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, limit int) (types.SongsPageResponse, error) {
 	if limit <= 0 {
@@ -113,6 +122,54 @@ func (s *Store) SongsForAlbumRefresh(ctx context.Context, trackIDs []string) ([]
 		songs = append(songs, song)
 	}
 	return songs, rows.Err()
+}
+
+func (s *Store) RedownloadSongIDs(ctx context.Context, filter RedownloadSongsFilter) ([]string, error) {
+	query, args := buildRedownloadSongIDsQuery(filter)
+	rows, err := s.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trackIDs []string
+	for rows.Next() {
+		var trackID string
+		if err := rows.Scan(&trackID); err != nil {
+			return nil, err
+		}
+		trackIDs = append(trackIDs, trackID)
+	}
+	return trackIDs, rows.Err()
+}
+
+func buildRedownloadSongIDsQuery(filter RedownloadSongsFilter) (string, []any) {
+	var args []any
+	var predicates []string
+	if !filter.IncludeAvailable {
+		predicates = append(predicates, "coalesce(is_available, false) = false")
+	}
+	if filter.UpdatedAfter != nil {
+		args = append(args, *filter.UpdatedAfter)
+		predicates = append(predicates, fmt.Sprintf("updated_at >= $%d", len(args)))
+	}
+	if filter.UpdatedBefore != nil {
+		args = append(args, *filter.UpdatedBefore)
+		predicates = append(predicates, fmt.Sprintf("updated_at <= $%d", len(args)))
+	}
+
+	var query strings.Builder
+	query.WriteString("select id from songs")
+	if len(predicates) > 0 {
+		query.WriteString(" where ")
+		query.WriteString(strings.Join(predicates, " and "))
+	}
+	query.WriteString(" order by updated_at asc, id asc")
+	if filter.Limit > 0 {
+		args = append(args, filter.Limit)
+		query.WriteString(fmt.Sprintf(" limit $%d", len(args)))
+	}
+	return query.String(), args
 }
 
 func (s *Store) UpdateAlbumArt(ctx context.Context, trackID, albumArt string) error {

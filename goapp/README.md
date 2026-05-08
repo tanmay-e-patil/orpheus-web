@@ -38,3 +38,43 @@ find web/assets/js -name '*.js' -print -exec node --check {} \;
 ```
 
 The port keeps the existing `songs` and `yt_music_videos` schema and does not register the old Next-generated service worker.
+
+## Redownload library files
+
+Use the redownload CLI to republish existing songs to RabbitMQ for
+`orpheus-consumer`. By default it queues only songs where `songs.is_available`
+is false or null.
+
+```sh
+DATABASE_URL='postgres://...' RABBITMQ_URL='amqp://...' \
+go run ./cmd/redownload-library
+```
+
+Preview matches without publishing:
+
+```sh
+DATABASE_URL='postgres://...' \
+go run ./cmd/redownload-library --dry-run --limit 20
+```
+
+Queue unavailable songs updated in a window:
+
+```sh
+go run ./cmd/redownload-library \
+  --updated-after 2026-05-01T00:00:00Z \
+  --updated-before 2026-05-08T00:00:00Z
+```
+
+Queue every song updated in a window:
+
+```sh
+go run ./cmd/redownload-library \
+  --all \
+  --updated-after 2026-05-01T00:00:00Z \
+  --updated-before 2026-05-08T00:00:00Z
+```
+
+The CLI publishes the same payload used by commits:
+`{"jobId":"<track-id>","action":"process-song-data","timestamp":"<utc>"}` to
+the durable `job_queue`. It does not update `songs.is_available`; the consumer
+remains responsible for marking completed downloads available.
