@@ -17,6 +17,7 @@ type Config struct {
 	AuthCookieSecret string
 	YouTubeAPIKey    string
 	RabbitMQURL      string
+	MusicLibraryPath string
 	Domain           string
 	Port             string
 	AppEnv           string
@@ -33,6 +34,7 @@ func Load() (Config, error) {
 		AuthCookieSecret: os.Getenv("AUTH_COOKIE_SECRET"),
 		YouTubeAPIKey:    os.Getenv("YOUTUBE_API_KEY"),
 		RabbitMQURL:      os.Getenv("RABBITMQ_URL"),
+		MusicLibraryPath: getenv("MUSIC_LIBRARY_PATH", "/music"),
 		Domain:           os.Getenv("DOMAIN"),
 		Port:             getenv("PORT", "8080"),
 		AppEnv:           getenv("APP_ENV", "development"),

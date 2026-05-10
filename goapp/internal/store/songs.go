@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -38,7 +39,7 @@ func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, li
 	args := []any{limit + 1}
 	query := `
 		select id, name, artist_name, album_name, album_art, duration, yt_video_id,
-		       lyrics, synced_lyrics, is_lyrics_available
+		       lyrics, synced_lyrics, is_lyrics_available, coalesce(is_available, false)
 		from songs
 	`
 	if cursor != nil {
@@ -69,6 +70,7 @@ func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, li
 			&lyrics,
 			&syncedLyrics,
 			&isLyrics,
+			&song.IsAvailable,
 		); err != nil {
 			return types.SongsPageResponse{}, err
 		}
@@ -81,6 +83,9 @@ func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, li
 		if isLyrics.Valid {
 			value := isLyrics.Bool
 			song.IsLyricsAvailable = &value
+		}
+		if song.IsAvailable {
+			song.AudioURL = "/api/songs/" + url.PathEscape(song.TrackID) + "/audio"
 		}
 		songs = append(songs, song)
 	}
@@ -103,6 +108,19 @@ func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, li
 		HasMore:      hasMore,
 		PageRevision: types.SongPageRevision(songs),
 	}, nil
+}
+
+func (s *Store) SongForAudio(ctx context.Context, trackID string) (types.AudioSong, error) {
+	var song types.AudioSong
+	err := s.Pool.QueryRow(ctx, `
+		select id, name, artist_name, album_name, coalesce(is_available, false), updated_at
+		from songs
+		where id = $1
+	`, trackID).Scan(&song.TrackID, &song.Name, &song.ArtistName, &song.AlbumName, &song.IsAvailable, &song.UpdatedAt)
+	if err != nil {
+		return types.AudioSong{}, err
+	}
+	return song, nil
 }
 
 func (s *Store) SongsForAlbumRefresh(ctx context.Context, trackIDs []string) ([]types.LibrarySong, error) {

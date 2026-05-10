@@ -115,7 +115,9 @@ function sameSongList(a = [], b = []) {
       song.artistName === candidate.artistName &&
       song.albumName === candidate.albumName &&
       song.duration === candidate.duration &&
-      song.albumArt === candidate.albumArt;
+      song.albumArt === candidate.albumArt &&
+      song.isAvailable === candidate.isAvailable &&
+      song.audioUrl === candidate.audioUrl;
   });
 }
 

@@ -24,7 +24,6 @@ export function setController(controller) {
 
 export function clearPlayer() {
   state.controller?.stop?.();
-  state.controller?.pause?.();
   state.queue = [];
   state.currentIndex = 0;
   state.status = "idle";
@@ -36,14 +35,8 @@ export function clearPlayer() {
 export function setQueue(queue, currentIndex) {
   state.queue = queue;
   state.currentIndex = currentIndex;
-  state.status = "loading";
   state.currentTime = 0;
-  const videoId = queue[currentIndex]?.youtubeVideoId;
-  if (state.controller && videoId) {
-    state.controller.load(videoId);
-    state.controller.play();
-    state.status = "playing";
-  }
+  loadCurrentSong({ autoplay: true });
   emit();
 }
 
@@ -63,6 +56,11 @@ export function updateSongLyrics(trackId, plainLyrics, syncedLyrics) {
 }
 
 export function play() {
+  if (!playableSong(currentSong())) {
+    state.status = "unavailable";
+    emit();
+    return;
+  }
   state.controller?.play();
   state.status = "playing";
   emit();
@@ -88,27 +86,15 @@ export function next() {
     return;
   }
   state.currentIndex = nextIndex;
-  state.status = "loading";
   state.currentTime = 0;
-  const videoId = state.queue[nextIndex]?.youtubeVideoId;
-  if (state.controller && videoId) {
-    state.controller.load(videoId);
-    state.controller.play();
-    state.status = "playing";
-  }
+  loadCurrentSong({ autoplay: true });
   emit();
 }
 
 export function prev() {
   state.currentIndex = Math.max(0, state.currentIndex - 1);
-  state.status = "loading";
   state.currentTime = 0;
-  const videoId = state.queue[state.currentIndex]?.youtubeVideoId;
-  if (state.controller && videoId) {
-    state.controller.load(videoId);
-    state.controller.play();
-    state.status = "playing";
-  }
+  loadCurrentSong({ autoplay: true });
   emit();
 }
 
@@ -130,4 +116,36 @@ export function setDuration(seconds) {
 
 export function currentSong() {
   return state.queue[state.currentIndex] || null;
+}
+
+function loadCurrentSong({ autoplay = false } = {}) {
+  const song = currentSong();
+  if (!playableSong(song)) {
+    state.controller?.pause?.();
+    state.status = "unavailable";
+    state.duration = parseISODurationSeconds(song?.duration);
+    console.info("Song is not playable", {
+      trackId: song?.trackId,
+      isAvailable: song?.isAvailable,
+      audioUrl: song?.audioUrl,
+    });
+    return;
+  }
+  state.status = "loading";
+  state.duration = parseISODurationSeconds(song.duration);
+  state.controller?.load?.(song);
+  if (autoplay) {
+    state.controller?.play?.();
+  }
+}
+
+function playableSong(song) {
+  return Boolean(song?.trackId && song?.isAvailable !== false);
+}
+
+function parseISODurationSeconds(duration) {
+  if (!duration) return 0;
+  const match = String(duration).match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  return (Number(match[1] || 0) * 3600) + (Number(match[2] || 0) * 60) + Number(match[3] || 0);
 }

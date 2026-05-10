@@ -13,6 +13,7 @@ export AUTH_PASSWORD='...'
 export AUTH_COOKIE_SECRET='change-me'
 export YOUTUBE_API_KEY='...'
 export RABBITMQ_URL='amqp://...'
+export MUSIC_LIBRARY_PATH='/music'
 export DOMAIN='http://localhost:8080'
 export PORT='8080'
 ```
@@ -21,6 +22,8 @@ export PORT='8080'
 `orpheus-consumer`. In development, leaving it empty disables queue publishing:
 the song metadata is stored, but the downloaded file will not be created and
 `songs.is_available` remains false until a consumer processes the job.
+`MUSIC_LIBRARY_PATH` must point at the same directory used by `orpheus-consumer`
+so the Go app can stream available `.m4a` files.
 
 Then run:
 

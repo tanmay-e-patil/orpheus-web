@@ -60,6 +60,7 @@ export class PlayerBar extends HTMLElement {
         ]),
       ]),
       el("div", { class: "player-controls" }, [
+        !isPlayable(song) ? el("span", { class: "player-status muted", text: "Unavailable" }) : null,
         el("button", { class: "icon-button", type: "button", "aria-label": "Previous", onclick: (e) => { e.stopPropagation(); prev(); } }, [
           icon("skip-back"),
         ]),
@@ -68,12 +69,13 @@ export class PlayerBar extends HTMLElement {
           icon("skip-forward"),
         ]),
       ]),
-      el("a", { class: "youtube-link", href: `https://www.youtube.com/watch?v=${encodeURIComponent(song.youtubeVideoId)}`, target: "_blank", rel: "noopener noreferrer", "aria-label": "Open on YouTube" }, [
+      el("a", { class: "youtube-link", href: `https://www.youtube.com/watch?v=${encodeURIComponent(song.youtubeVideoId)}`, target: "_blank", rel: "noopener noreferrer", "aria-label": "Open source on YouTube" }, [
         icon("youtube"),
       ]),
     ]);
     this.progress = progress;
     this.toggle = toggle;
+    this.renderedStatus = null;
     this.replaceChildren(bar);
   }
 
@@ -82,11 +84,13 @@ export class PlayerBar extends HTMLElement {
       const duration = Math.max(1, state.duration || 1);
       this.progress.max = String(duration);
       this.progress.value = String(Math.min(state.currentTime || 0, duration));
+      this.progress.disabled = !isPlayable(currentSong());
     }
     if (this.toggle && this.renderedStatus !== state.status) {
       const isPlaying = isActivePlayback(state.status);
       this.renderedStatus = state.status;
       this.toggle.classList.toggle("is-playing", isPlaying);
+      this.toggle.disabled = !isPlayable(currentSong());
       this.toggle.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
       this.toggle.replaceChildren(icon(isPlaying ? "pause" : "play", { size: 22 }));
     }
@@ -95,6 +99,10 @@ export class PlayerBar extends HTMLElement {
 
 function isActivePlayback(status) {
   return status === "playing" || status === "loading";
+}
+
+function isPlayable(song) {
+  return Boolean(song?.trackId && song?.isAvailable !== false);
 }
 
 customElements.define("player-bar", PlayerBar);

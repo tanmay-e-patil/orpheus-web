@@ -46,21 +46,24 @@ export class SongTable extends HTMLElement {
     }
     songs.forEach((song, index) => {
       const playSong = () => setQueue(this.songs, index);
+      const unavailable = song.isAvailable === false;
+      const rowClass = unavailable ? "unavailable" : "";
+      const status = unavailable ? "Unavailable" : formatDuration(song.duration);
       const art = song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" });
       art.addEventListener?.("error", () => this.dispatchEvent(new CustomEvent("albumartfailed", { detail: song.trackId, bubbles: true })));
-      tbody.append(el("tr", { tabindex: "0", onclick: playSong }, [
+      tbody.append(el("tr", { class: rowClass, tabindex: "0", onclick: playSong }, [
         el("td", {}, [el("div", { class: "track-cell" }, [art.cloneNode(true), el("span", { text: song.name })])]),
         el("td", { text: song.artistName }),
         el("td", { text: song.albumName }),
-        el("td", { text: formatDuration(song.duration) }),
+        el("td", { text: status }),
       ]));
       const mobileArt = song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" });
       mobileArt.addEventListener?.("error", () => this.dispatchEvent(new CustomEvent("albumartfailed", { detail: song.trackId, bubbles: true })));
-      list.append(el("button", { class: "song-list-item", type: "button", onclick: playSong }, [
+      list.append(el("button", { class: `song-list-item ${rowClass}`.trim(), type: "button", onclick: playSong }, [
         mobileArt,
         el("span", {}, [
           el("strong", { text: song.name }),
-          el("span", { class: "muted", text: `${song.artistName} · ${song.albumName}` }),
+          el("span", { class: "muted", text: `${song.artistName} · ${song.albumName}${unavailable ? " · Unavailable" : ""}` }),
         ]),
       ]));
     });

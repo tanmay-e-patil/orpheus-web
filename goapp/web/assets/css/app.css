@@ -379,6 +379,18 @@ h2 {
   background: #202020;
 }
 
+.song-table tr.unavailable,
+.song-list-item.unavailable {
+  color: var(--muted);
+}
+
+.song-table tr.unavailable img,
+.song-list-item.unavailable img,
+.song-table tr.unavailable .album-placeholder,
+.song-list-item.unavailable .album-placeholder {
+  opacity: 0.55;
+}
+
 .track-cell,
 .player-meta {
   display: flex;
@@ -668,8 +680,14 @@ player-bar .youtube-link {
 
 .player-controls {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: nowrap;
+}
+
+.player-status {
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 player-bar .icon-button,
@@ -713,12 +731,10 @@ player-bar .youtube-link:hover {
   color: var(--accent-foreground);
 }
 
-.youtube-player-host {
-  position: fixed;
-  width: 1px;
-  height: 1px;
-  left: -9999px;
-  top: -9999px;
+.seek:disabled,
+player-bar .icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .app-dialog,

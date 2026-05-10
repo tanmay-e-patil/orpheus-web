@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type SongCursor struct {
 	ArtistName string `json:"artistName"`
 	TrackID    string `json:"trackId"`
@@ -13,9 +15,20 @@ type LibrarySong struct {
 	AlbumArt          string `json:"albumArt"`
 	Duration          string `json:"duration"`
 	YoutubeVideoID    string `json:"youtubeVideoId"`
+	IsAvailable       bool   `json:"isAvailable"`
+	AudioURL          string `json:"audioUrl,omitempty"`
 	Lyrics            string `json:"lyrics,omitempty"`
 	SyncedLyrics      string `json:"syncedLyrics,omitempty"`
 	IsLyricsAvailable *bool  `json:"isLyricsAvailable,omitempty"`
+}
+
+type AudioSong struct {
+	TrackID     string
+	Name        string
+	ArtistName  string
+	AlbumName   string
+	IsAvailable bool
+	UpdatedAt   time.Time
 }
 
 type SongsPageResponse struct {
@@ -46,7 +59,11 @@ func SongPageRevision(songs []LibrarySong) string {
 		if i > 0 {
 			out += "||"
 		}
-		out += song.TrackID + "|" + song.ArtistName + "|" + song.Name + "|" + song.AlbumName + "|" + song.AlbumArt + "|" + song.Duration + "|" + song.YoutubeVideoID
+		available := "0"
+		if song.IsAvailable {
+			available = "1"
+		}
+		out += song.TrackID + "|" + song.ArtistName + "|" + song.Name + "|" + song.AlbumName + "|" + song.AlbumArt + "|" + song.Duration + "|" + song.YoutubeVideoID + "|" + available + "|" + song.AudioURL
 	}
 	return out
 }

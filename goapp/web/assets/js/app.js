@@ -1,7 +1,7 @@
 import { Router } from "./router.js";
 import { API } from "./api.js";
 import { toast } from "./store.js";
-import { initYouTubePlayer } from "./youtube-player.js";
+import { initAudioPlayer } from "./audio-player.js";
 import { clearPlayer } from "./player-store.js";
 
 import "./components/app-shell.js";
@@ -57,5 +57,5 @@ document.addEventListener("keydown", (event) => {
   localStorage.setItem("orpheus-sidebar-collapsed", String(collapsed));
 });
 
-initYouTubePlayer();
+initAudioPlayer();
 router.start();
