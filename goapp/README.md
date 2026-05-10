@@ -57,6 +57,8 @@ DATABASE_URL='postgres://...' \
 go run ./cmd/redownload-library --dry-run --limit 20
 ```
 
+Dry runs print tab-separated `track_id`, `song`, and `artist` columns.
+
 Queue unavailable songs updated in a window:
 
 ```sh

@@ -21,6 +21,12 @@ type RedownloadSongsFilter struct {
 	Limit            int
 }
 
+type RedownloadSong struct {
+	TrackID    string
+	Name       string
+	ArtistName string
+}
+
 func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, limit int) (types.SongsPageResponse, error) {
 	if limit <= 0 {
 		limit = 50
@@ -125,25 +131,37 @@ func (s *Store) SongsForAlbumRefresh(ctx context.Context, trackIDs []string) ([]
 }
 
 func (s *Store) RedownloadSongIDs(ctx context.Context, filter RedownloadSongsFilter) ([]string, error) {
-	query, args := buildRedownloadSongIDsQuery(filter)
+	songs, err := s.RedownloadSongs(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	trackIDs := make([]string, 0, len(songs))
+	for _, song := range songs {
+		trackIDs = append(trackIDs, song.TrackID)
+	}
+	return trackIDs, nil
+}
+
+func (s *Store) RedownloadSongs(ctx context.Context, filter RedownloadSongsFilter) ([]RedownloadSong, error) {
+	query, args := buildRedownloadSongsQuery(filter)
 	rows, err := s.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var trackIDs []string
+	var songs []RedownloadSong
 	for rows.Next() {
-		var trackID string
-		if err := rows.Scan(&trackID); err != nil {
+		var song RedownloadSong
+		if err := rows.Scan(&song.TrackID, &song.Name, &song.ArtistName); err != nil {
 			return nil, err
 		}
-		trackIDs = append(trackIDs, trackID)
+		songs = append(songs, song)
 	}
-	return trackIDs, rows.Err()
+	return songs, rows.Err()
 }
 
-func buildRedownloadSongIDsQuery(filter RedownloadSongsFilter) (string, []any) {
+func buildRedownloadSongsQuery(filter RedownloadSongsFilter) (string, []any) {
 	var args []any
 	var predicates []string
 	if !filter.IncludeAvailable {
@@ -159,7 +177,7 @@ func buildRedownloadSongIDsQuery(filter RedownloadSongsFilter) (string, []any) {
 	}
 
 	var query strings.Builder
-	query.WriteString("select id from songs")
+	query.WriteString("select id, name, artist_name from songs")
 	if len(predicates) > 0 {
 		query.WriteString(" where ")
 		query.WriteString(strings.Join(predicates, " and "))

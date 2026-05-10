@@ -57,8 +57,10 @@ function createPlayer() {
         if (event.data === YT.PlayerState.BUFFERING) setPlaybackStatus("loading");
         if (event.data === YT.PlayerState.ENDED) next();
       },
-      onError: () => {
-        toast("YouTube playback error. Skipping...", "error");
+      onError: (event) => {
+        const code = event?.data;
+        console.warn("YouTube playback error", { code });
+        toast(`YouTube playback error${code ? ` (${code})` : ""}. Skipping...`, "error");
         next();
       },
     },

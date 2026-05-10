@@ -69,12 +69,12 @@ func run() error {
 		UpdatedBefore:    updatedBefore,
 		Limit:            *limit,
 	}
-	trackIDs, err := db.RedownloadSongIDs(ctx, filter)
+	songs, err := db.RedownloadSongs(ctx, filter)
 	if err != nil {
 		return fmt.Errorf("fetch songs to redownload: %w", err)
 	}
 
-	fmt.Printf("Matched %d songs for redownload\n", len(trackIDs))
+	fmt.Printf("Matched %d songs for redownload\n", len(songs))
 	fmt.Printf("Filters: unavailable_only=%t updated_after=%s updated_before=%s limit=%d\n",
 		!*includeAvailable,
 		formatOptionalTimestamp(updatedAfter),
@@ -83,8 +83,9 @@ func run() error {
 	)
 
 	if *dryRun {
-		for _, trackID := range trackIDs {
-			fmt.Println(trackID)
+		fmt.Println("track_id\tsong\tartist")
+		for _, song := range songs {
+			fmt.Printf("%s\t%s\t%s\n", song.TrackID, song.Name, song.ArtistName)
 		}
 		return nil
 	}
@@ -92,15 +93,15 @@ func run() error {
 	queue := services.NewQueuePublisher(rabbitMQURL)
 	defer queue.Close()
 
-	for i, trackID := range trackIDs {
-		if err := queue.PublishProcessSong(ctx, trackID); err != nil {
-			return fmt.Errorf("publish job for %s: %w", trackID, err)
+	for i, song := range songs {
+		if err := queue.PublishProcessSong(ctx, song.TrackID); err != nil {
+			return fmt.Errorf("publish job for %s: %w", song.TrackID, err)
 		}
 		if (i+1)%25 == 0 {
-			fmt.Printf("Published %d/%d jobs\n", i+1, len(trackIDs))
+			fmt.Printf("Published %d/%d jobs\n", i+1, len(songs))
 		}
 	}
-	fmt.Printf("Published %d jobs\n", len(trackIDs))
+	fmt.Printf("Published %d jobs\n", len(songs))
 	return nil
 }
 

@@ -8,8 +8,11 @@ import (
 )
 
 func TestBuildRedownloadSongIDsQueryDefaultsToUnavailableOnly(t *testing.T) {
-	query, args := buildRedownloadSongIDsQuery(RedownloadSongsFilter{})
+	query, args := buildRedownloadSongsQuery(RedownloadSongsFilter{})
 
+	if !strings.HasPrefix(query, "select id, name, artist_name from songs") {
+		t.Fatalf("query should select dry-run display fields: %s", query)
+	}
 	if !strings.Contains(query, "coalesce(is_available, false) = false") {
 		t.Fatalf("query missing unavailable predicate: %s", query)
 	}
@@ -22,7 +25,7 @@ func TestBuildRedownloadSongIDsQueryDefaultsToUnavailableOnly(t *testing.T) {
 }
 
 func TestBuildRedownloadSongIDsQueryAllSkipsUnavailablePredicate(t *testing.T) {
-	query, args := buildRedownloadSongIDsQuery(RedownloadSongsFilter{IncludeAvailable: true})
+	query, args := buildRedownloadSongsQuery(RedownloadSongsFilter{IncludeAvailable: true})
 
 	if strings.Contains(query, "is_available") {
 		t.Fatalf("query should not filter availability when IncludeAvailable is true: %s", query)
@@ -36,7 +39,7 @@ func TestBuildRedownloadSongIDsQueryCombinesTimestampFiltersWithAnd(t *testing.T
 	after := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
 	before := time.Date(2026, 5, 8, 0, 0, 0, 0, time.UTC)
 
-	query, args := buildRedownloadSongIDsQuery(RedownloadSongsFilter{
+	query, args := buildRedownloadSongsQuery(RedownloadSongsFilter{
 		UpdatedAfter:  &after,
 		UpdatedBefore: &before,
 	})
@@ -58,7 +61,7 @@ func TestBuildRedownloadSongIDsQueryCombinesTimestampFiltersWithAnd(t *testing.T
 
 func TestBuildRedownloadSongIDsQueryAddsPositiveLimit(t *testing.T) {
 	after := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-	query, args := buildRedownloadSongIDsQuery(RedownloadSongsFilter{
+	query, args := buildRedownloadSongsQuery(RedownloadSongsFilter{
 		IncludeAvailable: true,
 		UpdatedAfter:     &after,
 		Limit:            20,
@@ -73,7 +76,7 @@ func TestBuildRedownloadSongIDsQueryAddsPositiveLimit(t *testing.T) {
 }
 
 func TestBuildRedownloadSongIDsQueryIgnoresNonPositiveLimit(t *testing.T) {
-	query, args := buildRedownloadSongIDsQuery(RedownloadSongsFilter{Limit: -1})
+	query, args := buildRedownloadSongsQuery(RedownloadSongsFilter{Limit: -1})
 
 	if strings.Contains(query, " limit ") {
 		t.Fatalf("query should not include non-positive limit: %s", query)
