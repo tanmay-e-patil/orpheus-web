@@ -17,6 +17,10 @@ function pageKey(scope, cursor) {
   return `${scope}:${cursorKey(cursor)}`;
 }
 
+function metaKey(scope) {
+  return `${scope}:meta`;
+}
+
 function openDb() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -85,6 +89,56 @@ export async function readSongsCache(userId) {
   return { pages: orderedPages, songs: hydratedSongs, nextCursor: last?.nextCursor || null, hasMore: Boolean(last?.hasMore) };
 }
 
+export async function readAllCachedSongs(userId) {
+  if (!("indexedDB" in window)) return [];
+  const db = await openDb();
+  const scope = scopeKey(userId);
+  const tx = db.transaction([SONG_STORE, PAGE_STORE], "readonly");
+  const pages = await req(tx.objectStore(PAGE_STORE).index("byScope").getAll(IDBKeyRange.only(scope)));
+  const songs = await req(tx.objectStore(SONG_STORE).index("byScope").getAll(IDBKeyRange.only(scope)));
+  await txDone(tx);
+
+  const songsById = new Map(songs.map(({ scopeKey: _, ...song }) => [song.trackId, song]));
+  const pagesByCursor = new Map(pages.map((page) => [page.cursorKey, page]));
+  const ordered = [];
+  const seen = new Set();
+  let current = pagesByCursor.get("first");
+  while (current) {
+    for (const songId of current.songIds || []) {
+      if (seen.has(songId)) continue;
+      const song = songsById.get(songId);
+      if (!song) continue;
+      seen.add(songId);
+      ordered.push(song);
+    }
+    current = current.nextCursor ? pagesByCursor.get(cursorKey(current.nextCursor)) : null;
+  }
+  for (const [trackId, song] of songsById) {
+    if (!seen.has(trackId)) ordered.push(song);
+  }
+  if (ordered.length || pages.length) return ordered;
+  return [...songsById.values()].sort(compareSongs);
+}
+
+export async function readSongsCacheMeta(userId) {
+  if (!("indexedDB" in window)) return null;
+  const db = await openDb();
+  const scope = scopeKey(userId);
+  const tx = db.transaction([META_STORE], "readonly");
+  const meta = await req(tx.objectStore(META_STORE).get(metaKey(scope)));
+  await txDone(tx);
+  return meta || null;
+}
+
+export async function writeSongsCacheMeta(userId, meta) {
+  if (!("indexedDB" in window)) return;
+  const db = await openDb();
+  const scope = scopeKey(userId);
+  const tx = db.transaction([META_STORE], "readwrite");
+  tx.objectStore(META_STORE).put({ ...meta, key: metaKey(scope), scopeKey: scope, updatedAt: Date.now() });
+  await txDone(tx);
+}
+
 export async function upsertSongsPage(userId, cursorIn, page, options = {}) {
   if (!("indexedDB" in window)) return;
   const db = await openDb();
@@ -108,4 +162,10 @@ export async function upsertSongsPage(userId, cursorIn, page, options = {}) {
     stale: options.stale || false,
   });
   await txDone(tx);
+}
+
+function compareSongs(a, b) {
+  return String(a.artistName || "").localeCompare(String(b.artistName || "")) ||
+    String(a.name || "").localeCompare(String(b.name || "")) ||
+    String(a.trackId || "").localeCompare(String(b.trackId || ""));
 }

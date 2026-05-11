@@ -1,36 +1,89 @@
 import { API } from "../api.js";
-import { readSongsCache, upsertSongsPage } from "../idb-song-cache.js";
-import { updateSongAlbumArt } from "../player-store.js";
+import { readAllCachedSongs, readSongsCache, readSongsCacheMeta, upsertSongsPage, writeSongsCacheMeta } from "../idb-song-cache.js";
+import { setQueue, updateSongAlbumArt } from "../player-store.js";
 import { appState, el, showDialog, toast } from "../store.js";
+
+const SEARCH_DEBOUNCE_MS = 120;
 
 export class HomePage extends HTMLElement {
   connectedCallback() {
     this.pages = [];
-    this.songs = [];
+    this.visibleSongs = [];
+    this.searchableSongs = [];
+    this.searchQuery = new URLSearchParams(window.location.search).get("q") || "";
+    this.cacheComplete = false;
+    this.hydratingCache = false;
     this.loading = false;
     this.failedArt = new Set();
+    this.hydrationController = null;
+    this.focusSearch = () => {
+      this.searchInput?.focus({ preventScroll: true });
+      this.searchInput?.select();
+    };
     this.renderShell();
+    window.addEventListener("orpheus:focus-track-search", this.focusSearch);
     this.load();
   }
 
   disconnectedCallback() {
     this.observer?.disconnect();
     clearTimeout(this.refreshTimer);
+    clearTimeout(this.searchTimer);
+    this.hydrationController?.abort();
+    window.removeEventListener("orpheus:focus-track-search", this.focusSearch);
   }
 
   renderShell() {
     this.table = document.createElement("song-table");
     this.table.loading = true;
+    this.table.emptyMessage = this.searchQuery ? "Searching full library..." : "No tracks";
+    this.searchInput = el("input", {
+      class: "input",
+      type: "search",
+      value: this.searchQuery,
+      placeholder: "Search tracks, artists, albums, lyrics...",
+      "aria-label": "Search tracks",
+    });
+    this.searchStatus = el("span", { class: "track-search-status muted" });
     this.boundary = el("div", { class: "scroll-boundary" });
     this.replaceChildren(el("section", { class: "page home-page" }, [
       el("div", { class: "page-header" }, [
         el("h1", { text: "Tracks" }),
         el("p", { class: "muted", text: "Your personal music library" }),
       ]),
+      el("div", { class: "track-search-row" }, [
+        el("label", { class: "track-search-field" }, [
+          this.searchInput,
+          el("kbd", { class: "track-search-shortcut", text: "Cmd + K" }),
+        ]),
+        this.searchStatus,
+      ]),
       this.table,
       this.boundary,
     ]));
     this.addEventListener("albumartfailed", (event) => this.queueAlbumArtRefresh(event.detail));
+    this.addEventListener("songselected", (event) => this.playSelectedSong(event.detail));
+    this.searchInput.addEventListener("input", () => {
+      this.searchQuery = this.searchInput.value;
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => {
+        this.updateSearchURL();
+        this.applySearch();
+      }, SEARCH_DEBOUNCE_MS);
+    });
+    this.searchInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (this.searchInput.value) {
+        event.preventDefault();
+        this.searchInput.value = "";
+        this.searchQuery = "";
+        clearTimeout(this.searchTimer);
+        this.updateSearchURL();
+        this.applySearch();
+      } else {
+        this.searchInput.blur();
+      }
+    });
     this.observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) this.loadMore();
     });
@@ -40,43 +93,110 @@ export class HomePage extends HTMLElement {
   async load() {
     const userId = appState.session?.user?.id || "single-user";
     const cached = await readSongsCache(userId).catch(() => null);
+    const [allCached, cacheMeta] = await Promise.all([
+      readAllCachedSongs(userId).catch(() => []),
+      readSongsCacheMeta(userId).catch(() => null),
+    ]);
+    this.cacheComplete = Boolean(cacheMeta?.complete);
     if (cached?.songs?.length) {
-      this.songs = cached.songs;
-      this.updateTableSongs(this.songs);
+      this.pages = cached.pages || [];
+      this.visibleSongs = cached.songs;
+      this.searchableSongs = mergeSongs(allCached.length ? allCached : cached.songs);
+      this.applySearch();
     }
     try {
       const first = await API.songs(null);
+      if (!this.isConnected) return;
       this.pages = [{ cursorIn: null, ...first }];
-      this.songs = first.songs;
-      this.updateTableSongs(this.songs);
+      this.visibleSongs = this.cacheComplete && this.searchableSongs.length ? mergeSongs(this.searchableSongs, first.songs) : first.songs;
+      this.searchableSongs = mergeSongs(this.searchableSongs, first.songs);
+      this.cacheComplete = !first.hasMore;
+      this.applySearch();
       await upsertSongsPage(userId, null, first);
+      if (!this.isConnected) return;
+      await writeSongsCacheMeta(userId, {
+        complete: !first.hasMore,
+        completedAt: first.hasMore ? null : Date.now(),
+        lastCursor: first.nextCursor || null,
+      });
+      if (!this.isConnected) return;
+      this.hydrateSongCache(userId);
     } catch (error) {
-      showDialog(error.message || "Could not load songs");
+      if (error.name !== "AbortError") showDialog(error.message || "Could not load songs");
     } finally {
       this.table.loading = false;
+      if (this.isConnected) this.applySearch();
     }
   }
 
   async loadMore() {
-    if (this.loading) return;
+    if (this.searchQuery.trim() || this.loading || this.hydratingCache) return;
     const last = this.pages[this.pages.length - 1];
     if (!last?.hasMore) return;
     this.loading = true;
     try {
       const page = await API.songs(last.nextCursor);
+      if (!this.isConnected) return;
       this.pages.push({ cursorIn: last.nextCursor, ...page });
-      const seen = new Set();
-      this.songs = this.pages.flatMap((candidate) => candidate.songs).filter((song) => {
-        if (seen.has(song.trackId)) return false;
-        seen.add(song.trackId);
-        return true;
-      });
-      this.updateTableSongs(this.songs);
+      this.visibleSongs = mergeSongs(...this.pages.map((candidate) => candidate.songs));
+      this.searchableSongs = mergeSongs(this.searchableSongs, page.songs);
+      this.cacheComplete = !page.hasMore;
+      this.applySearch();
       await upsertSongsPage(appState.session?.user?.id || "single-user", last.nextCursor, page);
+      if (!this.isConnected) return;
+      await writeSongsCacheMeta(appState.session?.user?.id || "single-user", {
+        complete: !page.hasMore,
+        completedAt: page.hasMore ? null : Date.now(),
+        lastCursor: page.nextCursor || null,
+      });
     } catch (error) {
       toast(error.message || "Could not load more songs", "error");
     } finally {
       this.loading = false;
+    }
+  }
+
+  async hydrateSongCache(userId) {
+    if (this.hydratingCache || this.cacheComplete) return;
+    let last = this.pages[this.pages.length - 1];
+    if (!last?.hasMore) {
+      this.cacheComplete = true;
+      await writeSongsCacheMeta(userId, { complete: true, completedAt: Date.now(), lastCursor: last?.nextCursor || null }).catch(() => {});
+      this.applySearch();
+      return;
+    }
+    this.hydratingCache = true;
+    this.hydrationController?.abort();
+    this.hydrationController = new AbortController();
+    this.applySearch();
+    try {
+      while (this.isConnected && last?.hasMore) {
+        const cursorIn = last.nextCursor;
+        const page = await API.songs(cursorIn, 50, this.hydrationController.signal);
+        if (!this.isConnected) return;
+        this.pages.push({ cursorIn, ...page });
+        this.visibleSongs = mergeSongs(this.visibleSongs, page.songs);
+        this.searchableSongs = mergeSongs(this.searchableSongs, page.songs);
+        this.cacheComplete = !page.hasMore;
+        this.applySearch();
+        await upsertSongsPage(userId, cursorIn, page);
+        if (!this.isConnected) return;
+        await writeSongsCacheMeta(userId, {
+          complete: !page.hasMore,
+          completedAt: page.hasMore ? null : Date.now(),
+          lastCursor: page.nextCursor || null,
+        });
+        if (!this.isConnected) return;
+        last = { cursorIn, ...page };
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        await writeSongsCacheMeta(userId, { complete: false, completedAt: null, lastCursor: last?.nextCursor || null }).catch(() => {});
+        toast("Could not finish loading searchable library", "error");
+      }
+    } finally {
+      this.hydratingCache = false;
+      if (this.isConnected) this.applySearch();
     }
   }
 
@@ -89,14 +209,52 @@ export class HomePage extends HTMLElement {
       try {
         const result = await API.refreshAlbumArt(trackIds);
         for (const [id, art] of Object.entries(result.updated || {})) {
-          this.songs = this.songs.map((song) => song.trackId === id ? { ...song, albumArt: art } : song);
+          this.visibleSongs = this.visibleSongs.map((song) => song.trackId === id ? { ...song, albumArt: art } : song);
+          this.searchableSongs = this.searchableSongs.map((song) => song.trackId === id ? { ...song, albumArt: art } : song);
           updateSongAlbumArt(id, art);
         }
-        this.updateTableSongs(this.songs);
+        this.applySearch();
       } catch (error) {
         console.warn("album art refresh failed", error);
       }
     }, 300);
+  }
+
+  playSelectedSong(detail) {
+    if (!detail?.trackId) return;
+    if (!this.searchQuery.trim()) {
+      setQueue(this.visibleSongs, detail.index);
+      return;
+    }
+    const index = this.searchableSongs.findIndex((song) => song.trackId === detail.trackId);
+    if (index >= 0) setQueue(this.searchableSongs, index);
+  }
+
+  applySearch() {
+    const query = this.searchQuery.trim();
+    if (!query) {
+      this.table.emptyMessage = "No tracks";
+      this.updateSearchStatus("");
+      this.updateTableSongs(this.visibleSongs);
+      return;
+    }
+    const results = filterSongs(this.searchableSongs, query);
+    const searchingFullLibrary = this.hydratingCache || !this.cacheComplete;
+    this.table.emptyMessage = searchingFullLibrary ? "Searching full library..." : "No matching tracks";
+    this.updateSearchStatus(`${results.length} ${results.length === 1 ? "match" : "matches"}${searchingFullLibrary ? " - searching full library..." : ""}`);
+    this.updateTableSongs(results);
+  }
+
+  updateSearchURL() {
+    const url = new URL(window.location.href);
+    const query = this.searchQuery.trim();
+    if (query) url.searchParams.set("q", query);
+    else url.searchParams.delete("q");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+  }
+
+  updateSearchStatus(message) {
+    if (this.searchStatus) this.searchStatus.textContent = message;
   }
 
   updateTableSongs(songs) {
@@ -119,6 +277,52 @@ function sameSongList(a = [], b = []) {
       song.isAvailable === candidate.isAvailable &&
       song.audioUrl === candidate.audioUrl;
   });
+}
+
+function mergeSongs(...groups) {
+  const byId = new Map();
+  for (const group of groups) {
+    for (const song of group || []) {
+      if (!song?.trackId) continue;
+      byId.set(song.trackId, { ...(byId.get(song.trackId) || {}), ...song });
+    }
+  }
+  return [...byId.values()];
+}
+
+function filterSongs(songs, query) {
+  const tokens = normalizeSearchText(query).split(" ").filter(Boolean);
+  if (!tokens.length) return songs;
+  return songs
+    .map((song, index) => ({ song, index, priority: searchPriority(song, tokens) }))
+    .filter((result) => result.priority < 3)
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)
+    .map((result) => result.song);
+}
+
+function searchPriority(song, tokens) {
+  const primary = normalizeSearchText([
+    song.name,
+    song.artistName,
+    song.albumName,
+  ].filter(Boolean).join(" "));
+  const secondary = normalizeSearchText([
+    song.trackId,
+    song.youtubeVideoId,
+  ].filter(Boolean).join(" "));
+  const lyrics = normalizeSearchText([
+    song.lyrics,
+    song.syncedLyrics,
+  ].filter(Boolean).join(" "));
+  const all = [primary, secondary, lyrics].filter(Boolean).join(" ");
+  if (!tokens.every((token) => all.includes(token))) return 3;
+  if (tokens.every((token) => primary.includes(token))) return 0;
+  if (tokens.every((token) => (primary + " " + secondary).includes(token))) return 1;
+  return 2;
+}
+
+function normalizeSearchText(value) {
+  return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 customElements.define("home-page", HomePage);

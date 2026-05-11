@@ -57,5 +57,15 @@ document.addEventListener("keydown", (event) => {
   localStorage.setItem("orpheus-sidebar-collapsed", String(collapsed));
 });
 
+document.addEventListener("keydown", async (event) => {
+  if (event.key.toLowerCase() !== "k" || (!event.metaKey && !event.ctrlKey) || event.altKey) return;
+  if (!authShell || authShell.hidden) return;
+  event.preventDefault();
+  if (window.location.pathname !== "/home") {
+    await router.go("/home");
+  }
+  window.dispatchEvent(new CustomEvent("orpheus:focus-track-search"));
+});
+
 initAudioPlayer();
 router.start();

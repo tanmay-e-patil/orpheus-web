@@ -1,4 +1,3 @@
-import { setQueue } from "../player-store.js";
 import { el } from "../store.js";
 
 export class SongTable extends HTMLElement {
@@ -19,6 +18,15 @@ export class SongTable extends HTMLElement {
 
   get loading() {
     return Boolean(this._loading);
+  }
+
+  set emptyMessage(value) {
+    this._emptyMessage = value || "No tracks";
+    if (!this.loading && !this.songs.length) this.render();
+  }
+
+  get emptyMessage() {
+    return this._emptyMessage || "No tracks";
   }
 
   connectedCallback() {
@@ -44,22 +52,37 @@ export class SongTable extends HTMLElement {
       this.replaceChildren(table, list);
       return;
     }
+    if (!songs.length) {
+      renderEmptyState(tbody, list, this.emptyMessage);
+      table.append(tbody);
+      this.replaceChildren(table, list);
+      return;
+    }
     songs.forEach((song, index) => {
-      const playSong = () => setQueue(this.songs, index);
+      const selectSong = () => this.dispatchEvent(new CustomEvent("songselected", {
+        detail: { trackId: song.trackId, index, song },
+        bubbles: true,
+      }));
       const unavailable = song.isAvailable === false;
       const rowClass = unavailable ? "unavailable" : "";
       const status = unavailable ? "Unavailable" : formatDuration(song.duration);
       const art = song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" });
       art.addEventListener?.("error", () => this.dispatchEvent(new CustomEvent("albumartfailed", { detail: song.trackId, bubbles: true })));
-      tbody.append(el("tr", { class: rowClass, tabindex: "0", onclick: playSong }, [
+      const row = el("tr", { class: rowClass, tabindex: "0", onclick: selectSong }, [
         el("td", {}, [el("div", { class: "track-cell" }, [art.cloneNode(true), el("span", { text: song.name })])]),
         el("td", { text: song.artistName }),
         el("td", { text: song.albumName }),
         el("td", { text: status }),
-      ]));
+      ]);
+      row.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        selectSong();
+      });
+      tbody.append(row);
       const mobileArt = song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" });
       mobileArt.addEventListener?.("error", () => this.dispatchEvent(new CustomEvent("albumartfailed", { detail: song.trackId, bubbles: true })));
-      list.append(el("button", { class: `song-list-item ${rowClass}`.trim(), type: "button", onclick: playSong }, [
+      list.append(el("button", { class: `song-list-item ${rowClass}`.trim(), type: "button", onclick: selectSong }, [
         mobileArt,
         el("span", {}, [
           el("strong", { text: song.name }),
@@ -70,6 +93,13 @@ export class SongTable extends HTMLElement {
     table.append(tbody);
     this.replaceChildren(table, list);
   }
+}
+
+function renderEmptyState(tbody, list, message) {
+  tbody.append(el("tr", { class: "song-empty-state" }, [
+    el("td", { colspan: "4", text: message }),
+  ]));
+  list.append(el("div", { class: "song-empty-state", text: message }));
 }
 
 function renderSkeletonRows(tbody, list) {
