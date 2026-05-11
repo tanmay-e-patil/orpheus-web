@@ -328,6 +328,48 @@ h2 {
   backdrop-filter: blur(10px);
 }
 
+.track-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.track-search-field {
+  position: relative;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.track-search-field .input {
+  padding-right: 82px;
+}
+
+.track-search-row .input {
+  flex: 1 1 280px;
+}
+
+.track-search-status {
+  flex: 0 0 auto;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.track-search-shortcut {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--input);
+  color: var(--muted);
+  padding: 5px 7px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .song-table {
   width: 100%;
   border-collapse: collapse;
@@ -382,6 +424,24 @@ h2 {
 .song-table tr.unavailable,
 .song-list-item.unavailable {
   color: var(--muted);
+}
+
+.song-table tr.song-empty-state {
+  cursor: default;
+}
+
+.song-table tr.song-empty-state:hover {
+  background: transparent;
+}
+
+.song-empty-state {
+  color: var(--muted);
+  text-align: center;
+}
+
+.song-list .song-empty-state {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .song-table tr.unavailable img,
@@ -847,13 +907,24 @@ player-bar .icon-button:disabled {
   }
 
   .input-row,
+  .track-search-row,
   .actions {
     align-items: stretch;
   }
 
   .input-row > *,
+  .track-search-row > *,
   .actions > * {
     flex: 1 1 auto;
+  }
+
+  .track-search-status {
+    flex-basis: 100%;
+    white-space: normal;
+  }
+
+  .track-search-shortcut {
+    display: none;
   }
 }
 

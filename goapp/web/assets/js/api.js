@@ -53,7 +53,7 @@ export const API = {
     }),
   logout: () => request("/api/auth/logout", { method: "POST" }),
   session: () => request("/api/auth/session"),
-  songs: (cursor, limit = 50) => {
+  songs: (cursor, limit = 50, signal) => {
     const params = new URLSearchParams();
     if (cursor) {
       params.set("artistName", cursor.artistName);
@@ -61,7 +61,7 @@ export const API = {
     }
     if (limit) params.set("limit", String(limit));
     const suffix = params.toString() ? `?${params.toString()}` : "";
-    return request(`/api/songs${suffix}`);
+    return request(`/api/songs${suffix}`, { signal });
   },
   refreshAlbumArt: (trackIds) =>
     request("/api/songs/album-art/refresh", {

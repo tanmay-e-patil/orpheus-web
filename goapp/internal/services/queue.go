@@ -56,6 +56,10 @@ func (q *QueuePublisher) PublishProcessSong(ctx context.Context, trackID string)
 		DeliveryMode: amqp.Persistent,
 		ContentType:  "application/json",
 		Body:         body,
+		Headers: amqp.Table{
+			"x-job-id":  trackID,
+			"x-song-id": trackID,
+		},
 	}); err != nil {
 		q.reset()
 		return fmt.Errorf("publish RabbitMQ job to %s: %w", JobQueueName, err)
