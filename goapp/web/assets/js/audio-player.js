@@ -1,5 +1,6 @@
 import { next, setController, setDuration, setPlaybackStatus, setTime, getPlayerState } from "./player-store.js";
 import { toast } from "./store.js";
+import { withViewTransition } from "./view-transitions.js";
 
 let audio = null;
 let raf = 0;
@@ -28,13 +29,19 @@ export function initAudioPlayer() {
   audio.addEventListener("stalled", () => setPlaybackStatus("loading"));
   audio.addEventListener("ended", () => {
     stopPolling();
-    next();
+    withViewTransition(() => next(), {
+      scope: "song",
+      songKind: "auto",
+    });
   });
   audio.addEventListener("error", () => {
     stopPolling();
     console.warn("Audio playback error", { code: audio.error?.code, message: audio.error?.message });
     toast("Audio playback error. Skipping...", "error");
-    next();
+    withViewTransition(() => next(), {
+      scope: "song",
+      songKind: "auto",
+    });
   });
   audio.addEventListener("timeupdate", () => setTime(audio.currentTime || 0));
 
