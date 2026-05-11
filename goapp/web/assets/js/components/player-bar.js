@@ -6,13 +6,17 @@ import { withViewTransition } from "../view-transitions.js";
 export class PlayerBar extends HTMLElement {
   connectedCallback() {
     this.unsubscribe = () => this.sync();
+    this.resizeObserver = new ResizeObserver(() => this.updatePlayerHeight());
+    this.resizeObserver.observe(this);
     playerStore.addEventListener("change", this.unsubscribe);
     this.sync();
   }
 
   disconnectedCallback() {
     if (this.unsubscribe) playerStore.removeEventListener("change", this.unsubscribe);
+    this.resizeObserver?.disconnect();
     document.body.classList.remove("has-player");
+    document.documentElement.style.removeProperty("--player-height");
   }
 
   sync() {
@@ -23,6 +27,7 @@ export class PlayerBar extends HTMLElement {
     if (!song) {
       this.replaceChildren();
       this.currentTrackId = null;
+      this.updatePlayerHeight();
       return;
     }
     if (this.currentTrackId !== song.trackId) {
@@ -30,6 +35,7 @@ export class PlayerBar extends HTMLElement {
       this.render(song);
     }
     this.updatePlaybackState(state);
+    this.updatePlayerHeight();
   }
 
   render(song) {
@@ -80,13 +86,16 @@ export class PlayerBar extends HTMLElement {
     this.toggle = toggle;
     this.renderedStatus = null;
     this.replaceChildren(bar);
+    this.updatePlayerHeight();
   }
 
   updatePlaybackState(state) {
     if (this.progress) {
       const duration = Math.max(1, state.duration || 1);
+      const currentTime = Math.min(state.currentTime || 0, duration);
       this.progress.max = String(duration);
-      this.progress.value = String(Math.min(state.currentTime || 0, duration));
+      this.progress.value = String(currentTime);
+      this.progress.style.setProperty("--seek-progress", `${(currentTime / duration) * 100}%`);
       this.progress.disabled = !isPlayable(currentSong());
     }
     if (this.toggle && this.renderedStatus !== state.status) {
@@ -97,6 +106,11 @@ export class PlayerBar extends HTMLElement {
       this.toggle.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
       this.toggle.replaceChildren(icon(isPlaying ? "pause" : "play", { size: 22 }));
     }
+  }
+
+  updatePlayerHeight() {
+    const height = this.hidden ? 0 : Math.ceil(this.getBoundingClientRect().height);
+    if (height > 0) document.documentElement.style.setProperty("--player-height", `${height}px`);
   }
 }
 
