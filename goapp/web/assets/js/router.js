@@ -1,5 +1,6 @@
 import { API } from "./api.js";
 import { setSession } from "./store.js";
+import { routeTransitionKind, withViewTransition } from "./view-transitions.js";
 
 export const routes = [
   { path: "/", component: "login-page", public: true },
@@ -26,20 +27,28 @@ export class Router {
       event.preventDefault();
       this.go(link.pathname + link.search);
     });
-    window.addEventListener("popstate", () => this.transitionRender());
+    window.addEventListener("popstate", () => {
+      const fromPath = this.currentPath || "/";
+      this.transitionRender(fromPath, window.location.pathname);
+    });
     window.addEventListener("orpheus:unauthorized", () => this.go("/"));
-    this.render();
+    this.render().then(() => {
+      this.currentPath = window.location.pathname;
+    });
   }
 
   async go(url) {
+    const fromPath = window.location.pathname;
     history.pushState({}, "", url);
-    await this.transitionRender();
+    await this.transitionRender(fromPath, window.location.pathname);
   }
 
-  async transitionRender() {
-    if (!document.startViewTransition) return this.render();
-    const transition = document.startViewTransition(() => this.render());
-    return transition.finished.catch(() => {});
+  async transitionRender(fromPath = this.currentPath || "/", toPath = window.location.pathname) {
+    await withViewTransition(() => this.render(), {
+      scope: "route",
+      routeKind: routeTransitionKind(fromPath, toPath),
+    });
+    this.currentPath = window.location.pathname;
   }
 
   async render() {

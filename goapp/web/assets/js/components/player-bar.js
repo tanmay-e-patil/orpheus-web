@@ -1,6 +1,7 @@
 import { currentSong, getPlayerState, next, pause, play, playerStore, prev, seek } from "../player-store.js";
 import { icon } from "../icons.js";
 import { el } from "../store.js";
+import { withViewTransition } from "../view-transitions.js";
 
 export class PlayerBar extends HTMLElement {
   connectedCallback() {
@@ -63,11 +64,11 @@ export class PlayerBar extends HTMLElement {
       ]),
       el("div", { class: "player-controls" }, [
         !isPlayable(song) ? el("span", { class: "player-status muted", text: "Unavailable" }) : null,
-        el("button", { class: "icon-button", type: "button", "aria-label": "Previous", onclick: (e) => { e.stopPropagation(); prev(); } }, [
+        el("button", { class: "icon-button", type: "button", "aria-label": "Previous", onclick: (e) => { e.stopPropagation(); transitionSongChange(prev, "prev"); } }, [
           icon("skip-back"),
         ]),
         toggle,
-        el("button", { class: "icon-button", type: "button", "aria-label": "Next", onclick: (e) => { e.stopPropagation(); next(); } }, [
+        el("button", { class: "icon-button", type: "button", "aria-label": "Next", onclick: (e) => { e.stopPropagation(); transitionSongChange(next, "next"); } }, [
           icon("skip-forward"),
         ]),
       ]),
@@ -105,6 +106,15 @@ function isActivePlayback(status) {
 
 function isPlayable(song) {
   return Boolean(song?.trackId && song?.isAvailable !== false);
+}
+
+async function transitionSongChange(action, songKind) {
+  await withViewTransition(() => {
+    action();
+  }, {
+    scope: "song",
+    songKind,
+  });
 }
 
 customElements.define("player-bar", PlayerBar);

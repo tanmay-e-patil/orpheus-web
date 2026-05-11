@@ -1,7 +1,8 @@
 import { API } from "../api.js";
 import { readAllCachedSongs, readSongsCache, readSongsCacheMeta, upsertSongsPage, writeSongsCacheMeta } from "../idb-song-cache.js";
-import { setQueue, updateSongAlbumArt } from "../player-store.js";
+import { currentSong, setQueue, updateSongAlbumArt } from "../player-store.js";
 import { appState, el, showDialog, toast } from "../store.js";
+import { withViewTransition } from "../view-transitions.js";
 
 const SEARCH_DEBOUNCE_MS = 120;
 
@@ -223,11 +224,21 @@ export class HomePage extends HTMLElement {
   playSelectedSong(detail) {
     if (!detail?.trackId) return;
     if (!this.searchQuery.trim()) {
-      setQueue(this.visibleSongs, detail.index);
+      this.setSelectedQueue(this.visibleSongs, detail.index, detail.trackId);
       return;
     }
     const index = this.searchableSongs.findIndex((song) => song.trackId === detail.trackId);
-    if (index >= 0) setQueue(this.searchableSongs, index);
+    if (index >= 0) this.setSelectedQueue(this.searchableSongs, index, detail.trackId);
+  }
+
+  async setSelectedQueue(queue, index, trackId) {
+    if (currentSong()?.trackId === trackId) return;
+    await withViewTransition(() => {
+      setQueue(queue, index);
+    }, {
+      scope: "song",
+      songKind: "select",
+    });
   }
 
   applySearch() {
