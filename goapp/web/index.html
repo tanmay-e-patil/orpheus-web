@@ -1,10 +1,27 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0b0b0b" />
+    <meta name="theme-color" content="#1e1e2e" />
     <title>Orpheus</title>
+    <script>
+      (() => {
+        const themes = {
+          "catppuccin-mocha": "#1e1e2e",
+          dracula: "#282a36",
+          "tokyo-night": "#1a1b26",
+          "gruvbox-dark": "#282828",
+          nord: "#2e3440",
+          "solarized-light": "#fdf6e3",
+        };
+        const fallback = "catppuccin-mocha";
+        const stored = localStorage.getItem("orpheus-theme");
+        const theme = Object.prototype.hasOwnProperty.call(themes, stored) ? stored : fallback;
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themes[theme]);
+      })();
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/assets/css/app.css" />
   </head>
@@ -16,6 +33,10 @@
           <a href="/home" data-link data-nav-path="/home">Tracks</a>
           <a href="/discover" data-link data-nav-path="/discover">Discover</a>
         </nav>
+        <label class="theme-control">
+          <span class="theme-label">Theme</span>
+          <select class="theme-select" data-theme-select aria-label="Theme"></select>
+        </label>
         <button class="button secondary danger sign-out-button" type="button">Sign out</button>
       </aside>
 
@@ -25,6 +46,10 @@
           <a href="/home" data-link data-nav-path="/home">Tracks</a>
           <a href="/discover" data-link data-nav-path="/discover">Discover</a>
         </nav>
+        <label class="theme-control mobile-theme-control">
+          <span class="theme-label">Theme</span>
+          <select class="theme-select" data-theme-select aria-label="Theme"></select>
+        </label>
       </header>
 
       <div class="content-frame">

@@ -68,7 +68,7 @@ export class LyricsView extends HTMLElement {
       });
       const children = [header];
       const bodyChildren = [];
-      if (fetchedSynced && !song.syncedLyrics?.trim()) {
+      if (shouldOfferFetchedLyricsSave(song, this.fetched)) {
         bodyChildren.push(this.renderSavePrompt(song, "Preview from LRCLIB"));
       }
       bodyChildren.push(list);
@@ -88,7 +88,7 @@ export class LyricsView extends HTMLElement {
     if (plainLyrics || this.fetching) {
       const body = this.fetching && !plainLyrics ? "Looking up lyrics from LRCLIB..." : plainLyrics;
       const bodyChildren = [el("pre", { text: body })];
-      if (this.fetched?.plainLyrics || this.fetched?.syncedLyrics) {
+      if (shouldOfferFetchedLyricsSave(song, this.fetched)) {
         bodyChildren.push(this.renderSavePrompt(song, "Found lyrics from LRCLIB"));
       }
       this.replaceChildren(el("div", { class: "lyrics-view" }, [
@@ -170,6 +170,7 @@ export class LyricsView extends HTMLElement {
       const plainLyrics = this.fetched.plainLyrics || "";
       const syncedLyrics = this.fetched.syncedLyrics || "";
       await API.saveLyrics(song.trackId, plainLyrics, syncedLyrics);
+      this.fetched = null;
       updateSongLyrics(song.trackId, plainLyrics, syncedLyrics);
       toast("Lyrics saved to library", "success");
     } catch (error) {
@@ -190,6 +191,13 @@ export class LyricsView extends HTMLElement {
     this.activeIndex = active;
     if (scroll) this.lineElements[active]?.scrollIntoView({ block: "center", behavior: "auto" });
   }
+}
+
+function shouldOfferFetchedLyricsSave(song, fetched) {
+  const fetchedPlain = fetched?.plainLyrics?.trim() || "";
+  const fetchedSynced = fetched?.syncedLyrics?.trim() || "";
+  if (!fetchedPlain && !fetchedSynced) return false;
+  return fetchedPlain !== (song.lyrics?.trim() || "") || fetchedSynced !== (song.syncedLyrics?.trim() || "");
 }
 
 function songSignature(song, fetched) {

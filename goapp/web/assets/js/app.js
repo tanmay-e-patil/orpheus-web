@@ -3,6 +3,7 @@ import { API } from "./api.js";
 import { toast } from "./store.js";
 import { initAudioPlayer } from "./audio-player.js";
 import { clearPlayer } from "./player-store.js";
+import { initThemeControls } from "./theme.js";
 
 import "./components/app-shell.js";
 import "./components/login-page.js";
@@ -68,4 +69,5 @@ document.addEventListener("keydown", async (event) => {
 });
 
 initAudioPlayer();
+initThemeControls();
 router.start();
