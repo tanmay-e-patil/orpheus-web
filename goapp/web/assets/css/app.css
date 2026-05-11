@@ -12,6 +12,7 @@
   --success: #86efac;
   --radius: 8px;
   --player-height: 88px;
+  --player-offset: 0px;
   --motion-fast: 120ms;
   --motion-medium: 220ms;
   --motion-slow: 360ms;
@@ -33,6 +34,10 @@ body {
   min-height: 100dvh;
   background: var(--background);
   color: var(--foreground);
+}
+
+body.has-player {
+  --player-offset: var(--player-height);
 }
 
 a {
@@ -76,7 +81,7 @@ img {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 20px 14px calc(var(--player-height) + 20px);
+  padding: 20px 14px calc(var(--player-offset) + 20px);
   border-right: 1px solid var(--border);
   background: #111;
   overflow: hidden;
@@ -148,7 +153,7 @@ img {
 
 .route-outlet {
   overflow: auto;
-  padding-bottom: calc(var(--player-height) + 24px);
+  padding-bottom: calc(var(--player-offset) + 24px);
 }
 
 .route-outlet > *,
@@ -159,7 +164,7 @@ img {
 .lyrics-panel-shell {
   border-left: 1px solid var(--border);
   overflow: hidden;
-  padding: 16px 16px calc(var(--player-height) + 16px);
+  padding: 16px 16px calc(var(--player-offset) + 16px);
 }
 
 .mobile-nav {
@@ -322,7 +327,7 @@ h2 {
 
 .sticky-actions {
   position: sticky;
-  bottom: calc(var(--player-height) + 8px);
+  bottom: calc(var(--player-offset) + 8px);
   background: color-mix(in srgb, var(--background) 88%, transparent);
   padding: 12px 0;
   backdrop-filter: blur(10px);
@@ -832,7 +837,7 @@ player-bar .icon-button:disabled {
 .toast {
   position: fixed;
   right: 16px;
-  bottom: calc(var(--player-height) + 16px);
+  bottom: calc(var(--player-offset) + 16px);
   z-index: 80;
   border: 1px solid var(--border);
   background: var(--card);

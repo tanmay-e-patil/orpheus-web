@@ -11,11 +11,13 @@ export class PlayerBar extends HTMLElement {
 
   disconnectedCallback() {
     if (this.unsubscribe) playerStore.removeEventListener("change", this.unsubscribe);
+    document.body.classList.remove("has-player");
   }
 
   sync() {
     const state = getPlayerState();
     const song = currentSong();
+    document.body.classList.toggle("has-player", Boolean(song));
     this.hidden = !song;
     if (!song) {
       this.replaceChildren();
