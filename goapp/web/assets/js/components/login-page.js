@@ -28,6 +28,8 @@ export class LoginPage extends HTMLElement {
       el("p", { class: "muted", text: "Sign in to your account" }),
     ];
 
+    const passkeyContainer = el("div", { class: "passkey-section" });
+
     if (this.passkeySupported) {
       const passkeyButton = el("button", {
         class: "button passkey-button",
@@ -52,8 +54,9 @@ export class LoginPage extends HTMLElement {
           passkeyButton.textContent = "Sign in with Passkey";
         }
       });
-      children.push(passkeyButton);
-      children.push(el("div", { class: "divider", text: "or" }));
+      passkeyContainer.append(passkeyButton);
+      passkeyContainer.append(el("div", { class: "divider", text: "or" }));
+      children.push(passkeyContainer);
     }
 
     const form = el("form", { class: "login-card" }, [

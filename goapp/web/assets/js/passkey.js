@@ -1,25 +1,30 @@
 // passkey.js — Browser WebAuthn API wrapper
-// Handles base64url encoding/decoding for the Go backend
+// Handles base64url encoding/decoding for the Go backend (go-webauthn)
 
 export const Passkey = {
   isSupported() {
     return !!window.PublicKeyCredential;
   },
 
-  async register(optionsFromServer) {
+  async register(responseFromServer) {
+    // Server returns: { publicKey: { challenge, rp, user, excludeCredentials, ... } }
+    const options = responseFromServer.publicKey || responseFromServer;
+
     const creationOptions = {
-      ...optionsFromServer,
-      challenge: decode(optionsFromServer.challenge),
-      user: {
-        ...optionsFromServer.user,
-        id: decode(optionsFromServer.user.id),
+      publicKey: {
+        ...options,
+        challenge: decode(options.challenge),
+        user: {
+          ...options.user,
+          id: decode(options.user.id),
+        },
+        excludeCredentials: (options.excludeCredentials || []).map((c) => ({
+          ...c,
+          id: decode(c.id),
+        })),
       },
-      excludeCredentials: (optionsFromServer.excludeCredentials || []).map((c) => ({
-        ...c,
-        id: decode(c.id),
-      })),
     };
-    const credential = await navigator.credentials.create({ publicKey: creationOptions });
+    const credential = await navigator.credentials.create(creationOptions);
     return {
       id: credential.id,
       rawId: encode(credential.rawId),
@@ -31,16 +36,21 @@ export const Passkey = {
     };
   },
 
-  async authenticate(optionsFromServer) {
+  async authenticate(responseFromServer) {
+    // Server returns: { publicKey: { challenge, rpId, allowCredentials, ... } }
+    const options = responseFromServer.publicKey || responseFromServer;
+
     const requestOptions = {
-      ...optionsFromServer,
-      challenge: decode(optionsFromServer.challenge),
-      allowCredentials: (optionsFromServer.allowCredentials || []).map((c) => ({
-        ...c,
-        id: decode(c.id),
-      })),
+      publicKey: {
+        ...options,
+        challenge: decode(options.challenge),
+        allowCredentials: (options.allowCredentials || []).map((c) => ({
+          ...c,
+          id: decode(c.id),
+        })),
+      },
     };
-    const credential = await navigator.credentials.get({ publicKey: requestOptions });
+    const credential = await navigator.credentials.get(requestOptions);
     return {
       id: credential.id,
       rawId: encode(credential.rawId),
