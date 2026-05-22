@@ -11,10 +11,11 @@ import (
 
 type Config struct {
 	DatabaseURL      string
-	AuthUsername     string
-	AuthPassword     string
-	AuthPasswordHash string
+	AuthUsername     string // deprecated: only used for legacy migration
+	AuthPassword     string // deprecated: only used for legacy migration
+	AuthPasswordHash string // deprecated: only used for legacy migration
 	AuthCookieSecret string
+	AuthRPOrigin     string
 	YouTubeAPIKey    string
 	RabbitMQURL      string
 	MusicLibraryPath string
@@ -28,10 +29,11 @@ type Config struct {
 func Load() (Config, error) {
 	cfg := Config{
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
-		AuthUsername:     os.Getenv("AUTH_USERNAME"),
+		AuthUsername:     envOr([]string{"AUTH_EMAIL", "AUTH_USERNAME"}),
 		AuthPassword:     os.Getenv("AUTH_PASSWORD"),
 		AuthPasswordHash: os.Getenv("AUTH_PASSWORD_HASH"),
 		AuthCookieSecret: os.Getenv("AUTH_COOKIE_SECRET"),
+		AuthRPOrigin:     os.Getenv("AUTH_RP_ORIGIN"),
 		YouTubeAPIKey:    os.Getenv("YOUTUBE_API_KEY"),
 		RabbitMQURL:      os.Getenv("RABBITMQ_URL"),
 		MusicLibraryPath: getenv("MUSIC_LIBRARY_PATH", "/music"),
@@ -53,15 +55,17 @@ func Load() (Config, error) {
 	var missing []string
 	for name, value := range map[string]string{
 		"DATABASE_URL":       cfg.DatabaseURL,
-		"AUTH_USERNAME":      cfg.AuthUsername,
 		"AUTH_COOKIE_SECRET": cfg.AuthCookieSecret,
 	} {
 		if strings.TrimSpace(value) == "" {
 			missing = append(missing, name)
 		}
 	}
-	if cfg.AuthPassword == "" && cfg.AuthPasswordHash == "" {
-		missing = append(missing, "AUTH_PASSWORD or AUTH_PASSWORD_HASH")
+	if strings.TrimSpace(cfg.Domain) == "" {
+		missing = append(missing, "DOMAIN")
+	}
+	if strings.TrimSpace(cfg.AuthRPOrigin) == "" {
+		missing = append(missing, "AUTH_RP_ORIGIN")
 	}
 	if cfg.AppEnv == "production" && strings.TrimSpace(cfg.RabbitMQURL) == "" {
 		missing = append(missing, "RABBITMQ_URL")
@@ -70,6 +74,15 @@ func Load() (Config, error) {
 		return Config{}, errors.New("missing required config: " + strings.Join(missing, ", "))
 	}
 	return cfg, nil
+}
+
+func envOr(keys []string) string {
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func getenv(key, fallback string) string {

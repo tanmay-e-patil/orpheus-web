@@ -1,6 +1,7 @@
 package apphttp
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -10,11 +11,14 @@ import (
 
 func (s *Server) requireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := s.Auth.SessionFromRequest(r); err != nil {
+		claims, err := s.Auth.SessionFromRequest(r)
+		if err != nil {
 			handlers.Error(w, http.StatusUnauthorized, "unauthorized", "Unauthorized")
 			return
 		}
-		next.ServeHTTP(w, r)
+		ctx := context.WithValue(r.Context(), userIDCtxKey, claims.UserID)
+		ctx = context.WithValue(ctx, usernameCtxKey, claims.Username)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

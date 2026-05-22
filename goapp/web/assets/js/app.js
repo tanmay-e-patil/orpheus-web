@@ -8,6 +8,7 @@ import { initThemeControls } from "./theme.js";
 import "./components/app-shell.js";
 import "./components/login-page.js";
 import "./components/home-page.js";
+import "./components/settings-page.js";
 import "./components/song-table.js";
 import "./components/player-bar.js";
 import "./components/lyrics-view.js";

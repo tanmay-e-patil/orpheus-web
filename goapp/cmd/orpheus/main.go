@@ -32,6 +32,10 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := db.MigrateUp(ctx); err != nil {
+		log.Fatalf("migrations: %v", err)
+	}
+
 	httpClient := &http.Client{Timeout: cfg.HTTPTimeout}
 	queue := services.NewQueuePublisher(cfg.RabbitMQURL)
 	defer queue.Close()

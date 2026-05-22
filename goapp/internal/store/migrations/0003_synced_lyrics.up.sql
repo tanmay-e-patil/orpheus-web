@@ -1,0 +1,1 @@
+ALTER TABLE "songs" ADD COLUMN IF NOT EXISTS "synced_lyrics" text DEFAULT '' NOT NULL;

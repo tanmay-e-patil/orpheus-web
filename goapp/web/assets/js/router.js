@@ -5,6 +5,7 @@ import { routeTransitionKind, withViewTransition } from "./view-transitions.js";
 export const routes = [
   { path: "/", component: "login-page", public: true },
   { path: "/home", component: "home-page", protected: true },
+  { path: "/settings", component: "settings-page", protected: true },
   { path: "/discover", component: "discover-landing-page", protected: true },
   { path: "/discover/youtube", component: "youtube-discovery-page", protected: true },
   { path: "/discover/spotify", component: "deezer-matching-page", protected: true },

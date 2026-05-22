@@ -1,35 +1,111 @@
 import { API } from "../api.js";
+import { Passkey } from "../passkey.js";
 import { el, showDialog, toast } from "../store.js";
 
 export class LoginPage extends HTMLElement {
   connectedCallback() {
+    this.passkeySupported = Passkey.isSupported();
     this.replaceChildren(this.render());
   }
 
+  async promptForPasskeyRegistration() {
+    if (!this.passkeySupported) return;
+
+    try {
+      const status = await API.passkeyStatus();
+      if (status?.hasPasskey) return;
+
+      const shouldRegister = window.confirm("Set up a passkey for faster sign in next time?");
+      if (!shouldRegister) return;
+
+      const name = window.prompt("Name this passkey", "Personal device")?.trim();
+      if (!name) return;
+
+      window.alert("Your browser will open its passkey prompt. Choose your preferred provider there, such as 1Password, Bitwarden, Apple Passwords, Google Password Manager, or a security key.");
+
+      const options = await API.passkeyRegisterBegin();
+      const credential = await Passkey.register(options);
+      await API.passkeyRegisterFinish(credential, name);
+      toast("Passkey registered successfully", "success");
+    } catch (error) {
+      if (error.name !== "NotAllowedError") {
+        showDialog(error.message || "Passkey registration failed");
+      }
+    }
+  }
+
   render() {
-    const username = el("input", { class: "input", type: "text", autocomplete: "username", placeholder: "your_username" });
-    const password = el("input", { class: "input", type: "password", autocomplete: "current-password", placeholder: "********" });
+    const email = el("input", {
+      class: "input",
+      type: "email",
+      autocomplete: "username webauthn",
+      placeholder: "you@example.com",
+    });
+    const password = el("input", {
+      class: "input",
+      type: "password",
+      autocomplete: "current-password",
+      placeholder: "********",
+    });
     const submit = el("button", { class: "button", type: "submit", text: "Login" });
-    const form = el("form", { class: "login-card" }, [
+
+    const children = [
       el("h1", { text: "Orpheus" }),
-      el("p", { class: "muted", text: "Login with Account" }),
-      el("label", { text: "Username" }),
-      username,
+      el("p", { class: "muted", text: "Sign in to your account" }),
+    ];
+
+    const passkeyContainer = el("div", { class: "passkey-section" });
+
+    if (this.passkeySupported) {
+      const passkeyButton = el("button", {
+        class: "button passkey-button",
+        type: "button",
+        text: "Sign in with Passkey",
+      });
+      passkeyButton.addEventListener("click", async () => {
+        passkeyButton.disabled = true;
+        passkeyButton.textContent = "Waiting for biometric...";
+        try {
+          const options = await API.passkeyLoginBegin();
+          const credential = await Passkey.authenticate(options);
+          await API.passkeyLoginFinish(credential);
+          toast("Signed in successfully");
+          window.Orpheus.router.go("/home");
+        } catch (error) {
+          if (error.name !== "NotAllowedError") {
+            showDialog(error.message || "Passkey sign in failed");
+          }
+        } finally {
+          passkeyButton.disabled = false;
+          passkeyButton.textContent = "Sign in with Passkey";
+        }
+      });
+      passkeyContainer.append(passkeyButton);
+      passkeyContainer.append(el("div", { class: "divider", text: "or" }));
+      children.push(passkeyContainer);
+    }
+
+    const form = el("form", { class: "login-card" }, [
+      ...children,
+      el("label", { text: "Email" }),
+      email,
       el("label", { text: "Password" }),
       password,
       submit,
     ]);
+
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (!username.value.trim() || !password.value) {
-        showDialog("Username and password are required");
+      if (!email.value.trim() || !password.value) {
+        showDialog("Email and password are required");
         return;
       }
       submit.disabled = true;
       submit.textContent = "Logging in...";
       try {
-        await API.login(username.value.trim(), password.value);
+        await API.login(email.value.trim(), password.value);
         toast("Signed in successfully");
+        await this.promptForPasskeyRegistration();
         window.Orpheus.router.go("/home");
       } catch (error) {
         showDialog(error.message || "Sign in failed");
@@ -38,6 +114,7 @@ export class LoginPage extends HTMLElement {
         submit.textContent = "Login";
       }
     });
+
     return el("section", { class: "login-page" }, [form]);
   }
 }
