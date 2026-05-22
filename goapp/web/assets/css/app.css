@@ -1083,6 +1083,29 @@ player-bar {
   cursor: pointer;
 }
 
+.seek.is-loading {
+  --loading-highlight: color-mix(in srgb, var(--accent) 72%, transparent);
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--loading-highlight) 42%,
+      var(--accent) 50%,
+      var(--loading-highlight) 58%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--accent) 45%, var(--border)) 0,
+      color-mix(in srgb, var(--accent) 45%, var(--border)) var(--seek-progress, 0%),
+      var(--border) var(--seek-progress, 0%),
+      var(--border) 100%
+    );
+  background-size: 38% 100%, 100% 100%;
+  background-position: -40% 0, 0 0;
+  animation: seek-loading 1s linear infinite;
+}
+
 .seek::-webkit-slider-runnable-track {
   height: 6px;
   background: transparent;
@@ -1541,6 +1564,16 @@ player-bar .icon-button:disabled {
 
   to {
     background-position: -80% 0, 0 0;
+  }
+}
+
+@keyframes seek-loading {
+  from {
+    background-position: -40% 0, 0 0;
+  }
+
+  to {
+    background-position: 140% 0, 0 0;
   }
 }
 

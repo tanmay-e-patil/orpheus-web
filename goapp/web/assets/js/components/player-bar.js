@@ -95,7 +95,10 @@ export class PlayerBar extends HTMLElement {
       const currentTime = Math.min(state.currentTime || 0, duration);
       this.progress.max = String(duration);
       this.progress.value = String(currentTime);
+      const loading = state.status === "loading";
       this.progress.style.setProperty("--seek-progress", `${(currentTime / duration) * 100}%`);
+      this.progress.classList.toggle("is-loading", loading);
+      this.progress.toggleAttribute("aria-busy", loading);
       this.progress.disabled = !isPlayable(currentSong());
     }
     if (this.toggle && this.renderedStatus !== state.status) {
