@@ -8,6 +8,32 @@ export class LoginPage extends HTMLElement {
     this.replaceChildren(this.render());
   }
 
+  async promptForPasskeyRegistration() {
+    if (!this.passkeySupported) return;
+
+    try {
+      const status = await API.passkeyStatus();
+      if (status?.hasPasskey) return;
+
+      const shouldRegister = window.confirm("Set up a passkey for faster sign in next time?");
+      if (!shouldRegister) return;
+
+      const name = window.prompt("Name this passkey", "Personal device")?.trim();
+      if (!name) return;
+
+      window.alert("Your browser will open its passkey prompt. Choose your preferred provider there, such as 1Password, Bitwarden, Apple Passwords, Google Password Manager, or a security key.");
+
+      const options = await API.passkeyRegisterBegin();
+      const credential = await Passkey.register(options);
+      await API.passkeyRegisterFinish(credential, name);
+      toast("Passkey registered successfully", "success");
+    } catch (error) {
+      if (error.name !== "NotAllowedError") {
+        showDialog(error.message || "Passkey registration failed");
+      }
+    }
+  }
+
   render() {
     const email = el("input", {
       class: "input",
@@ -79,6 +105,7 @@ export class LoginPage extends HTMLElement {
       try {
         await API.login(email.value.trim(), password.value);
         toast("Signed in successfully");
+        await this.promptForPasskeyRegistration();
         window.Orpheus.router.go("/home");
       } catch (error) {
         showDialog(error.message || "Sign in failed");

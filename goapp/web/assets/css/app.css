@@ -581,6 +581,29 @@ h2 {
   flex: 1 1 240px;
 }
 
+.settings-section-header,
+.passkey-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.passkey-list {
+  display: grid;
+  gap: 10px;
+}
+
+.passkey-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.passkey-item p {
+  margin: 4px 0 0;
+}
+
 .stack {
   display: grid;
   gap: 12px;

@@ -62,8 +62,8 @@ export const API = {
   session: () => request("/api/auth/session"),
   passkeyStatus: () => request("/api/auth/passkey/status"),
   passkeyRegisterBegin: () => request("/api/auth/passkey/register-begin", { method: "POST" }),
-  passkeyRegisterFinish: (credential) =>
-    request("/api/auth/passkey/register-finish", {
+  passkeyRegisterFinish: (credential, name = "") =>
+    request(`/api/auth/passkey/register-finish?name=${encodeURIComponent(name)}`, {
       method: "POST",
       body: JSON.stringify(credential),
     }),
@@ -73,6 +73,8 @@ export const API = {
       method: "POST",
       body: JSON.stringify(credential),
     }),
+  passkeyList: () => request("/api/auth/passkeys"),
+  passkeyDelete: (id) => request(`/api/auth/passkeys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   songs: (cursor, limit = 50, signal) => {
     const params = new URLSearchParams();
     if (cursor) {

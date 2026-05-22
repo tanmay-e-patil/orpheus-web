@@ -17,13 +17,26 @@ type PasskeyAuthenticator interface {
 
 type PasskeyCeremony interface {
 	BeginRegistration(w http.ResponseWriter, r *http.Request, userID string) (json.RawMessage, error)
-	FinishRegistration(w http.ResponseWriter, r *http.Request, userID string) error
+	FinishRegistration(w http.ResponseWriter, r *http.Request, userID string, name string) error
 	BeginLogin(w http.ResponseWriter, r *http.Request) (json.RawMessage, error)
 	FinishLogin(w http.ResponseWriter, r *http.Request) (string, error)
 }
 
 type UserFinder interface {
 	GetUserByID(ctx context.Context, id string) (*store.User, error)
+}
+
+type PasskeyStore interface {
+	GetPasskeysByUserID(ctx context.Context, userID string) ([]store.Passkey, error)
+	GetPasskeyByID(ctx context.Context, id string) (*store.Passkey, error)
+	DeletePasskey(ctx context.Context, id string) error
+}
+
+type passkeyResponse struct {
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Transport []string `json:"transport"`
+	CreatedAt string   `json:"createdAt"`
 }
 
 func PasskeyStatus(auth PasskeyAuthenticator) http.HandlerFunc {
@@ -54,6 +67,55 @@ func PasskeyRegisterBegin(auth PasskeyAuthenticator, ceremony PasskeyCeremony) h
 	}
 }
 
+func PasskeyList(auth PasskeyAuthenticator, passkeys PasskeyStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, _, err := auth.UserAndUsernameFromRequest(r)
+		if err != nil {
+			Error(w, http.StatusUnauthorized, "unauthorized", "Unauthorized")
+			return
+		}
+
+		pks, err := passkeys.GetPasskeysByUserID(r.Context(), userID)
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "passkey_list_failed", "Could not load passkeys")
+			return
+		}
+
+		items := make([]passkeyResponse, 0, len(pks))
+		for _, pk := range pks {
+			items = append(items, passkeyResponse{
+				ID:        pk.ID,
+				Name:      pk.Name,
+				Transport: pk.Transport,
+				CreatedAt: pk.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			})
+		}
+		JSON(w, http.StatusOK, map[string]any{"passkeys": items})
+	}
+}
+
+func PasskeyDelete(auth PasskeyAuthenticator, passkeys PasskeyStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, _, err := auth.UserAndUsernameFromRequest(r)
+		if err != nil {
+			Error(w, http.StatusUnauthorized, "unauthorized", "Unauthorized")
+			return
+		}
+
+		id := r.PathValue("id")
+		pk, err := passkeys.GetPasskeyByID(r.Context(), id)
+		if err != nil || pk.UserID != userID {
+			Error(w, http.StatusNotFound, "passkey_not_found", "Passkey not found")
+			return
+		}
+		if err := passkeys.DeletePasskey(r.Context(), id); err != nil {
+			Error(w, http.StatusInternalServerError, "passkey_delete_failed", "Could not delete passkey")
+			return
+		}
+		JSON(w, http.StatusOK, map[string]bool{"ok": true})
+	}
+}
+
 func PasskeyRegisterFinish(auth PasskeyAuthenticator, ceremony PasskeyCeremony) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, _, err := auth.UserAndUsernameFromRequest(r)
@@ -61,7 +123,8 @@ func PasskeyRegisterFinish(auth PasskeyAuthenticator, ceremony PasskeyCeremony) 
 			Error(w, http.StatusUnauthorized, "unauthorized", "Unauthorized")
 			return
 		}
-		if err := ceremony.FinishRegistration(w, r, userID); err != nil {
+		name := r.URL.Query().Get("name")
+		if err := ceremony.FinishRegistration(w, r, userID, name); err != nil {
 			Error(w, http.StatusBadRequest, "register_finish_failed", err.Error())
 			return
 		}

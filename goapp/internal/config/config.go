@@ -29,7 +29,7 @@ type Config struct {
 func Load() (Config, error) {
 	cfg := Config{
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
-		AuthUsername:     os.Getenv("AUTH_USERNAME"),
+		AuthUsername:     envOr([]string{"AUTH_EMAIL", "AUTH_USERNAME"}),
 		AuthPassword:     os.Getenv("AUTH_PASSWORD"),
 		AuthPasswordHash: os.Getenv("AUTH_PASSWORD_HASH"),
 		AuthCookieSecret: os.Getenv("AUTH_COOKIE_SECRET"),
@@ -74,6 +74,15 @@ func Load() (Config, error) {
 		return Config{}, errors.New("missing required config: " + strings.Join(missing, ", "))
 	}
 	return cfg, nil
+}
+
+func envOr(keys []string) string {
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func getenv(key, fallback string) string {

@@ -63,6 +63,8 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("GET /api/auth/passkey/status", s.requireAuth(method(http.MethodGet, handlers.PasskeyStatus(s.Auth))))
 	mux.Handle("POST /api/auth/passkey/register-begin", s.requireAuth(method(http.MethodPost, handlers.PasskeyRegisterBegin(s.Auth, s.Passkey))))
 	mux.Handle("POST /api/auth/passkey/register-finish", s.requireAuth(method(http.MethodPost, handlers.PasskeyRegisterFinish(s.Auth, s.Passkey))))
+	mux.Handle("GET /api/auth/passkeys", s.requireAuth(method(http.MethodGet, handlers.PasskeyList(s.Auth, s.Store))))
+	mux.Handle("DELETE /api/auth/passkeys/{id}", s.requireAuth(method(http.MethodDelete, handlers.PasskeyDelete(s.Auth, s.Store))))
 
 	// Protected API routes
 	mux.Handle("GET /api/songs", s.requireAuth(method(http.MethodGet, handlers.GetSongs(s.Store))))
@@ -110,7 +112,7 @@ func (s *Server) staticOrShell(w http.ResponseWriter, r *http.Request) {
 
 func knownAppPath(path string) bool {
 	switch path {
-	case "/", "/home", "/discover", "/discover/youtube", "/discover/spotify", "/discover/lyrics", "/discover/review", "/discover/commit":
+	case "/", "/home", "/settings", "/discover", "/discover/youtube", "/discover/spotify", "/discover/lyrics", "/discover/review", "/discover/commit":
 		return true
 	default:
 		return false

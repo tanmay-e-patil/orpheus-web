@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -46,11 +47,20 @@ func (u *webAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 		for _, t := range pk.Transport {
 			transports = append(transports, protocol.AuthenticatorTransport(t))
 		}
+		flags := protocol.AuthenticatorFlags(0)
+		if pk.BackupEligible {
+			flags |= protocol.FlagBackupEligible
+		}
+		if pk.BackupState {
+			flags |= protocol.FlagBackupState
+		}
+
 		creds = append(creds, webauthn.Credential{
 			ID:              pk.CredentialID,
 			PublicKey:       pk.PublicKey,
 			AttestationType: "none",
 			Transport:       transports,
+			Flags:           webauthn.NewCredentialFlags(flags),
 			Authenticator: webauthn.Authenticator{
 				AAGUID:    pk.AAGUID,
 				SignCount: uint32(pk.SignCount),
@@ -93,7 +103,22 @@ func (ps *PasskeyService) BeginRegistration(w http.ResponseWriter, r *http.Reque
 		return nil, err
 	}
 
-	options, session, err := ps.webAuthn.BeginRegistration(waUser)
+	options, session, err := ps.webAuthn.BeginRegistration(
+		waUser,
+		webauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
+			// Do not set AuthenticatorAttachment. Leaving it empty lets the browser/OS
+			// offer the user's available passkey providers instead of forcing the
+			// platform keychain.
+			ResidentKey:        protocol.ResidentKeyRequirementRequired,
+			RequireResidentKey: protocol.ResidentKeyRequired(),
+			UserVerification:   protocol.VerificationPreferred,
+		}),
+		webauthn.WithPublicKeyCredentialHints([]protocol.PublicKeyCredentialHints{
+			protocol.PublicKeyCredentialHintClientDevice,
+			protocol.PublicKeyCredentialHintHybrid,
+			protocol.PublicKeyCredentialHintSecurityKey,
+		}),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +131,7 @@ func (ps *PasskeyService) BeginRegistration(w http.ResponseWriter, r *http.Reque
 }
 
 // FinishRegistration completes the credential creation ceremony.
-func (ps *PasskeyService) FinishRegistration(w http.ResponseWriter, r *http.Request, userID string) error {
+func (ps *PasskeyService) FinishRegistration(w http.ResponseWriter, r *http.Request, userID string, name string) error {
 	ctx := r.Context()
 	waUser, err := ps.getWebAuthnUser(ctx, userID)
 	if err != nil {
@@ -130,14 +155,21 @@ func (ps *PasskeyService) FinishRegistration(w http.ResponseWriter, r *http.Requ
 		transports = append(transports, string(t))
 	}
 
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "Passkey"
+	}
+
 	pk := store.Passkey{
-		UserID:       userID,
-		CredentialID: credential.ID,
-		PublicKey:    credential.PublicKey,
-		Transport:    transports,
-		SignCount:    int64(credential.Authenticator.SignCount),
-		Name:         "primary",
-		AAGUID:       credential.Authenticator.AAGUID,
+		UserID:         userID,
+		CredentialID:   credential.ID,
+		PublicKey:      credential.PublicKey,
+		Transport:      transports,
+		SignCount:      int64(credential.Authenticator.SignCount),
+		Name:           name,
+		AAGUID:         credential.Authenticator.AAGUID,
+		BackupEligible: credential.Flags.BackupEligible,
+		BackupState:    credential.Flags.BackupState,
 	}
 
 	return ps.store.CreatePasskey(ctx, pk)
@@ -185,13 +217,13 @@ func (ps *PasskeyService) FinishLogin(w http.ResponseWriter, r *http.Request) (s
 
 	clearChallengeCookie(w)
 
-	// Update sign count
+	// Update mutable credential usage state.
 	ctx := r.Context()
 	pk, err := ps.store.GetPasskeyByCredentialID(ctx, credential.ID)
 	if err != nil {
 		return userID, nil // non-fatal
 	}
-	_ = ps.store.UpdatePasskeySignCount(ctx, pk.ID, int64(credential.Authenticator.SignCount))
+	_ = ps.store.UpdatePasskeyUsage(ctx, pk.ID, int64(credential.Authenticator.SignCount), credential.Flags.BackupState)
 
 	return userID, nil
 }

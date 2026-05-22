@@ -6,29 +6,31 @@ import (
 )
 
 type Passkey struct {
-	ID           string
-	UserID       string
-	CredentialID []byte
-	PublicKey    []byte
-	Attestation  []byte
-	Transport    []string
-	SignCount    int64
-	Name         string
-	AAGUID       []byte
-	CreatedAt    time.Time
+	ID             string
+	UserID         string
+	CredentialID   []byte
+	PublicKey      []byte
+	Attestation    []byte
+	Transport      []string
+	SignCount      int64
+	Name           string
+	BackupEligible bool
+	BackupState    bool
+	AAGUID         []byte
+	CreatedAt      time.Time
 }
 
 func (s *Store) CreatePasskey(ctx context.Context, pk Passkey) error {
 	_, err := s.Pool.Exec(ctx, `
-		INSERT INTO passkeys (id, user_id, credential_id, public_key, attestation, transport, sign_count, name, aaguid)
-		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8)
-	`, pk.UserID, pk.CredentialID, pk.PublicKey, pk.Attestation, pk.Transport, pk.SignCount, pk.Name, pk.AAGUID)
+		INSERT INTO passkeys (id, user_id, credential_id, public_key, attestation, transport, sign_count, name, aaguid, backup_eligible, backup_state)
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`, pk.UserID, pk.CredentialID, pk.PublicKey, pk.Attestation, pk.Transport, pk.SignCount, pk.Name, pk.AAGUID, pk.BackupEligible, pk.BackupState)
 	return err
 }
 
 func (s *Store) GetPasskeysByUserID(ctx context.Context, userID string) ([]Passkey, error) {
 	rows, err := s.Pool.Query(ctx, `
-		SELECT id, user_id, credential_id, public_key, attestation, transport, sign_count, name, aaguid, created_at
+		SELECT id, user_id, credential_id, public_key, attestation, transport, sign_count, name, aaguid, created_at, backup_eligible, backup_state
 		FROM passkeys WHERE user_id = $1 ORDER BY created_at
 	`, userID)
 	if err != nil {
@@ -38,7 +40,7 @@ func (s *Store) GetPasskeysByUserID(ctx context.Context, userID string) ([]Passk
 	var pks []Passkey
 	for rows.Next() {
 		var pk Passkey
-		if err := rows.Scan(&pk.ID, &pk.UserID, &pk.CredentialID, &pk.PublicKey, &pk.Attestation, &pk.Transport, &pk.SignCount, &pk.Name, &pk.AAGUID, &pk.CreatedAt); err != nil {
+		if err := rows.Scan(&pk.ID, &pk.UserID, &pk.CredentialID, &pk.PublicKey, &pk.Attestation, &pk.Transport, &pk.SignCount, &pk.Name, &pk.AAGUID, &pk.CreatedAt, &pk.BackupEligible, &pk.BackupState); err != nil {
 			return nil, err
 		}
 		pks = append(pks, pk)
@@ -49,28 +51,28 @@ func (s *Store) GetPasskeysByUserID(ctx context.Context, userID string) ([]Passk
 func (s *Store) GetPasskeyByCredentialID(ctx context.Context, credID []byte) (*Passkey, error) {
 	var pk Passkey
 	err := s.Pool.QueryRow(ctx, `
-		SELECT id, user_id, credential_id, public_key, attestation, transport, sign_count, name, aaguid, created_at
+		SELECT id, user_id, credential_id, public_key, attestation, transport, sign_count, name, aaguid, created_at, backup_eligible, backup_state
 		FROM passkeys WHERE credential_id = $1
-	`, credID).Scan(&pk.ID, &pk.UserID, &pk.CredentialID, &pk.PublicKey, &pk.Attestation, &pk.Transport, &pk.SignCount, &pk.Name, &pk.AAGUID, &pk.CreatedAt)
+	`, credID).Scan(&pk.ID, &pk.UserID, &pk.CredentialID, &pk.PublicKey, &pk.Attestation, &pk.Transport, &pk.SignCount, &pk.Name, &pk.AAGUID, &pk.CreatedAt, &pk.BackupEligible, &pk.BackupState)
 	if err != nil {
 		return nil, err
 	}
 	return &pk, nil
 }
 
-func (s *Store) UpdatePasskeySignCount(ctx context.Context, id string, signCount int64) error {
+func (s *Store) UpdatePasskeyUsage(ctx context.Context, id string, signCount int64, backupState bool) error {
 	_, err := s.Pool.Exec(ctx, `
-		UPDATE passkeys SET sign_count = $1 WHERE id = $2
-	`, signCount, id)
+		UPDATE passkeys SET sign_count = $1, backup_state = $2 WHERE id = $3
+	`, signCount, backupState, id)
 	return err
 }
 
 func (s *Store) GetPasskeyByID(ctx context.Context, id string) (*Passkey, error) {
 	var pk Passkey
 	err := s.Pool.QueryRow(ctx, `
-		SELECT id, user_id, credential_id, public_key, attestation, transport, sign_count, name, aaguid, created_at
+		SELECT id, user_id, credential_id, public_key, attestation, transport, sign_count, name, aaguid, created_at, backup_eligible, backup_state
 		FROM passkeys WHERE id = $1
-	`, id).Scan(&pk.ID, &pk.UserID, &pk.CredentialID, &pk.PublicKey, &pk.Attestation, &pk.Transport, &pk.SignCount, &pk.Name, &pk.AAGUID, &pk.CreatedAt)
+	`, id).Scan(&pk.ID, &pk.UserID, &pk.CredentialID, &pk.PublicKey, &pk.Attestation, &pk.Transport, &pk.SignCount, &pk.Name, &pk.AAGUID, &pk.CreatedAt, &pk.BackupEligible, &pk.BackupState)
 	if err != nil {
 		return nil, err
 	}
