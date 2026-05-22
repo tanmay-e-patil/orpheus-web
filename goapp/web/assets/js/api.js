@@ -1,3 +1,5 @@
+import { Passkey } from "./passkey.js";
+
 export class APIError extends Error {
   constructor(message, status, code) {
     super(message);
@@ -46,13 +48,31 @@ function toYouTubeVideoPayload(video) {
 }
 
 export const API = {
-  login: (username, password) =>
+  login: (email, password) =>
     request("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
+    }),
+  register: (username, email, password) =>
+    request("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ username, email, password }),
     }),
   logout: () => request("/api/auth/logout", { method: "POST" }),
   session: () => request("/api/auth/session"),
+  passkeyStatus: () => request("/api/auth/passkey/status"),
+  passkeyRegisterBegin: () => request("/api/auth/passkey/register-begin", { method: "POST" }),
+  passkeyRegisterFinish: (credential) =>
+    request("/api/auth/passkey/register-finish", {
+      method: "POST",
+      body: JSON.stringify(credential),
+    }),
+  passkeyLoginBegin: () => request("/api/auth/passkey/login-begin", { method: "POST" }),
+  passkeyLoginFinish: (credential) =>
+    request("/api/auth/passkey/login-finish", {
+      method: "POST",
+      body: JSON.stringify(credential),
+    }),
   songs: (cursor, limit = 50, signal) => {
     const params = new URLSearchParams();
     if (cursor) {

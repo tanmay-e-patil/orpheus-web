@@ -1,16 +1,30 @@
 package handlers
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+
+	"orpheus-goapp/internal/store"
+)
 
 type Authenticator interface {
-	ValidateCredentials(username, password string) bool
-	SetSessionCookie(w http.ResponseWriter, username string) error
+	ValidateCredentials(email, password string) (*store.User, bool)
+	RegisterUser(username, email, password string) (*store.User, error)
+	CreateSessionToken(userID, username string) (string, error)
+	SetSessionCookie(w http.ResponseWriter, token string)
 	ClearSessionCookie(w http.ResponseWriter)
-	UsernameFromRequest(r *http.Request) (string, error)
+	UserAndUsernameFromRequest(r *http.Request) (userID string, username string, err error)
+	HasPasskey(userID string) bool
 }
 
 type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type registerRequest struct {
 	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -21,17 +35,86 @@ func Login(auth Authenticator) http.HandlerFunc {
 			Error(w, http.StatusBadRequest, "bad_request", "Invalid login request")
 			return
 		}
-		if !auth.ValidateCredentials(body.Username, body.Password) {
-			Error(w, http.StatusUnauthorized, "invalid_credentials", "Invalid username or password")
+		user, ok := auth.ValidateCredentials(body.Email, body.Password)
+		if !ok {
+			Error(w, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
 			return
 		}
-		if err := auth.SetSessionCookie(w, body.Username); err != nil {
+		token, err := auth.CreateSessionToken(user.ID, user.Username)
+		if err != nil {
 			Error(w, http.StatusInternalServerError, "session_failed", "Could not create session")
 			return
 		}
+
+		if r.Header.Get("X-Client") == "expo" {
+			JSON(w, http.StatusOK, map[string]any{
+				"token": token,
+				"user": map[string]string{
+					"id":       user.ID,
+					"username": user.Username,
+					"email":    user.Email,
+				},
+			})
+			return
+		}
+
+		auth.SetSessionCookie(w, token)
 		JSON(w, http.StatusOK, map[string]any{
 			"authenticated": true,
-			"user":          map[string]string{"id": "single-user", "username": body.Username},
+			"user": map[string]string{
+				"id":       user.ID,
+				"username": user.Username,
+			},
+		})
+	}
+}
+
+func Register(auth Authenticator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body registerRequest
+		if err := DecodeJSON(r, &body); err != nil {
+			Error(w, http.StatusBadRequest, "bad_request", "Invalid registration request")
+			return
+		}
+		if strings.TrimSpace(body.Username) == "" || strings.TrimSpace(body.Email) == "" || body.Password == "" {
+			Error(w, http.StatusBadRequest, "bad_request", "Username, email, and password are required")
+			return
+		}
+		user, err := auth.RegisterUser(body.Username, body.Email, body.Password)
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+				Error(w, http.StatusConflict, "conflict", "Username or email already taken")
+				return
+			}
+			Error(w, http.StatusInternalServerError, "register_failed", "Could not create account")
+			return
+		}
+
+		token, err := auth.CreateSessionToken(user.ID, user.Username)
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "session_failed", "Could not create session")
+			return
+		}
+
+		if r.Header.Get("X-Client") == "expo" {
+			JSON(w, http.StatusCreated, map[string]any{
+				"token": token,
+				"user": map[string]string{
+					"id":       user.ID,
+					"username": user.Username,
+					"email":    user.Email,
+				},
+			})
+			return
+		}
+
+		auth.SetSessionCookie(w, token)
+		JSON(w, http.StatusCreated, map[string]any{
+			"authenticated": true,
+			"user": map[string]string{
+				"id":       user.ID,
+				"username": user.Username,
+			},
 		})
 	}
 }
@@ -45,14 +128,17 @@ func Logout(auth Authenticator) http.HandlerFunc {
 
 func Session(auth Authenticator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, err := auth.UsernameFromRequest(r)
+		userID, username, err := auth.UserAndUsernameFromRequest(r)
 		if err != nil {
 			Error(w, http.StatusUnauthorized, "unauthorized", "Unauthorized")
 			return
 		}
 		JSON(w, http.StatusOK, map[string]any{
 			"authenticated": true,
-			"user":          map[string]string{"id": "single-user", "username": username},
+			"user": map[string]string{
+				"id":       userID,
+				"username": username,
+			},
 		})
 	}
 }

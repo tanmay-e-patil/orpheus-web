@@ -464,6 +464,35 @@ h2 {
   gap: 12px;
 }
 
+.passkey-button {
+  min-height: 48px;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.passkey-button::before {
+  content: "\1F511";
+}
+
+.login-card .divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.login-card .divider::before,
+.login-card .divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 .input,
 .textarea {
   width: 100%;

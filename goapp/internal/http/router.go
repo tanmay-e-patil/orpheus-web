@@ -12,21 +12,30 @@ import (
 )
 
 type Server struct {
-	Config  config.Config
-	Store   *store.Store
-	Auth    *AuthService
-	YouTube *services.YouTubeClient
-	Deezer  *services.DeezerClient
-	LRCLib  *services.LRCLibClient
-	Queue   *services.QueuePublisher
-	WebDir  string
+	Config   config.Config
+	Store    *store.Store
+	Auth     *AuthService
+	Passkey  *PasskeyService
+	YouTube  *services.YouTubeClient
+	Deezer   *services.DeezerClient
+	LRCLib   *services.LRCLibClient
+	Queue    *services.QueuePublisher
+	WebDir   string
 }
 
 func NewServer(cfg config.Config, db *store.Store, youtube *services.YouTubeClient, deezer *services.DeezerClient, lrclib *services.LRCLibClient, queue *services.QueuePublisher, webDir string) *Server {
+	auth := NewAuthService(cfg, db)
+	passkey, err := NewPasskeyService(cfg, db)
+	if err != nil {
+		// Passkey service requires valid WebAuthn config; log and continue
+		// Registration/login endpoints will return errors if used without valid config
+		passkey = nil
+	}
 	return &Server{
 		Config:  cfg,
 		Store:   db,
-		Auth:    NewAuthService(cfg),
+		Auth:    auth,
+		Passkey: passkey,
 		YouTube: youtube,
 		Deezer:  deezer,
 		LRCLib:  lrclib,
@@ -39,10 +48,23 @@ func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.Handle("GET /healthz", method(http.MethodGet, handlers.Health))
+
+	// Auth — public
+	mux.Handle("POST /api/auth/register", method(http.MethodPost, handlers.Register(s.Auth)))
 	mux.Handle("POST /api/auth/login", method(http.MethodPost, handlers.Login(s.Auth)))
 	mux.Handle("POST /api/auth/logout", method(http.MethodPost, handlers.Logout(s.Auth)))
 	mux.Handle("GET /api/auth/session", method(http.MethodGet, handlers.Session(s.Auth)))
 
+	// Passkey — public (login ceremony)
+	mux.Handle("POST /api/auth/passkey/login-begin", method(http.MethodPost, handlers.PasskeyLoginBegin(s.Passkey)))
+	mux.Handle("POST /api/auth/passkey/login-finish", method(http.MethodPost, handlers.PasskeyLoginFinish(s.Auth, s.Passkey, s.Store)))
+
+	// Passkey — authenticated (registration ceremony)
+	mux.Handle("GET /api/auth/passkey/status", s.requireAuth(method(http.MethodGet, handlers.PasskeyStatus(s.Auth))))
+	mux.Handle("POST /api/auth/passkey/register-begin", s.requireAuth(method(http.MethodPost, handlers.PasskeyRegisterBegin(s.Auth, s.Passkey))))
+	mux.Handle("POST /api/auth/passkey/register-finish", s.requireAuth(method(http.MethodPost, handlers.PasskeyRegisterFinish(s.Auth, s.Passkey))))
+
+	// Protected API routes
 	mux.Handle("GET /api/songs", s.requireAuth(method(http.MethodGet, handlers.GetSongs(s.Store))))
 	mux.Handle("GET /api/songs/{trackId}/audio", s.requireAuth(method(http.MethodGet, handlers.StreamSongAudio(s.Store, s.Config.MusicLibraryPath))))
 	mux.Handle("POST /api/songs/album-art/refresh", s.requireAuth(method(http.MethodPost, handlers.RefreshAlbumArt(s.Store, s.Deezer))))
