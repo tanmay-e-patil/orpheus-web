@@ -2,9 +2,18 @@ package store
 
 import (
 	"context"
+	"embed"
+	"fmt"
+	"io/fs"
+	"log"
+	"sort"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+//go:embed migrations/*.up.sql
+var migrationsFS embed.FS
 
 type Store struct {
 	Pool *pgxpool.Pool
@@ -26,4 +35,140 @@ func (s *Store) Close() {
 	if s != nil && s.Pool != nil {
 		s.Pool.Close()
 	}
+}
+
+// MigrateUp runs all pending up-migrations in order.
+// It uses a schema_migrations table to track which ones have run.
+func (s *Store) MigrateUp(ctx context.Context) error {
+	// Create tracking table if it doesn't exist
+	_, err := s.Pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version TEXT PRIMARY KEY,
+			run_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("create schema_migrations: %w", err)
+	}
+
+	// Get already-applied versions
+	applied := make(map[string]bool)
+	rows, err := s.Pool.Query(ctx, `SELECT version FROM schema_migrations`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			return err
+		}
+		applied[v] = true
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	// Read and sort migration files
+	entries, err := fs.Glob(migrationsFS, "migrations/*.up.sql")
+	if err != nil {
+		return err
+	}
+	sort.Strings(entries)
+
+	for _, entry := range entries {
+		// Extract version from filename: "migrations/0004_passkeys.up.sql" → "0004_passkeys"
+		base := strings.TrimSuffix(entry, ".up.sql")
+		version := strings.TrimPrefix(base, "migrations/")
+
+		if applied[version] {
+			continue
+		}
+
+		sql, err := migrationsFS.ReadFile(entry)
+		if err != nil {
+			return fmt.Errorf("read migration %s: %w", entry, err)
+		}
+
+		log.Printf("Running migration: %s", version)
+
+		// Run each statement separately (pgx doesn't support multi-statement in Exec)
+		statements := splitStatements(string(sql))
+		for _, stmt := range statements {
+			stmt = strings.TrimSpace(stmt)
+			if stmt == "" {
+				continue
+			}
+			if _, err := s.Pool.Exec(ctx, stmt); err != nil {
+				return fmt.Errorf("migration %s failed: %w", version, err)
+			}
+		}
+
+		// Record as applied
+		_, err = s.Pool.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1)`, version)
+		if err != nil {
+			return fmt.Errorf("record migration %s: %w", version, err)
+		}
+
+		log.Printf("Migration complete: %s", version)
+	}
+
+	return nil
+}
+
+// splitStatements splits SQL on the --> statement-breakpoint marker
+// that Drizzle/Neon migrations use, or on semicolons otherwise.
+func splitStatements(sql string) []string {
+	if strings.Contains(sql, "--> statement-breakpoint") {
+		parts := strings.Split(sql, "--> statement-breakpoint")
+		return parts
+	}
+
+	// Split on semicolons, but skip ones inside strings
+	var statements []string
+	var current strings.Builder
+	inString := false
+	stringChar := byte(0)
+
+	for i := 0; i < len(sql); i++ {
+		ch := sql[i]
+		if inString {
+			current.WriteByte(ch)
+			if ch == stringChar && (i == 0 || sql[i-1] != '\\') {
+				inString = false
+			}
+			continue
+		}
+		if ch == '\'' {
+			inString = true
+			stringChar = ch
+			current.WriteByte(ch)
+			continue
+		}
+		if ch == '-' && i+1 < len(sql) && sql[i+1] == '-' {
+			// Skip line comment
+			end := strings.IndexByte(sql[i:], '\n')
+			if end == -1 {
+				break
+			}
+			i += end
+			continue
+		}
+		if ch == ';' {
+			stmt := strings.TrimSpace(current.String())
+			if stmt != "" {
+				statements = append(statements, stmt)
+			}
+			current.Reset()
+			continue
+		}
+		current.WriteByte(ch)
+	}
+
+	stmt := strings.TrimSpace(current.String())
+	if stmt != "" {
+		statements = append(statements, stmt)
+	}
+
+	return statements
 }
