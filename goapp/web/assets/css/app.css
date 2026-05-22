@@ -467,10 +467,8 @@ h2 {
 .passkey-button {
   min-height: 48px;
   font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  justify-self: center;
+  min-width: 220px;
 }
 
 .passkey-button::before {
