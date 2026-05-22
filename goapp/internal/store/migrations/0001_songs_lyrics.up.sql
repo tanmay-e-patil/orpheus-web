@@ -1,3 +1,5 @@
-ALTER TABLE "songs" ADD COLUMN "lyrics" text DEFAULT '' NOT NULL;--> statement-breakpoint
-ALTER TABLE "songs" ADD COLUMN "is_lyrics_available" boolean DEFAULT false;--> statement-breakpoint
-ALTER TABLE "songs" ADD COLUMN "release_year" text DEFAULT 'Unknown';
+DO $$ BEGIN
+  ALTER TABLE "songs" ADD COLUMN IF NOT EXISTS "lyrics" text DEFAULT '' NOT NULL;
+  ALTER TABLE "songs" ADD COLUMN IF NOT EXISTS "is_lyrics_available" boolean DEFAULT false;
+  ALTER TABLE "songs" ADD COLUMN IF NOT EXISTS "release_year" text DEFAULT 'Unknown';
+END $$;

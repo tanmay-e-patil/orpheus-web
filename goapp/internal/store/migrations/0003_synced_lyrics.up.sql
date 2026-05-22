@@ -1,1 +1,3 @@
-ALTER TABLE "songs" ADD COLUMN "synced_lyrics" text DEFAULT '' NOT NULL;
+DO $$ BEGIN
+  ALTER TABLE "songs" ADD COLUMN IF NOT EXISTS "synced_lyrics" text DEFAULT '' NOT NULL;
+END $$;
