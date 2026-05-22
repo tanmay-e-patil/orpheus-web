@@ -11,6 +11,7 @@ import "./components/home-page.js";
 import "./components/settings-page.js";
 import "./components/song-table.js";
 import "./components/player-bar.js";
+import "./components/youtube-player-modal.js";
 import "./components/lyrics-view.js";
 import "./components/mobile-nav.js";
 import "./components/discover-landing.js";

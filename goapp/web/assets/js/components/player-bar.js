@@ -78,7 +78,7 @@ export class PlayerBar extends HTMLElement {
           icon("skip-forward"),
         ]),
       ]),
-      el("a", { class: "youtube-link", href: `https://www.youtube.com/watch?v=${encodeURIComponent(song.youtubeVideoId)}`, target: "_blank", rel: "noopener noreferrer", "aria-label": "Open source on YouTube" }, [
+      el("button", { class: "youtube-link", type: "button", "aria-label": "Play YouTube video", onclick: (e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent("orpheus:open-youtube-player")); } }, [
         icon("youtube"),
       ]),
     ]);
