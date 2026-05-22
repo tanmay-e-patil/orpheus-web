@@ -275,6 +275,7 @@ img {
   display: grid;
   grid-template-columns: 240px 1fr;
   min-height: calc(100dvh - var(--player-offset));
+  transition: grid-template-columns var(--motion-medium) var(--ease-in-out);
 }
 
 .app-shell.sidebar-collapsed {
@@ -284,6 +285,7 @@ img {
 .sidebar {
   position: sticky;
   top: 0;
+  width: 240px;
   height: calc(100dvh - var(--player-offset));
   display: flex;
   flex-direction: column;
@@ -292,11 +294,18 @@ img {
   border-right: 1px solid var(--border);
   background: var(--surface);
   overflow: hidden;
+  transform: translateX(0);
+  transition:
+    transform var(--motion-medium) var(--ease-in-out),
+    padding var(--motion-medium) var(--ease-in-out),
+    border-color var(--motion-medium) var(--ease-in-out);
+  will-change: transform;
 }
 
 .app-shell.sidebar-collapsed .sidebar {
   padding-inline: 0;
-  border-right: 0;
+  border-right-color: transparent;
+  transform: translateX(-100%);
 }
 
 .brand {
