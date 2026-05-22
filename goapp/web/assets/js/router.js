@@ -19,6 +19,7 @@ export class Router {
     this.authShell = document.querySelector("[data-auth-shell]");
     this.publicOutlet = document.getElementById("public-route-outlet");
     this.privateOutlet = document.getElementById("route-outlet");
+    this.navigationId = 0;
   }
 
   start() {
@@ -39,24 +40,37 @@ export class Router {
   }
 
   async go(url) {
+    if (url === window.location.pathname + window.location.search) return;
     const fromPath = window.location.pathname;
     history.pushState({}, "", url);
     await this.transitionRender(fromPath, window.location.pathname);
   }
 
   async transitionRender(fromPath = this.currentPath || "/", toPath = window.location.pathname) {
-    await withViewTransition(() => this.render(), {
+    const navigationId = ++this.navigationId;
+    const plan = await this.createRenderPlan(toPath);
+    if (navigationId !== this.navigationId) return;
+
+    if (plan.path !== window.location.pathname) {
+      history.replaceState({}, "", plan.path);
+    }
+
+    await withViewTransition(() => this.commitRenderPlan(plan), {
       scope: "route",
-      routeKind: routeTransitionKind(fromPath, toPath),
+      routeKind: routeTransitionKind(fromPath, plan.path),
     });
     this.currentPath = window.location.pathname;
   }
 
   async render() {
-    const route = routes.find((candidate) => candidate.path === window.location.pathname) || routes[0];
-    this.authShell.hidden = true;
-    this.publicOutlet.hidden = true;
+    const plan = await this.createRenderPlan(window.location.pathname);
+    if (plan.path !== window.location.pathname) {
+      history.replaceState({}, "", plan.path);
+    }
+    this.commitRenderPlan(plan);
+  }
 
+  async createRenderPlan(path) {
     let session = null;
     try {
       session = await API.session();
@@ -64,15 +78,22 @@ export class Router {
     } catch {
       setSession(null);
     }
+
+    const route = routes.find((candidate) => candidate.path === path) || routes[0];
     if (route.protected && !session?.authenticated) {
-      history.replaceState({}, "", "/");
-      return this.render();
+      return { path: "/", route: routes[0], session };
     }
+    if (route.public && session?.authenticated) {
+      return { path: "/home", route: routes.find((candidate) => candidate.path === "/home"), session };
+    }
+    return { path, route, session };
+  }
+
+  commitRenderPlan({ route }) {
+    this.authShell.hidden = true;
+    this.publicOutlet.hidden = true;
+
     if (route.public) {
-      if (session?.authenticated) {
-        history.replaceState({}, "", "/home");
-        return this.render();
-      }
       this.publicOutlet.hidden = false;
       this.publicOutlet.replaceChildren(document.createElement(route.component));
       this.publicOutlet.focus({ preventScroll: true });

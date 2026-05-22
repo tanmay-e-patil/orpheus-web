@@ -172,6 +172,14 @@ html[data-song-transition]::view-transition-new(root) {
 }
 
 html[data-route-transition]::view-transition-old(route-outlet) {
+  z-index: 1;
+}
+
+html[data-route-transition]::view-transition-new(route-outlet) {
+  z-index: 2;
+}
+
+html[data-route-transition]::view-transition-old(route-outlet) {
   animation: route-out var(--motion-medium) var(--ease-in-out);
 }
 
@@ -209,6 +217,11 @@ html[data-route-transition="discover-back"]::view-transition-old(route-outlet) {
 
 html[data-route-transition="discover-back"]::view-transition-new(route-outlet) {
   animation: route-back-in var(--motion-medium) var(--ease-out);
+}
+
+html[data-route-transition]::view-transition-old(route-outlet) {
+  animation: none;
+  opacity: 0;
 }
 
 html[data-song-transition]::view-transition-old(player-meta),
@@ -386,11 +399,6 @@ img {
 
 .route-outlet > *,
 .public-route-outlet > * {
-  animation: page-enter var(--motion-medium) var(--ease-out);
-}
-
-html[data-route-transition] .route-outlet > *,
-html[data-route-transition] .public-route-outlet > * {
   animation: none;
 }
 
@@ -1290,7 +1298,7 @@ player-bar .icon-button:disabled {
 
 @keyframes route-in {
   from {
-    opacity: 0;
+    opacity: 0.96;
     transform: translateY(8px);
   }
 
@@ -1312,7 +1320,7 @@ player-bar .icon-button:disabled {
 
 @keyframes route-to-discover-in {
   from {
-    opacity: 0;
+    opacity: 0.96;
     transform: translateY(10px);
   }
 
@@ -1336,7 +1344,7 @@ player-bar .icon-button:disabled {
 
 @keyframes route-to-tracks-in {
   from {
-    opacity: 0;
+    opacity: 0.96;
     transform: translateY(-8px);
   }
 
@@ -1360,7 +1368,7 @@ player-bar .icon-button:disabled {
 
 @keyframes route-forward-in {
   from {
-    opacity: 0;
+    opacity: 0.96;
     transform: translateX(24px);
   }
 
@@ -1384,7 +1392,7 @@ player-bar .icon-button:disabled {
 
 @keyframes route-back-in {
   from {
-    opacity: 0;
+    opacity: 0.96;
     transform: translateX(-24px);
   }
 
