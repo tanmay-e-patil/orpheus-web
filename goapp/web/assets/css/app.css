@@ -290,7 +290,7 @@ img {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 20px 14px calc(var(--player-offset) + 20px);
+  padding: 20px 14px 20px;
   border-right: 1px solid var(--border);
   background: var(--surface);
   overflow: hidden;
