@@ -32,11 +32,11 @@ func (u *webAuthnUser) WebAuthnID() []byte {
 }
 
 func (u *webAuthnUser) WebAuthnName() string {
-	return u.user.Username
+	return u.user.DisplayName()
 }
 
 func (u *webAuthnUser) WebAuthnDisplayName() string {
-	return u.user.Username
+	return u.user.DisplayName()
 }
 
 func (u *webAuthnUser) WebAuthnCredentials() []webauthn.Credential {

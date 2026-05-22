@@ -2,6 +2,8 @@ package apphttp
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"net/http"
 	"strings"
@@ -39,29 +41,87 @@ func NewAuthService(cfg config.Config, db *store.Store) *AuthService {
 }
 
 // ValidateCredentials checks email + password against the DB.
+// Falls back to legacy env-var credentials for migration, auto-provisioning a DB user.
 func (a *AuthService) ValidateCredentials(email, password string) (*store.User, bool) {
 	ctx := context.Background()
+
+	// 1. Try DB lookup first (normal path)
 	user, err := a.store.GetUserByEmail(ctx, email)
-	if err != nil {
-		return nil, false
+	if err == nil {
+		// Found user — check password from account table
+		hash, err := a.store.GetPasswordForUser(ctx, user.ID)
+		if err != nil || hash == "" {
+			return nil, false
+		}
+		if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
+			return nil, false
+		}
+		return user, true
 	}
-	if user.Password == nil {
-		return nil, false
+
+	// 2. Legacy migration fallback: check env-var credentials
+	if a.cfg.AuthUsername != "" && a.cfg.AuthPassword != "" {
+		if email != a.cfg.AuthUsername {
+			return nil, false
+		}
+		if a.cfg.AuthPasswordHash != "" {
+			if bcrypt.CompareHashAndPassword([]byte(a.cfg.AuthPasswordHash), []byte(password)) != nil {
+				return nil, false
+			}
+		} else if password != a.cfg.AuthPassword {
+			return nil, false
+		}
+		// Legacy match — auto-provision user in DB
+		user, err = a.provisionFromLegacy(ctx, email, password)
+		if err != nil {
+			return nil, false
+		}
+		return user, true
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(password)); err != nil {
-		return nil, false
-	}
-	return user, true
+
+	return nil, false
 }
 
-// RegisterUser creates a new user with a bcrypt-hashed password.
-func (a *AuthService) RegisterUser(username, email, password string) (*store.User, error) {
+// provisionFromLegacy creates a user row and account row from the old env-var credentials.
+func (a *AuthService) provisionFromLegacy(ctx context.Context, email, password string) (*store.User, error) {
+	id := generateID()
+	username := strings.Split(email, "@")[0]
+	user, err := a.store.CreateUser(ctx, id, username, email, username)
+	if err != nil {
+		return nil, err
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
+	if err := a.store.CreateAccountForUser(ctx, user.ID, string(hash)); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+// RegisterUser creates a new user with a bcrypt-hashed password.
+func (a *AuthService) RegisterUser(username, email, password string) (*store.User, error) {
 	ctx := context.Background()
-	return a.store.CreateUser(ctx, username, email, string(hash))
+	id := generateID()
+	user, err := a.store.CreateUser(ctx, id, username, email, username)
+	if err != nil {
+		return nil, err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	if err := a.store.CreateAccountForUser(ctx, user.ID, string(hash)); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func generateID() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
 }
 
 // CreateSessionToken issues a JWT for the given user.
@@ -136,33 +196,13 @@ func (a *AuthService) SessionFromRequest(r *http.Request) (*SessionClaims, error
 	return claims, nil
 }
 
-// UserIDFromRequest returns just the user ID from the session.
-func (a *AuthService) UserIDFromRequest(r *http.Request) (string, error) {
-	claims, err := a.SessionFromRequest(r)
-	if err != nil {
-		return "", err
-	}
-	return claims.UserID, nil
-}
-
 // UserAndUsernameFromRequest returns both userID and username.
-// This satisfies the handlers.Authenticator interface.
 func (a *AuthService) UserAndUsernameFromRequest(r *http.Request) (string, string, error) {
 	claims, err := a.SessionFromRequest(r)
 	if err != nil {
 		return "", "", err
 	}
 	return claims.UserID, claims.Username, nil
-}
-
-// UserFromRequest returns the full user object from the session.
-func (a *AuthService) UserFromRequest(r *http.Request) (*store.User, error) {
-	claims, err := a.SessionFromRequest(r)
-	if err != nil {
-		return nil, err
-	}
-	ctx := context.Background()
-	return a.store.GetUserByID(ctx, claims.UserID)
 }
 
 // HasPasskey checks if the user has any registered passkeys.

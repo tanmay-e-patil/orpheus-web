@@ -40,7 +40,7 @@ func Login(auth Authenticator) http.HandlerFunc {
 			Error(w, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
 			return
 		}
-		token, err := auth.CreateSessionToken(user.ID, user.Username)
+		token, err := auth.CreateSessionToken(user.ID, user.DisplayName())
 		if err != nil {
 			Error(w, http.StatusInternalServerError, "session_failed", "Could not create session")
 			return
@@ -51,7 +51,7 @@ func Login(auth Authenticator) http.HandlerFunc {
 				"token": token,
 				"user": map[string]string{
 					"id":       user.ID,
-					"username": user.Username,
+					"username": user.DisplayName(),
 					"email":    user.Email,
 				},
 			})
@@ -63,7 +63,7 @@ func Login(auth Authenticator) http.HandlerFunc {
 			"authenticated": true,
 			"user": map[string]string{
 				"id":       user.ID,
-				"username": user.Username,
+				"username": user.DisplayName(),
 			},
 		})
 	}
@@ -90,7 +90,7 @@ func Register(auth Authenticator) http.HandlerFunc {
 			return
 		}
 
-		token, err := auth.CreateSessionToken(user.ID, user.Username)
+		token, err := auth.CreateSessionToken(user.ID, user.DisplayName())
 		if err != nil {
 			Error(w, http.StatusInternalServerError, "session_failed", "Could not create session")
 			return
@@ -101,7 +101,7 @@ func Register(auth Authenticator) http.HandlerFunc {
 				"token": token,
 				"user": map[string]string{
 					"id":       user.ID,
-					"username": user.Username,
+					"username": user.DisplayName(),
 					"email":    user.Email,
 				},
 			})
@@ -113,7 +113,7 @@ func Register(auth Authenticator) http.HandlerFunc {
 			"authenticated": true,
 			"user": map[string]string{
 				"id":       user.ID,
-				"username": user.Username,
+				"username": user.DisplayName(),
 			},
 		})
 	}

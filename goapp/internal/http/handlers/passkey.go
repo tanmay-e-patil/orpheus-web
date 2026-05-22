@@ -95,7 +95,7 @@ func PasskeyLoginFinish(auth PasskeyAuthenticator, ceremony PasskeyCeremony, use
 			return
 		}
 
-		token, err := auth.CreateSessionToken(user.ID, user.Username)
+		token, err := auth.CreateSessionToken(user.ID, user.DisplayName())
 		if err != nil {
 			Error(w, http.StatusInternalServerError, "session_failed", "Could not create session")
 			return
@@ -106,7 +106,7 @@ func PasskeyLoginFinish(auth PasskeyAuthenticator, ceremony PasskeyCeremony, use
 				"token": token,
 				"user": map[string]string{
 					"id":       user.ID,
-					"username": user.Username,
+					"username": user.DisplayName(),
 					"email":    user.Email,
 				},
 			})
@@ -118,7 +118,7 @@ func PasskeyLoginFinish(auth PasskeyAuthenticator, ceremony PasskeyCeremony, use
 			"authenticated": true,
 			"user": map[string]string{
 				"id":       user.ID,
-				"username": user.Username,
+				"username": user.DisplayName(),
 			},
 		})
 	}

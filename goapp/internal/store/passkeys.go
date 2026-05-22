@@ -3,8 +3,6 @@ package store
 import (
 	"context"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 )
 
 type Passkey struct {
@@ -22,8 +20,8 @@ type Passkey struct {
 
 func (s *Store) CreatePasskey(ctx context.Context, pk Passkey) error {
 	_, err := s.Pool.Exec(ctx, `
-		INSERT INTO passkeys (user_id, credential_id, public_key, attestation, transport, sign_count, name, aaguid)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO passkeys (id, user_id, credential_id, public_key, attestation, transport, sign_count, name, aaguid)
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8)
 	`, pk.UserID, pk.CredentialID, pk.PublicKey, pk.Attestation, pk.Transport, pk.SignCount, pk.Name, pk.AAGUID)
 	return err
 }
@@ -81,8 +79,5 @@ func (s *Store) GetPasskeyByID(ctx context.Context, id string) (*Passkey, error)
 
 func (s *Store) DeletePasskey(ctx context.Context, id string) error {
 	_, err := s.Pool.Exec(ctx, `DELETE FROM passkeys WHERE id = $1`, id)
-	if err != nil && err == pgx.ErrNoRows {
-		return nil
-	}
 	return err
 }
