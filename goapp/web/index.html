@@ -23,12 +23,17 @@
       })();
     </script>
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/orpheus-logo-192.png" />
+    <link rel="apple-touch-icon" href="/assets/icons/orpheus-logo-192.png" />
     <link rel="stylesheet" href="/assets/css/app.css" />
   </head>
   <body>
     <div class="app-shell" data-auth-shell hidden>
       <aside class="sidebar">
-        <a class="brand" href="/home" data-link aria-label="Orpheus home">Orpheus</a>
+        <a class="brand" href="/home" data-link aria-label="Orpheus home">
+          <img class="brand-logo" src="/assets/icons/orpheus-logo-192.png" alt="" width="32" height="32" />
+          <span>Orpheus</span>
+        </a>
         <nav class="nav-list" aria-label="Primary">
           <a href="/home" data-link data-nav-path="/home">Tracks</a>
           <a href="/discover" data-link data-nav-path="/discover">Discover</a>
@@ -42,7 +47,10 @@
       </aside>
 
       <header class="mobile-nav">
-        <a class="brand compact" href="/home" data-link>Orpheus</a>
+        <a class="brand compact" href="/home" data-link>
+          <img class="brand-logo" src="/assets/icons/orpheus-logo-192.png" alt="" width="28" height="28" />
+          <span>Orpheus</span>
+        </a>
         <nav class="mobile-nav-links" aria-label="Mobile primary">
           <a href="/home" data-link data-nav-path="/home">Tracks</a>
           <a href="/discover" data-link data-nav-path="/discover">Discover</a>
@@ -65,7 +73,10 @@
     <main id="public-route-outlet" class="public-route-outlet" tabindex="-1" hidden>
       <section class="login-page" data-login-fallback>
         <form class="login-card">
-          <h1>Orpheus</h1>
+          <h1 class="login-brand">
+            <img class="brand-logo" src="/assets/icons/orpheus-logo-192.png" alt="" width="40" height="40" />
+            <span>Orpheus</span>
+          </h1>
           <p class="muted">Sign in to your account</p>
           <label>
             Email

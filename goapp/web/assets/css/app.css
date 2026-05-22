@@ -312,8 +312,23 @@ img {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+  gap: 10px;
   font-weight: 800;
   letter-spacing: 0;
+}
+
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.brand.compact .brand-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
 }
 
 .nav-list,
@@ -479,6 +494,18 @@ h2 {
   width: min(420px, 100%);
   display: grid;
   gap: 12px;
+}
+
+.login-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-brand .brand-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
 }
 
 .passkey-button {
