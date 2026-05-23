@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -30,6 +31,7 @@ func GetSongs(db *store.Store) http.HandlerFunc {
 		}
 		page, err := db.FetchSongsPage(r.Context(), cursor, limit)
 		if err != nil {
+			log.Printf("api songs fetch failed cursor=%+v limit=%d error=%v", cursor, limit, err)
 			Error(w, http.StatusInternalServerError, "songs_failed", "Could not fetch songs")
 			return
 		}
@@ -46,6 +48,7 @@ func RefreshAlbumArt(db *store.Store, deezer *services.DeezerClient) http.Handle
 		}
 		updated, err := deezer.RefreshAlbumArt(r.Context(), db, body.TrackIDs)
 		if err != nil {
+			log.Printf("api album art refresh failed track_count=%d error=%v", len(body.TrackIDs), err)
 			Error(w, http.StatusInternalServerError, "album_art_failed", "Could not refresh album art")
 			return
 		}
@@ -73,6 +76,7 @@ func SaveLyrics(db *store.Store) http.HandlerFunc {
 				Error(w, http.StatusNotFound, "not_found", "Song not found")
 				return
 			}
+			log.Printf("api lyrics save failed track_id=%q error=%v", trackID, err)
 			Error(w, http.StatusInternalServerError, "lyrics_save_failed", "Could not save lyrics")
 			return
 		}

@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"orpheus-goapp/internal/types"
@@ -36,6 +37,9 @@ func (c *YouTubeClient) DiscoverVideos(ctx context.Context, query string) ([]typ
 			MusicProbability: probability,
 		})
 	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Confidence > results[j].Confidence
+	})
 	return results, nil
 }
 
