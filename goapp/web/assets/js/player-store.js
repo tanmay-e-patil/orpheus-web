@@ -45,6 +45,11 @@ export function updateSongAlbumArt(trackId, albumArt) {
   emit();
 }
 
+export function updateSongPlayCount(trackId, playCount) {
+  state.queue = state.queue.map((song) => song.trackId === trackId ? { ...song, playCount } : song);
+  emit();
+}
+
 export function updateSongLyrics(trackId, plainLyrics, syncedLyrics) {
   state.queue = state.queue.map((song) => song.trackId === trackId ? {
     ...song,

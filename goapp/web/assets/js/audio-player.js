@@ -1,9 +1,12 @@
-import { next, setController, setDuration, setPlaybackStatus, setTime, getPlayerState } from "./player-store.js";
+import { API } from "./api.js";
+import { next, setController, setDuration, setPlaybackStatus, setTime, getPlayerState, updateSongPlayCount } from "./player-store.js";
 import { toast } from "./store.js";
 import { withViewTransition } from "./view-transitions.js";
 
 let audio = null;
 let raf = 0;
+let playTracker = null;
+const PLAY_COUNT_SECONDS = 10;
 
 export function initAudioPlayer() {
   if (audio) return;
@@ -53,6 +56,7 @@ export function initAudioPlayer() {
         return;
       }
       stopPolling();
+      resetPlayTracker(song.trackId);
       console.info("Loading song audio", { trackId: song.trackId, audioUrl });
       if (audio.src !== new URL(audioUrl, window.location.href).href) {
         audio.src = audioUrl;
@@ -74,6 +78,7 @@ export function initAudioPlayer() {
       audio.removeAttribute("src");
       audio.load();
       stopPolling();
+      playTracker = null;
     },
     seekTo: (seconds) => {
       audio.currentTime = Math.max(0, Number(seconds) || 0);
@@ -106,6 +111,7 @@ function startPolling() {
       last = now;
       setTime(audio.currentTime || 0);
       syncDuration();
+      trackListeningInterval();
     }
     raf = requestAnimationFrame(step);
   };
@@ -116,6 +122,37 @@ function stopPolling() {
   if (!raf) return;
   cancelAnimationFrame(raf);
   raf = 0;
+  if (playTracker) playTracker.lastTick = 0;
+}
+
+function resetPlayTracker(trackId) {
+  playTracker = { trackId, listenedSeconds: 0, recorded: false, lastTick: 0 };
+}
+
+function trackListeningInterval() {
+  if (!playTracker || playTracker.recorded || audio.paused || audio.ended) return;
+  const now = performance.now();
+  if (playTracker.lastTick) {
+    playTracker.listenedSeconds += Math.max(0, (now - playTracker.lastTick) / 1000);
+  }
+  playTracker.lastTick = now;
+  if (playTracker.listenedSeconds >= PLAY_COUNT_SECONDS) {
+    recordCurrentPlay(playTracker.trackId);
+  }
+}
+
+async function recordCurrentPlay(trackId) {
+  if (!playTracker || playTracker.recorded || playTracker.trackId !== trackId) return;
+  playTracker.recorded = true;
+  try {
+    const result = await API.recordSongPlay(trackId);
+    updateSongPlayCount(result.trackId, result.playCount);
+    window.dispatchEvent(new CustomEvent("orpheus:song-play-recorded", { detail: result }));
+  } catch (error) {
+    if (error?.status !== 404 && error?.status !== 409) {
+      console.warn("song play tracking failed", error);
+    }
+  }
 }
 
 function parseISODurationSeconds(duration) {

@@ -12,6 +12,7 @@ export class HomePage extends HTMLElement {
     this.visibleSongs = [];
     this.searchableSongs = [];
     this.searchQuery = new URLSearchParams(window.location.search).get("q") || "";
+    this.sort = new URLSearchParams(window.location.search).get("sort") === "mostPlayed" ? "mostPlayed" : "artist";
     this.cacheComplete = false;
     this.hydratingCache = false;
     this.loading = false;
@@ -22,7 +23,9 @@ export class HomePage extends HTMLElement {
       this.searchInput?.select();
     };
     this.renderShell();
+    this.playRecorded = (event) => this.updateRecordedPlay(event.detail);
     window.addEventListener("orpheus:focus-track-search", this.focusSearch);
+    window.addEventListener("orpheus:song-play-recorded", this.playRecorded);
     this.load();
   }
 
@@ -32,6 +35,7 @@ export class HomePage extends HTMLElement {
     clearTimeout(this.searchTimer);
     this.hydrationController?.abort();
     window.removeEventListener("orpheus:focus-track-search", this.focusSearch);
+    window.removeEventListener("orpheus:song-play-recorded", this.playRecorded);
   }
 
   renderShell() {
@@ -46,6 +50,10 @@ export class HomePage extends HTMLElement {
       "aria-label": "Search tracks",
     });
     this.searchStatus = el("span", { class: "track-search-status muted" });
+    this.sortSelect = el("select", { class: "input track-sort-select", "aria-label": "Sort tracks" }, [
+      el("option", { value: "artist", text: "Artist A-Z", selected: this.sort === "artist" }),
+      el("option", { value: "mostPlayed", text: "Most played", selected: this.sort === "mostPlayed" }),
+    ]);
     this.boundary = el("div", { class: "scroll-boundary" });
     this.replaceChildren(el("section", { class: "page home-page" }, [
       el("div", { class: "page-header" }, [
@@ -57,6 +65,7 @@ export class HomePage extends HTMLElement {
           this.searchInput,
           el("kbd", { class: "track-search-shortcut", text: "Cmd + K" }),
         ]),
+        this.sortSelect,
         this.searchStatus,
       ]),
       this.table,
@@ -64,6 +73,11 @@ export class HomePage extends HTMLElement {
     ]));
     this.addEventListener("albumartfailed", (event) => this.queueAlbumArtRefresh(event.detail));
     this.addEventListener("songselected", (event) => this.playSelectedSong(event.detail));
+    this.sortSelect.addEventListener("change", () => {
+      this.sort = this.sortSelect.value === "mostPlayed" ? "mostPlayed" : "artist";
+      this.updateSearchURL();
+      this.load();
+    });
     this.searchInput.addEventListener("input", () => {
       this.searchQuery = this.searchInput.value;
       clearTimeout(this.searchTimer);
@@ -93,10 +107,17 @@ export class HomePage extends HTMLElement {
 
   async load() {
     const userId = appState.session?.user?.id || "single-user";
-    const cached = await readSongsCache(userId).catch(() => null);
+    this.hydrationController?.abort();
+    this.pages = [];
+    this.visibleSongs = [];
+    this.searchableSongs = [];
+    this.cacheComplete = false;
+    this.table.loading = true;
+    const useCache = this.sort === "artist";
+    const cached = useCache ? await readSongsCache(userId).catch(() => null) : null;
     const [allCached, cacheMeta] = await Promise.all([
-      readAllCachedSongs(userId).catch(() => []),
-      readSongsCacheMeta(userId).catch(() => null),
+      useCache ? readAllCachedSongs(userId).catch(() => []) : Promise.resolve([]),
+      useCache ? readSongsCacheMeta(userId).catch(() => null) : Promise.resolve(null),
     ]);
     this.cacheComplete = Boolean(cacheMeta?.complete);
     if (cached?.songs?.length) {
@@ -106,22 +127,22 @@ export class HomePage extends HTMLElement {
       this.applySearch();
     }
     try {
-      const first = await API.songs(null);
+      const first = await API.songs(null, 50, undefined, this.sort);
       if (!this.isConnected) return;
       this.pages = [{ cursorIn: null, ...first }];
       this.visibleSongs = this.cacheComplete && this.searchableSongs.length ? mergeSongs(this.searchableSongs, first.songs) : first.songs;
       this.searchableSongs = mergeSongs(this.searchableSongs, first.songs);
       this.cacheComplete = !first.hasMore;
       this.applySearch();
-      await upsertSongsPage(userId, null, first);
+      if (useCache) await upsertSongsPage(userId, null, first);
       if (!this.isConnected) return;
-      await writeSongsCacheMeta(userId, {
+      if (useCache) await writeSongsCacheMeta(userId, {
         complete: !first.hasMore,
         completedAt: first.hasMore ? null : Date.now(),
         lastCursor: first.nextCursor || null,
       });
       if (!this.isConnected) return;
-      this.hydrateSongCache(userId);
+      if (useCache) this.hydrateSongCache(userId);
     } catch (error) {
       if (error.name !== "AbortError") showDialog(error.message || "Could not load songs");
     } finally {
@@ -136,16 +157,16 @@ export class HomePage extends HTMLElement {
     if (!last?.hasMore) return;
     this.loading = true;
     try {
-      const page = await API.songs(last.nextCursor);
+      const page = await API.songs(last.nextCursor, 50, undefined, this.sort);
       if (!this.isConnected) return;
       this.pages.push({ cursorIn: last.nextCursor, ...page });
       this.visibleSongs = mergeSongs(...this.pages.map((candidate) => candidate.songs));
       this.searchableSongs = mergeSongs(this.searchableSongs, page.songs);
       this.cacheComplete = !page.hasMore;
       this.applySearch();
-      await upsertSongsPage(appState.session?.user?.id || "single-user", last.nextCursor, page);
+      if (this.sort === "artist") await upsertSongsPage(appState.session?.user?.id || "single-user", last.nextCursor, page);
       if (!this.isConnected) return;
-      await writeSongsCacheMeta(appState.session?.user?.id || "single-user", {
+      if (this.sort === "artist") await writeSongsCacheMeta(appState.session?.user?.id || "single-user", {
         complete: !page.hasMore,
         completedAt: page.hasMore ? null : Date.now(),
         lastCursor: page.nextCursor || null,
@@ -173,7 +194,7 @@ export class HomePage extends HTMLElement {
     try {
       while (this.isConnected && last?.hasMore) {
         const cursorIn = last.nextCursor;
-        const page = await API.songs(cursorIn, 50, this.hydrationController.signal);
+        const page = await API.songs(cursorIn, 50, this.hydrationController.signal, "artist");
         if (!this.isConnected) return;
         this.pages.push({ cursorIn, ...page });
         this.visibleSongs = mergeSongs(this.visibleSongs, page.songs);
@@ -242,14 +263,15 @@ export class HomePage extends HTMLElement {
   }
 
   applySearch() {
+    this.table.showPlayCount = this.sort === "mostPlayed";
     const query = this.searchQuery.trim();
     if (!query) {
       this.table.emptyMessage = "No tracks";
       this.updateSearchStatus("");
-      this.updateTableSongs(this.visibleSongs);
+      this.updateTableSongs(this.sortSongs(this.visibleSongs));
       return;
     }
-    const results = filterSongs(this.searchableSongs, query);
+    const results = this.sortSongs(filterSongs(this.searchableSongs, query));
     const searchingFullLibrary = this.hydratingCache || !this.cacheComplete;
     this.table.emptyMessage = searchingFullLibrary ? "Searching full library..." : "No matching tracks";
     this.updateSearchStatus(`${results.length} ${results.length === 1 ? "match" : "matches"}${searchingFullLibrary ? " - searching full library..." : ""}`);
@@ -261,6 +283,8 @@ export class HomePage extends HTMLElement {
     const query = this.searchQuery.trim();
     if (query) url.searchParams.set("q", query);
     else url.searchParams.delete("q");
+    if (this.sort === "mostPlayed") url.searchParams.set("sort", "mostPlayed");
+    else url.searchParams.delete("sort");
     window.history.replaceState({}, "", url.pathname + url.search + url.hash);
   }
 
@@ -271,6 +295,20 @@ export class HomePage extends HTMLElement {
   updateTableSongs(songs) {
     if (sameSongList(this.table.songs, songs)) return;
     this.table.songs = songs;
+  }
+
+  updateRecordedPlay(detail) {
+    if (!detail?.trackId) return;
+    const update = (song) => song.trackId === detail.trackId ? { ...song, playCount: detail.playCount } : song;
+    this.visibleSongs = this.visibleSongs.map(update);
+    this.searchableSongs = this.searchableSongs.map(update);
+    this.pages = this.pages.map((page) => ({ ...page, songs: (page.songs || []).map(update) }));
+    this.applySearch();
+  }
+
+  sortSongs(songs) {
+    if (this.sort !== "mostPlayed") return songs;
+    return [...songs].sort(compareMostPlayed);
   }
 }
 
@@ -286,7 +324,8 @@ function sameSongList(a = [], b = []) {
       song.duration === candidate.duration &&
       song.albumArt === candidate.albumArt &&
       song.isAvailable === candidate.isAvailable &&
-      song.audioUrl === candidate.audioUrl;
+      song.audioUrl === candidate.audioUrl &&
+      (song.playCount || 0) === (candidate.playCount || 0);
   });
 }
 
@@ -295,10 +334,17 @@ function mergeSongs(...groups) {
   for (const group of groups) {
     for (const song of group || []) {
       if (!song?.trackId) continue;
-      byId.set(song.trackId, { ...(byId.get(song.trackId) || {}), ...song });
+      byId.set(song.trackId, { playCount: 0, ...(byId.get(song.trackId) || {}), ...song });
     }
   }
   return [...byId.values()];
+}
+
+function compareMostPlayed(a, b) {
+  return (Number(b.playCount || 0) - Number(a.playCount || 0)) ||
+    String(a.artistName || "").localeCompare(String(b.artistName || "")) ||
+    String(a.name || "").localeCompare(String(b.name || "")) ||
+    String(a.trackId || "").localeCompare(String(b.trackId || ""));
 }
 
 function filterSongs(songs, query) {

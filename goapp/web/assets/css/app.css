@@ -726,6 +726,10 @@ h2 {
   flex: 1 1 280px;
 }
 
+.track-sort-select.input {
+  flex: 0 0 160px;
+}
+
 .track-search-status {
   flex: 0 0 auto;
   font-size: 13px;

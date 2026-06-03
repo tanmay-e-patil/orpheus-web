@@ -12,15 +12,15 @@ import (
 )
 
 type Server struct {
-	Config   config.Config
-	Store    *store.Store
-	Auth     *AuthService
-	Passkey  *PasskeyService
-	YouTube  *services.YouTubeClient
-	Deezer   *services.DeezerClient
-	LRCLib   *services.LRCLibClient
-	Queue    *services.QueuePublisher
-	WebDir   string
+	Config  config.Config
+	Store   *store.Store
+	Auth    *AuthService
+	Passkey *PasskeyService
+	YouTube *services.YouTubeClient
+	Deezer  *services.DeezerClient
+	LRCLib  *services.LRCLibClient
+	Queue   *services.QueuePublisher
+	WebDir  string
 }
 
 func NewServer(cfg config.Config, db *store.Store, youtube *services.YouTubeClient, deezer *services.DeezerClient, lrclib *services.LRCLibClient, queue *services.QueuePublisher, webDir string) *Server {
@@ -67,8 +67,9 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("DELETE /api/auth/passkeys/{id}", s.requireAuth(method(http.MethodDelete, handlers.PasskeyDelete(s.Auth, s.Store))))
 
 	// Protected API routes
-	mux.Handle("GET /api/songs", s.requireAuth(method(http.MethodGet, handlers.GetSongs(s.Store))))
+	mux.Handle("GET /api/songs", s.requireAuth(method(http.MethodGet, handlers.GetSongs(s.Store, UserIDFromContext))))
 	mux.Handle("GET /api/songs/{trackId}/audio", s.requireAuth(method(http.MethodGet, handlers.StreamSongAudio(s.Store, s.Config.MusicLibraryPath))))
+	mux.Handle("POST /api/songs/{trackId}/plays", s.requireAuth(method(http.MethodPost, handlers.RecordSongPlay(s.Store, UserIDFromContext))))
 	mux.Handle("POST /api/songs/album-art/refresh", s.requireAuth(method(http.MethodPost, handlers.RefreshAlbumArt(s.Store, s.Deezer))))
 	mux.Handle("POST /api/lyrics/lrclib", s.requireAuth(method(http.MethodPost, handlers.LRCLibExact(s.LRCLib))))
 	mux.Handle("POST /api/lyrics/save", s.requireAuth(method(http.MethodPost, handlers.SaveLyrics(s.Store))))

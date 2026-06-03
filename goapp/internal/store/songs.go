@@ -15,6 +15,28 @@ import (
 
 const maxSongLimit = 100
 
+type SongSort string
+
+const (
+	SongSortArtist     SongSort = "artist"
+	SongSortMostPlayed SongSort = "mostPlayed"
+)
+
+type FetchSongsOptions struct {
+	UserID string
+	Cursor *types.SongCursor
+	Limit  int
+	Sort   SongSort
+}
+
+type RecordedSongPlay struct {
+	TrackID      string    `json:"trackId"`
+	PlayCount    int       `json:"playCount"`
+	LastPlayedAt time.Time `json:"lastPlayedAt"`
+}
+
+var ErrSongUnavailable = fmt.Errorf("song unavailable")
+
 type RedownloadSongsFilter struct {
 	IncludeAvailable bool
 	UpdatedAfter     *time.Time
@@ -28,7 +50,8 @@ type RedownloadSong struct {
 	ArtistName string
 }
 
-func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, limit int) (types.SongsPageResponse, error) {
+func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (types.SongsPageResponse, error) {
+	limit := opts.Limit
 	if limit <= 0 {
 		limit = 50
 	}
@@ -36,17 +59,28 @@ func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, li
 		limit = maxSongLimit
 	}
 
-	args := []any{limit + 1}
+	args := []any{limit + 1, opts.UserID}
 	query := `
-		select id, name, artist_name, album_name, album_art, duration, yt_video_id,
-		       lyrics, synced_lyrics, is_lyrics_available, coalesce(is_available, false)
+		select songs.id, songs.name, songs.artist_name, songs.album_name, songs.album_art, songs.duration, songs.yt_video_id,
+		       songs.lyrics, songs.synced_lyrics, songs.is_lyrics_available, coalesce(songs.is_available, false),
+		       coalesce(usp.play_count, 0)
 		from songs
+		left join user_song_plays usp on usp.track_id = songs.id and usp.user_id = $2
 	`
-	if cursor != nil {
-		query += ` where artist_name > $2 or (artist_name = $2 and id > $3)`
-		args = append(args, cursor.ArtistName, cursor.TrackID)
+	if opts.Cursor != nil {
+		if opts.Sort == SongSortMostPlayed {
+			query += ` where coalesce(usp.play_count, 0) < $3 or (coalesce(usp.play_count, 0) = $3 and songs.artist_name > $4) or (coalesce(usp.play_count, 0) = $3 and songs.artist_name = $4 and songs.id > $5)`
+			args = append(args, opts.Cursor.PlayCount, opts.Cursor.ArtistName, opts.Cursor.TrackID)
+		} else {
+			query += ` where songs.artist_name > $3 or (songs.artist_name = $3 and songs.id > $4)`
+			args = append(args, opts.Cursor.ArtistName, opts.Cursor.TrackID)
+		}
 	}
-	query += ` order by artist_name asc, id asc limit $1`
+	if opts.Sort == SongSortMostPlayed {
+		query += ` order by coalesce(usp.play_count, 0) desc, songs.artist_name asc, songs.id asc limit $1`
+	} else {
+		query += ` order by songs.artist_name asc, songs.id asc limit $1`
+	}
 
 	rows, err := s.Pool.Query(ctx, query, args...)
 	if err != nil {
@@ -71,6 +105,7 @@ func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, li
 			&syncedLyrics,
 			&isLyrics,
 			&song.IsAvailable,
+			&song.PlayCount,
 		); err != nil {
 			return types.SongsPageResponse{}, err
 		}
@@ -100,7 +135,7 @@ func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, li
 	var nextCursor *types.SongCursor
 	if hasMore && len(songs) > 0 {
 		last := songs[len(songs)-1]
-		nextCursor = &types.SongCursor{ArtistName: last.ArtistName, TrackID: last.TrackID}
+		nextCursor = &types.SongCursor{ArtistName: last.ArtistName, TrackID: last.TrackID, PlayCount: last.PlayCount}
 	}
 	return types.SongsPageResponse{
 		Songs:        songs,
@@ -108,6 +143,33 @@ func (s *Store) FetchSongsPage(ctx context.Context, cursor *types.SongCursor, li
 		HasMore:      hasMore,
 		PageRevision: types.SongPageRevision(songs),
 	}, nil
+}
+
+func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (RecordedSongPlay, error) {
+	var isAvailable bool
+	err := s.Pool.QueryRow(ctx, `select coalesce(is_available, false) from songs where id = $1`, trackID).Scan(&isAvailable)
+	if err != nil {
+		return RecordedSongPlay{}, err
+	}
+	if !isAvailable {
+		return RecordedSongPlay{}, ErrSongUnavailable
+	}
+	var play RecordedSongPlay
+	play.TrackID = trackID
+	err = s.Pool.QueryRow(ctx, `
+		insert into user_song_plays (user_id, track_id, play_count, last_played_at, created_at, updated_at)
+		values ($1, $2, 1, now(), now(), now())
+		on conflict (user_id, track_id)
+		do update set
+		  play_count = user_song_plays.play_count + 1,
+		  last_played_at = now(),
+		  updated_at = now()
+		returning play_count, last_played_at
+	`, userID, trackID).Scan(&play.PlayCount, &play.LastPlayedAt)
+	if err != nil {
+		return RecordedSongPlay{}, err
+	}
+	return play, nil
 }
 
 func (s *Store) SongForAudio(ctx context.Context, trackID string) (types.AudioSong, error) {

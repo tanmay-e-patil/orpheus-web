@@ -75,16 +75,20 @@ export const API = {
     }),
   passkeyList: () => request("/api/auth/passkeys"),
   passkeyDelete: (id) => request(`/api/auth/passkeys/${encodeURIComponent(id)}`, { method: "DELETE" }),
-  songs: (cursor, limit = 50, signal) => {
+  songs: (cursor, limit = 50, signal, sort = "artist") => {
     const params = new URLSearchParams();
     if (cursor) {
       params.set("artistName", cursor.artistName);
       params.set("trackId", cursor.trackId);
+      if (cursor.playCount != null) params.set("playCount", String(cursor.playCount));
     }
+    if (sort === "mostPlayed") params.set("sort", sort);
     if (limit) params.set("limit", String(limit));
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return request(`/api/songs${suffix}`, { signal });
   },
+  recordSongPlay: (trackId) =>
+    request(`/api/songs/${encodeURIComponent(trackId)}/plays`, { method: "POST" }),
   refreshAlbumArt: (trackIds) =>
     request("/api/songs/album-art/refresh", {
       method: "POST",

@@ -10,6 +10,16 @@ export class SongTable extends HTMLElement {
     return this._songs || [];
   }
 
+  set showPlayCount(value) {
+    const previous = this.showPlayCount;
+    this._showPlayCount = Boolean(value);
+    if (previous !== this.showPlayCount) this.render();
+  }
+
+  get showPlayCount() {
+    return Boolean(this._showPlayCount);
+  }
+
   set loading(value) {
     const previous = this.loading;
     this._loading = Boolean(value);
@@ -41,6 +51,7 @@ export class SongTable extends HTMLElement {
           el("th", { text: "Track" }),
           el("th", { text: "Artist" }),
           el("th", { text: "Album" }),
+          ...(this.showPlayCount ? [el("th", { text: "Plays" })] : []),
           el("th", { text: "Duration" }),
         ]),
       ]),
@@ -72,6 +83,7 @@ export class SongTable extends HTMLElement {
         el("td", {}, [el("div", { class: "track-cell" }, [art.cloneNode(true), el("span", { text: song.name })])]),
         el("td", { text: song.artistName }),
         el("td", { text: song.albumName }),
+        ...(this.showPlayCount ? [el("td", { text: String(song.playCount || 0) })] : []),
         el("td", { text: status }),
       ]);
       row.addEventListener("keydown", (event) => {
@@ -86,7 +98,7 @@ export class SongTable extends HTMLElement {
         mobileArt,
         el("span", {}, [
           el("strong", { text: song.name }),
-          el("span", { class: "muted", text: `${song.artistName} · ${song.albumName}${unavailable ? " · Unavailable" : ""}` }),
+          el("span", { class: "muted", text: `${song.artistName} · ${song.albumName}${this.showPlayCount ? ` · ${song.playCount || 0} plays` : ""}${unavailable ? " · Unavailable" : ""}` }),
         ]),
       ]));
     });
@@ -97,7 +109,7 @@ export class SongTable extends HTMLElement {
 
 function renderEmptyState(tbody, list, message) {
   tbody.append(el("tr", { class: "song-empty-state" }, [
-    el("td", { colspan: "4", text: message }),
+    el("td", { colspan: "5", text: message }),
   ]));
   list.append(el("div", { class: "song-empty-state", text: message }));
 }

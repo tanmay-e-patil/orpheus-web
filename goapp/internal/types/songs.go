@@ -1,10 +1,14 @@
 package types
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 type SongCursor struct {
 	ArtistName string `json:"artistName"`
 	TrackID    string `json:"trackId"`
+	PlayCount  int    `json:"playCount,omitempty"`
 }
 
 type LibrarySong struct {
@@ -20,6 +24,7 @@ type LibrarySong struct {
 	Lyrics            string `json:"lyrics,omitempty"`
 	SyncedLyrics      string `json:"syncedLyrics,omitempty"`
 	IsLyricsAvailable *bool  `json:"isLyricsAvailable,omitempty"`
+	PlayCount         int    `json:"playCount"`
 }
 
 type AudioSong struct {
@@ -63,7 +68,7 @@ func SongPageRevision(songs []LibrarySong) string {
 		if song.IsAvailable {
 			available = "1"
 		}
-		out += song.TrackID + "|" + song.ArtistName + "|" + song.Name + "|" + song.AlbumName + "|" + song.AlbumArt + "|" + song.Duration + "|" + song.YoutubeVideoID + "|" + available + "|" + song.AudioURL
+		out += song.TrackID + "|" + song.ArtistName + "|" + song.Name + "|" + song.AlbumName + "|" + song.AlbumArt + "|" + song.Duration + "|" + song.YoutubeVideoID + "|" + available + "|" + song.AudioURL + "|" + strconv.Itoa(song.PlayCount)
 	}
 	return out
 }

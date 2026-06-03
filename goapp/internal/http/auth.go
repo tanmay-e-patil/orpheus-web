@@ -145,6 +145,11 @@ func (a *AuthService) RegisterUser(username, email, password string) (*store.Use
 	return user, nil
 }
 
+func UserIDFromContext(ctx context.Context) (string, bool) {
+	userID, ok := ctx.Value(userIDCtxKey).(string)
+	return userID, ok && userID != ""
+}
+
 func generateID() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)

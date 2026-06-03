@@ -12,7 +12,7 @@ func TestSongPageRevisionMatchesFieldOrder(t *testing.T) {
 		Duration:       "PT3M",
 		YoutubeVideoID: "yt",
 	}})
-	want := "1|Artist|Song|Album|Art|PT3M|yt|0|"
+	want := "1|Artist|Song|Album|Art|PT3M|yt|0||0"
 	if revision != want {
 		t.Fatalf("revision = %q, want %q", revision, want)
 	}

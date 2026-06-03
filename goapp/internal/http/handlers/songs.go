@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -13,12 +14,25 @@ import (
 	"orpheus-goapp/internal/types"
 )
 
-func GetSongs(db *store.Store) http.HandlerFunc {
+func GetSongs(db *store.Store, userIDFromContext func(context.Context) (string, bool)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromContext(r.Context())
+		if !ok {
+			Error(w, http.StatusUnauthorized, "unauthorized", "Unauthorized")
+			return
+		}
 		params := r.URL.Query()
 		var cursor *types.SongCursor
 		if params.Get("artistName") != "" && params.Get("trackId") != "" {
 			cursor = &types.SongCursor{ArtistName: params.Get("artistName"), TrackID: params.Get("trackId")}
+			if raw := params.Get("playCount"); raw != "" {
+				parsed, err := strconv.Atoi(raw)
+				if err != nil {
+					Error(w, http.StatusBadRequest, "bad_cursor", "Invalid cursor")
+					return
+				}
+				cursor.PlayCount = parsed
+			}
 		}
 		limit := 50
 		if raw := params.Get("limit"); raw != "" {
@@ -29,13 +43,47 @@ func GetSongs(db *store.Store) http.HandlerFunc {
 			}
 			limit = parsed
 		}
-		page, err := db.FetchSongsPage(r.Context(), cursor, limit)
+		sort := store.SongSortArtist
+		if params.Get("sort") == string(store.SongSortMostPlayed) {
+			sort = store.SongSortMostPlayed
+		}
+		page, err := db.FetchSongsPage(r.Context(), store.FetchSongsOptions{UserID: userID, Cursor: cursor, Limit: limit, Sort: sort})
 		if err != nil {
 			log.Printf("api songs fetch failed cursor=%+v limit=%d error=%v", cursor, limit, err)
 			Error(w, http.StatusInternalServerError, "songs_failed", "Could not fetch songs")
 			return
 		}
 		JSON(w, http.StatusOK, page)
+	}
+}
+
+func RecordSongPlay(db *store.Store, userIDFromContext func(context.Context) (string, bool)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := userIDFromContext(r.Context())
+		if !ok {
+			Error(w, http.StatusUnauthorized, "unauthorized", "Unauthorized")
+			return
+		}
+		trackID := r.PathValue("trackId")
+		if trackID == "" {
+			Error(w, http.StatusBadRequest, "track_required", "trackId required")
+			return
+		}
+		play, err := db.RecordSongPlay(r.Context(), userID, trackID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				Error(w, http.StatusNotFound, "not_found", "Song not found")
+				return
+			}
+			if errors.Is(err, store.ErrSongUnavailable) {
+				Error(w, http.StatusConflict, "unavailable", "Song unavailable")
+				return
+			}
+			log.Printf("api song play record failed track_id=%q error=%v", trackID, err)
+			Error(w, http.StatusInternalServerError, "play_record_failed", "Could not record play")
+			return
+		}
+		JSON(w, http.StatusOK, play)
 	}
 }
 
