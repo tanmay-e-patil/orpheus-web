@@ -15,11 +15,13 @@ export class YouTubePlayerModal extends HTMLElement {
     this.render();
     playerStore.addEventListener("change", this.sync);
     window.addEventListener("orpheus:open-youtube-player", this.onOpen = () => this.open());
+    window.addEventListener("orpheus:preload-youtube-player", this.onPreload = () => this.preload());
   }
 
   disconnectedCallback() {
     playerStore.removeEventListener("change", this.sync);
     window.removeEventListener("orpheus:open-youtube-player", this.onOpen);
+    window.removeEventListener("orpheus:preload-youtube-player", this.onPreload);
     this.stopSyncLoop();
     this.player?.destroy?.();
   }
@@ -54,6 +56,14 @@ export class YouTubePlayerModal extends HTMLElement {
     this.replaceChildren(this.dialog);
   }
 
+  preload() {
+    const song = currentSong();
+    if (!song?.youtubeVideoId || song.youtubeVideoId === this.videoId) return;
+    this.loadVideo(song.youtubeVideoId).catch((error) => {
+      console.warn("Unable to preload YouTube player", error);
+    });
+  }
+
   async open() {
     const song = currentSong();
     if (!song?.youtubeVideoId) {
@@ -63,10 +73,13 @@ export class YouTubePlayerModal extends HTMLElement {
     this.active = true;
     this.titleNode.textContent = song.name || "YouTube video";
     if (!this.dialog.open) this.dialog.showModal();
-    play();
+
+    if (isActivePlayback(getPlayerState().status)) pause();
 
     try {
       await this.loadVideo(song.youtubeVideoId);
+      this.syncWithAudio({ forceSeek: true });
+      play();
       this.syncWithAudio({ forceSeek: true, forcePlay: true });
       this.updateControls();
       this.startSyncLoop();
@@ -79,18 +92,21 @@ export class YouTubePlayerModal extends HTMLElement {
   async loadVideo(videoId) {
     const YT = await loadYouTubeAPI();
     if (this.videoId === videoId && this.player) return;
-    this.player?.destroy?.();
-    this.videoId = videoId;
-    this.mount.replaceChildren();
-    const container = el("div");
-    this.mount.append(container);
-    await new Promise((resolve) => {
+    if (this.loadingVideoId === videoId && this.loadingPromise) return this.loadingPromise;
+
+    this.loadingVideoId = videoId;
+    this.loadingPromise = new Promise((resolve) => {
+      this.player?.destroy?.();
+      this.videoId = videoId;
+      this.mount.replaceChildren();
+      const container = el("div");
+      this.mount.append(container);
       this.player = new YT.Player(container, {
         width: "100%",
         height: "100%",
         videoId,
         playerVars: {
-          autoplay: 1,
+          autoplay: 0,
           controls: 0,
           disablekb: 0,
           modestbranding: 1,
@@ -106,7 +122,11 @@ export class YouTubePlayerModal extends HTMLElement {
           },
         },
       });
+    }).finally(() => {
+      this.loadingVideoId = null;
+      this.loadingPromise = null;
     });
+    return this.loadingPromise;
   }
 
   syncWithAudio(options = {}) {
@@ -160,6 +180,10 @@ export class YouTubePlayerModal extends HTMLElement {
     window.clearInterval(this.syncTimer);
     this.syncTimer = 0;
   }
+}
+
+function isActivePlayback(status) {
+  return status === "playing" || status === "loading";
 }
 
 function formatTime(seconds) {
