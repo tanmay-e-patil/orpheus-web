@@ -3,6 +3,7 @@ import { el, toast } from "../store.js";
 
 const SYNC_INTERVAL_MS = 750;
 const MAX_DRIFT_SECONDS = 0.75;
+const PRELOAD_PLAY_TIMEOUT_MS = 3000;
 
 let apiPromise = null;
 
@@ -15,7 +16,7 @@ export class YouTubePlayerModal extends HTMLElement {
     this.render();
     playerStore.addEventListener("change", this.sync);
     window.addEventListener("orpheus:open-youtube-player", this.onOpen = () => this.open());
-    window.addEventListener("orpheus:preload-youtube-player", this.onPreload = () => this.preload());
+    window.addEventListener("orpheus:preload-youtube-player", this.onPreload = (event) => this.preload(event.detail));
   }
 
   disconnectedCallback() {
@@ -56,10 +57,11 @@ export class YouTubePlayerModal extends HTMLElement {
     this.replaceChildren(this.dialog);
   }
 
-  preload() {
+  preload(detail = {}) {
     const song = currentSong();
-    if (!song?.youtubeVideoId || song.youtubeVideoId === this.videoId) return;
-    this.loadVideo(song.youtubeVideoId).catch((error) => {
+    const videoId = detail.videoId || song?.youtubeVideoId;
+    if (!videoId || videoId === this.videoId) return;
+    this.loadVideo(videoId, { warmUntilPlaying: true }).catch((error) => {
       console.warn("Unable to preload YouTube player", error);
     });
   }
@@ -89,9 +91,12 @@ export class YouTubePlayerModal extends HTMLElement {
     }
   }
 
-  async loadVideo(videoId) {
+  async loadVideo(videoId, options = {}) {
     const YT = await loadYouTubeAPI();
-    if (this.videoId === videoId && this.player) return;
+    if (this.videoId === videoId && this.player) {
+      if (options.warmUntilPlaying) await this.warmPlayerUntilPlaying();
+      return;
+    }
     if (this.loadingVideoId === videoId && this.loadingPromise) return this.loadingPromise;
 
     this.loadingVideoId = videoId;
@@ -106,7 +111,7 @@ export class YouTubePlayerModal extends HTMLElement {
         height: "100%",
         videoId,
         playerVars: {
-          autoplay: 0,
+          autoplay: options.warmUntilPlaying ? 1 : 0,
           controls: 0,
           disablekb: 0,
           modestbranding: 1,
@@ -115,11 +120,13 @@ export class YouTubePlayerModal extends HTMLElement {
           mute: 1,
         },
         events: {
-          onReady: () => {
+          onReady: async () => {
             this.player.getIframe?.()?.setAttribute("allowfullscreen", "");
             this.ensureMuted();
+            if (options.warmUntilPlaying) await this.warmPlayerUntilPlaying();
             resolve();
           },
+          onStateChange: (event) => this.playerStateChange?.(event),
         },
       });
     }).finally(() => {
@@ -127,6 +134,32 @@ export class YouTubePlayerModal extends HTMLElement {
       this.loadingPromise = null;
     });
     return this.loadingPromise;
+  }
+
+  warmPlayerUntilPlaying() {
+    if (!this.player) return Promise.resolve();
+    this.ensureMuted();
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        playerStore.removeEventListener("change", onAudioChange);
+        this.playerStateChange = previousStateChange;
+        resolve();
+      };
+      const onAudioChange = () => this.ensureMuted();
+      const previousStateChange = this.playerStateChange;
+      this.playerStateChange = (event) => {
+        previousStateChange?.(event);
+        if (event.data === window.YT?.PlayerState?.PLAYING) finish();
+      };
+      const timeout = window.setTimeout(finish, PRELOAD_PLAY_TIMEOUT_MS);
+      playerStore.addEventListener("change", onAudioChange);
+      this.player.playVideo?.();
+      if (this.player.getPlayerState?.() === window.YT?.PlayerState?.PLAYING) finish();
+    });
   }
 
   syncWithAudio(options = {}) {

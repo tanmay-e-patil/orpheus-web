@@ -82,8 +82,6 @@ export class PlayerBar extends HTMLElement {
         class: "youtube-link",
         type: "button",
         "aria-label": "Play YouTube video",
-        onpointerenter: () => window.dispatchEvent(new CustomEvent("orpheus:preload-youtube-player")),
-        onfocus: () => window.dispatchEvent(new CustomEvent("orpheus:preload-youtube-player")),
         onclick: (e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent("orpheus:open-youtube-player")); },
       }, [
         icon("youtube"),

@@ -70,16 +70,25 @@ export class SongTable extends HTMLElement {
       return;
     }
     songs.forEach((song, index) => {
-      const selectSong = () => this.dispatchEvent(new CustomEvent("songselected", {
-        detail: { trackId: song.trackId, index, song },
-        bubbles: true,
-      }));
+      const preloadSongVideo = () => {
+        if (!song.youtubeVideoId) return;
+        window.dispatchEvent(new CustomEvent("orpheus:preload-youtube-player", {
+          detail: { videoId: song.youtubeVideoId },
+        }));
+      };
+      const selectSong = () => {
+        preloadSongVideo();
+        this.dispatchEvent(new CustomEvent("songselected", {
+          detail: { trackId: song.trackId, index, song },
+          bubbles: true,
+        }));
+      };
       const unavailable = song.isAvailable === false;
       const rowClass = unavailable ? "unavailable" : "";
       const status = unavailable ? "Unavailable" : formatDuration(song.duration);
       const art = song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" });
       art.addEventListener?.("error", () => this.dispatchEvent(new CustomEvent("albumartfailed", { detail: song.trackId, bubbles: true })));
-      const row = el("tr", { class: rowClass, tabindex: "0", onclick: selectSong }, [
+      const row = el("tr", { class: rowClass, tabindex: "0", onpointerdown: preloadSongVideo, onclick: selectSong }, [
         el("td", {}, [el("div", { class: "track-cell" }, [art.cloneNode(true), el("span", { text: song.name })])]),
         el("td", { text: song.artistName }),
         el("td", { text: song.albumName }),
@@ -94,7 +103,7 @@ export class SongTable extends HTMLElement {
       tbody.append(row);
       const mobileArt = song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" });
       mobileArt.addEventListener?.("error", () => this.dispatchEvent(new CustomEvent("albumartfailed", { detail: song.trackId, bubbles: true })));
-      list.append(el("button", { class: `song-list-item ${rowClass}`.trim(), type: "button", onclick: selectSong }, [
+      list.append(el("button", { class: `song-list-item ${rowClass}`.trim(), type: "button", onpointerdown: preloadSongVideo, onclick: selectSong }, [
         mobileArt,
         el("span", {}, [
           el("strong", { text: song.name }),
