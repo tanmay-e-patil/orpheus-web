@@ -244,12 +244,9 @@ export class HomePage extends HTMLElement {
 
   playSelectedSong(detail) {
     if (!detail?.trackId) return;
-    if (!this.searchQuery.trim()) {
-      this.setSelectedQueue(this.visibleSongs, detail.index, detail.trackId);
-      return;
-    }
-    const index = this.searchableSongs.findIndex((song) => song.trackId === detail.trackId);
-    if (index >= 0) this.setSelectedQueue(this.searchableSongs, index, detail.trackId);
+    const displayedSongs = this.table?.songs || [];
+    const index = displayedSongs.findIndex((song) => song.trackId === detail.trackId);
+    if (index >= 0) this.setSelectedQueue(displayedSongs, index, detail.trackId);
   }
 
   async setSelectedQueue(queue, index, trackId) {
