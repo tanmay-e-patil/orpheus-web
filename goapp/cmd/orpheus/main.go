@@ -39,6 +39,11 @@ func main() {
 	httpClient := &http.Client{Timeout: cfg.HTTPTimeout}
 	queue := services.NewQueuePublisher(cfg.RabbitMQURL)
 	defer queue.Close()
+	if queue.Enabled() {
+		log.Printf("RabbitMQ publishing enabled queue=%s", services.JobQueueName)
+	} else {
+		log.Printf("RabbitMQ publishing disabled: RABBITMQ_URL is empty")
+	}
 
 	webDir := filepath.Join("web")
 	server := apphttp.NewServer(

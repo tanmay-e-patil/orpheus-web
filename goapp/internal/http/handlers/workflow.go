@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"strings"
+	"time"
 
 	"net/http"
 
@@ -10,6 +12,8 @@ import (
 	"orpheus-goapp/internal/store"
 	"orpheus-goapp/internal/types"
 )
+
+const retryableCommitError = "Something went wrong while saving this track. Please try again."
 
 func CommitWorkflow(db *store.Store, queue *services.QueuePublisher) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -32,15 +36,18 @@ func CommitWorkflow(db *store.Store, queue *services.QueuePublisher) http.Handle
 				continue
 			}
 			if err := db.UpsertSongAndVideo(r.Context(), upsert, item.Video); err != nil {
-				result.Error = err.Error()
+				log.Printf("commit workflow: store song failed track_id=%q error=%v", upsert.TrackID, err)
+				result.Error = retryableCommitError
 				results = append(results, result)
 				continue
 			}
 			if err := publishWithTimeout(r.Context(), queue, upsert.TrackID); err != nil {
-				result.Error = err.Error()
+				log.Printf("commit workflow: RabbitMQ publish failed track_id=%q error=%v", upsert.TrackID, err)
+				result.Error = retryableCommitError
 				results = append(results, result)
 				continue
 			}
+			log.Printf("commit workflow: queued song processing track_id=%q", upsert.TrackID)
 			result.TrackID = upsert.TrackID
 			result.Success = true
 			results = append(results, result)
@@ -50,10 +57,13 @@ func CommitWorkflow(db *store.Store, queue *services.QueuePublisher) http.Handle
 }
 
 func publishWithTimeout(ctx context.Context, queue *services.QueuePublisher, trackID string) error {
-	if queue == nil {
+	if queue == nil || !queue.Enabled() {
+		log.Printf("commit workflow: RabbitMQ publish skipped track_id=%q reason=disabled", trackID)
 		return nil
 	}
-	return queue.PublishProcessSong(ctx, trackID)
+	publishCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return queue.PublishProcessSong(publishCtx, trackID)
 }
 
 func commitItemToSong(item types.CommitItem) (types.SongUpsert, error) {

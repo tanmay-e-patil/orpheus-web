@@ -34,7 +34,7 @@ export class CommitLibraryPage extends HTMLElement {
       resultList,
       el("div", { class: "actions sticky-actions" }, [
         el("button", { class: "button secondary", type: "button", text: "Back", onclick: () => window.Orpheus.router.go("/discover/review") }),
-        el("button", { class: "button", type: "button", text: this.saving ? "Saving..." : "Save", disabled: this.saving || !items.length, onclick: () => this.commit() }),
+        el("button", { class: "button", type: "button", text: this.saving ? "Saving..." : this.hasFailures() ? "Try Again" : "Save", disabled: this.saving || !items.length, onclick: () => this.commit() }),
         this.results?.every((result) => result.success) ? el("button", { class: "button", type: "button", text: "Go to Tracks", onclick: () => window.Orpheus.router.go("/home") }) : null,
       ]),
     ]));
@@ -50,6 +50,10 @@ export class CommitLibraryPage extends HTMLElement {
     });
   }
 
+  hasFailures() {
+    return this.results?.some((result) => !result.success) || false;
+  }
+
   async commit() {
     this.saving = true;
     this.render();
@@ -59,9 +63,11 @@ export class CommitLibraryPage extends HTMLElement {
       if (this.results.every((result) => result.success)) {
         clearWorkflowState();
         window.dispatchEvent(new CustomEvent("song-library-invalidated"));
+      } else if (this.hasFailures()) {
+        showDialog("Something went wrong while saving one or more tracks. Please try again.");
       }
     } catch (error) {
-      showDialog(error.message || "Commit failed");
+      showDialog(error.message || "Something went wrong while saving. Please try again.");
     } finally {
       this.saving = false;
       this.render();

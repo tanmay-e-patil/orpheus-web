@@ -32,8 +32,12 @@ func NewQueuePublisher(url string) *QueuePublisher {
 	return &QueuePublisher{url: url}
 }
 
+func (q *QueuePublisher) Enabled() bool {
+	return q != nil && q.url != ""
+}
+
 func (q *QueuePublisher) PublishProcessSong(ctx context.Context, trackID string) error {
-	if q == nil || q.url == "" {
+	if !q.Enabled() {
 		return nil
 	}
 	ch, err := q.channel()
