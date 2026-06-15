@@ -24,12 +24,14 @@ export class CommitLibraryPage extends HTMLElement {
     const resultList = el("div", { class: "stack" });
     if (this.results) {
       for (const result of this.results) {
-        resultList.append(el("p", { class: result.success ? "success" : "error", text: `${result.trackId}: ${result.success ? "saved" : result.error}` }));
+        const item = items.find((candidate) => candidate.song.id === result.trackId);
+        const name = item?.edits.trackName || item?.song.name || result.trackId;
+        resultList.append(el("p", { class: result.success ? "success" : "error", text: `${name}: ${result.success ? "saved" : result.error}` }));
       }
     }
     this.replaceChildren(el("section", { class: "page" }, [
       el("workflow-progress", { stage: "commit" }),
-      el("div", { class: "page-header" }, [el("h1", { text: "Commit to Library" }), el("p", { class: "muted", text: `${items.length} tracks ready to save.` })]),
+      el("div", { class: "page-header" }, [el("h1", { text: "Save to Library" }), el("p", { class: "muted", text: `${items.length} ${items.length === 1 ? "song" : "songs"} ready to save.` })]),
       list,
       resultList,
       el("div", { class: "actions sticky-actions" }, [

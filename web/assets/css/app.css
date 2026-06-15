@@ -757,6 +757,10 @@ h2 {
   justify-content: space-between;
 }
 
+.selection-actions {
+  margin: 16px 0 20px;
+}
+
 .input-row .input {
   flex: 1 1 240px;
 }
@@ -1393,25 +1397,87 @@ h2 {
 
 .workflow-progress {
   list-style: none;
-  padding: 0;
-  margin: 0 0 18px;
-  display: flex;
-  gap: 8px;
+  padding: 12px 14px;
+  margin: 0 0 22px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 0;
   overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  box-shadow: var(--shadow-sm);
 }
 
 .workflow-progress li {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 6px 10px;
+  position: relative;
+  min-width: 120px;
   color: var(--muted);
-  text-transform: capitalize;
   white-space: nowrap;
 }
 
-.workflow-progress li.done {
+.workflow-progress li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: calc(50% + 22px);
+  right: calc(-50% + 22px);
+  height: 1px;
+  background: var(--border);
+}
+
+.workflow-progress li.done:not(:last-child)::after {
+  background: var(--accent);
+}
+
+.workflow-progress li > a,
+.workflow-progress li > span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.workflow-step-dot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.workflow-step-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.workflow-progress li.done,
+.workflow-progress li.active {
+  color: var(--foreground);
+}
+
+.workflow-progress li.done .workflow-step-dot,
+.workflow-progress li.active .workflow-step-dot {
+  border-color: var(--accent);
   background: var(--accent);
   color: var(--accent-foreground);
+}
+
+.workflow-progress li.active .workflow-step-dot {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.workflow-progress a:focus-visible .workflow-step-dot {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 .lyrics-view {

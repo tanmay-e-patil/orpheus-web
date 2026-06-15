@@ -1,4 +1,4 @@
-import { clearWorkflowState, createInitialWorkflowState, deleteNamedDraft, el, getAllDrafts, loadWorkflowState, saveWorkflowState, stageRoutes } from "../store.js";
+import { clearWorkflowState, createInitialWorkflowState, deleteNamedDraft, el, getAllDrafts, loadWorkflowState, saveWorkflowState, stageLabels, stageRoutes } from "../store.js";
 
 export class DiscoverLandingPage extends HTMLElement {
   connectedCallback() {
@@ -8,7 +8,7 @@ export class DiscoverLandingPage extends HTMLElement {
   render() {
     const state = loadWorkflowState();
     const drafts = getAllDrafts();
-    const query = el("input", { class: "input", placeholder: "Search for music..." });
+    const query = el("input", { class: "input", placeholder: "Search for songs or artists..." });
     const start = el("button", { class: "button", type: "button", text: "Start Discovery" });
     start.addEventListener("click", () => {
       const value = query.value.trim();
@@ -18,12 +18,12 @@ export class DiscoverLandingPage extends HTMLElement {
       window.Orpheus.router.go(`/discover/youtube?q=${encodeURIComponent(value)}`);
     });
     const children = [
-      el("div", { class: "page-header" }, [el("h1", { text: "Discover" }), el("p", { class: "muted", text: "Build new library entries from YouTube, Deezer, and LRCLIB." })]),
+      el("div", { class: "page-header" }, [el("h1", { text: "Discover" }), el("p", { class: "muted", text: "Find songs, choose metadata, add lyrics, then save to your library." })]),
     ];
     if (state) {
       children.push(el("section", { class: "card" }, [
         el("h2", { text: "Resume Previous Session" }),
-        el("p", { class: "muted", text: `${state.searchQuery} · ${state.currentStage}` }),
+        el("p", { class: "muted", text: `${state.searchQuery} · ${stageLabels[state.currentStage] || state.currentStage}` }),
         el("div", { class: "actions" }, [
           el("button", { class: "button secondary", type: "button", text: "Clear", onclick: () => { clearWorkflowState(); this.render(); } }),
           el("button", { class: "button", type: "button", text: "Resume", onclick: () => window.Orpheus.router.go(stageRoutes[state.currentStage] || "/discover/youtube") }),
@@ -35,9 +35,9 @@ export class DiscoverLandingPage extends HTMLElement {
       const list = el("div", { class: "stack" });
       for (const [name, draft] of draftEntries) {
         list.append(el("div", { class: "draft-row" }, [
-          el("span", { text: `${name}: ${draft.searchQuery} (${draft.currentStage})` }),
+          el("span", { text: `${name}: ${draft.searchQuery} (${stageLabels[draft.currentStage] || draft.currentStage})` }),
           el("button", { class: "button secondary", type: "button", text: "Delete", onclick: () => { deleteNamedDraft(name); this.render(); } }),
-          el("button", { class: "button", type: "button", text: "Load", onclick: () => window.Orpheus.router.go(stageRoutes[draft.currentStage] || "/discover/youtube") }),
+          el("button", { class: "button", type: "button", text: "Load", onclick: () => { saveWorkflowState(draft); window.Orpheus.router.go(stageRoutes[draft.currentStage] || "/discover/youtube"); } }),
         ]));
       }
       children.push(el("section", { class: "card" }, [el("h2", { text: "Saved Drafts" }), list]));

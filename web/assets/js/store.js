@@ -136,6 +136,15 @@ export const stageRoutes = {
 
 export const stageOrder = ["search", "youtube", "spotify", "lyrics", "review", "commit"];
 
+export const stageLabels = {
+  search: "Search",
+  youtube: "Find video",
+  spotify: "Choose song info",
+  lyrics: "Add lyrics",
+  review: "Review",
+  commit: "Save",
+};
+
 export function el(tag, options = {}, children = []) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(options)) {

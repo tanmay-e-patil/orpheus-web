@@ -63,12 +63,12 @@ export class LyricsEnrichmentPage extends HTMLElement {
     const skipped = Math.max(0, this.results.length - withLyrics);
     this.replaceChildren(el("section", { class: "page" }, [
       el("workflow-progress", { stage: "lyrics" }),
-      el("div", { class: "page-header" }, [el("h1", { text: "Lyrics Enrichment" }), el("p", { class: "muted", text: this.loading ? "Searching LRCLIB..." : "Choose lyrics for each matched track." })]),
+      el("div", { class: "page-header" }, [el("h1", { text: "Add lyrics" }), el("p", { class: "muted", text: this.loading ? "Searching lyrics..." : "Choose lyrics for each matched track." })]),
       this.loading ? el("section", { class: "card loading-card" }, [
         el("span", { class: "spinner", "aria-hidden": "true" }),
-        el("span", { text: `Processing ${this.tracks.length} tracks` }),
+        el("span", { text: "Searching lyrics" }),
       ]) : null,
-      !this.loading && this.results.length ? el("p", { class: "muted workflow-summary", text: `Searched lyrics for ${this.results.length} tracks · ${withLyrics} with lyrics · ${skipped} skipped` }) : null,
+      !this.loading && this.results.length ? el("p", { class: "muted workflow-summary", text: withLyrics ? "Lyrics selected" : "No lyrics selected" }) : null,
       stack,
       el("div", { class: "actions sticky-actions" }, [
         el("button", { class: "button secondary", type: "button", text: "Back", onclick: () => { updateWorkflowStage(loadWorkflowState(), "spotify"); window.Orpheus.router.go("/discover/spotify"); } }),
@@ -120,7 +120,7 @@ export class LyricsEnrichmentPage extends HTMLElement {
         el("p", { class: "muted", text: "Continue without lyrics or try a different search." }),
       ]),
       el("div", { class: "actions split-actions" }, [
-        el("button", { class: "button secondary", type: "button", text: "Skip", onclick: () => this.skip(resultIndex) }),
+        el("button", { class: "button secondary", type: "button", text: "Add without lyrics", onclick: () => this.skip(resultIndex) }),
         el("button", { class: "button secondary", type: "button", text: this.customQueryOpen[resultIndex] ? "Hide Search" : "Try Different Search", onclick: () => { this.customQueryOpen[resultIndex] = !this.customQueryOpen[resultIndex]; this.render(); } }),
       ]),
       customSearch,

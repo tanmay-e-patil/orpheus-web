@@ -9,7 +9,7 @@ export class DeezerMatchingPage extends HTMLElement {
       return;
     }
     this.state = state;
-    this.selectedVideos = state.selectedVideos.filter((video) => video.selected);
+    this.selectedVideos = state.selectedVideos.filter((video) => video.selected).slice(0, 1);
     this.results = state.trackMatches || [];
     this.customQueryOpen = {};
     this.customQueryLoading = {};
@@ -42,7 +42,7 @@ export class DeezerMatchingPage extends HTMLElement {
     if (!this.selectedVideos.length) {
       this.replaceChildren(el("section", { class: "page" }, [
         el("h1", { text: "No Videos Selected" }),
-        el("button", { class: "button", type: "button", text: "Back to YouTube", onclick: () => window.Orpheus.router.go("/discover/youtube") }),
+        el("button", { class: "button", type: "button", text: "Back to videos", onclick: () => window.Orpheus.router.go("/discover/youtube") }),
       ]));
       return;
     }
@@ -52,12 +52,12 @@ export class DeezerMatchingPage extends HTMLElement {
     const skipped = Math.max(0, this.results.length - matched);
     this.replaceChildren(el("section", { class: "page" }, [
       el("workflow-progress", { stage: "spotify" }),
-      el("div", { class: "page-header" }, [el("h1", { text: "Deezer Matching" }), el("p", { class: "muted", text: this.loading ? "Finding matches..." : "Select the best metadata match." })]),
+      el("div", { class: "page-header" }, [el("h1", { text: "Choose song info" }), el("p", { class: "muted", text: this.loading ? "Finding matches..." : "Select the best metadata match." })]),
       this.loading ? el("section", { class: "card loading-card" }, [
         el("span", { class: "spinner", "aria-hidden": "true" }),
-        el("span", { text: `Processing ${this.selectedVideos.length} videos` }),
+        el("span", { text: "Finding song info" }),
       ]) : null,
-      !this.loading && this.results.length ? el("p", { class: "muted workflow-summary", text: `Found matches for ${this.results.length} videos · ${matched} matched · ${skipped} skipped` }) : null,
+      !this.loading && this.results.length ? el("p", { class: "muted workflow-summary", text: matched ? "Song info selected" : "No song info selected" }) : null,
       stack,
       el("div", { class: "actions sticky-actions" }, [
         el("button", { class: "button secondary", type: "button", text: "Back", onclick: () => { updateWorkflowStage(this.state, "youtube"); window.Orpheus.router.go("/discover/youtube"); } }),
@@ -105,7 +105,7 @@ export class DeezerMatchingPage extends HTMLElement {
         el("p", { class: "muted", text: "Skip this video or try a different Deezer query." }),
       ]),
       el("div", { class: "actions split-actions" }, [
-        el("button", { class: "button secondary", type: "button", text: "Skip", onclick: () => this.skip(resultIndex) }),
+        el("button", { class: "button secondary", type: "button", text: "Don't add this video", onclick: () => this.skip(resultIndex) }),
         el("button", { class: "button secondary", type: "button", text: this.customQueryOpen[resultIndex] ? "Hide Search" : "Try Different Search", onclick: () => { this.customQueryOpen[resultIndex] = !this.customQueryOpen[resultIndex]; this.render(); } }),
       ]),
       customSearch,

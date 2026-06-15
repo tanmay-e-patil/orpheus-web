@@ -37,7 +37,7 @@ export class ReviewEditPage extends HTMLElement {
     this.items.forEach((item, index) => stack.append(this.editCard(item, index)));
     this.replaceChildren(el("section", { class: "page" }, [
       el("workflow-progress", { stage: "review" }),
-      el("div", { class: "page-header" }, [el("h1", { text: "Review & Edit" }), el("p", { class: "muted", text: "Validate metadata before saving to the library." })]),
+      el("div", { class: "page-header" }, [el("h1", { text: "Review" }), el("p", { class: "muted", text: "Check song info before saving to the library." })]),
       stack,
       el("div", { class: "actions sticky-actions" }, [
         el("button", { class: "button secondary", type: "button", text: "Back", onclick: () => { this.save(); updateWorkflowStage(loadWorkflowState(), "lyrics"); window.Orpheus.router.go("/discover/lyrics"); } }),
@@ -48,7 +48,7 @@ export class ReviewEditPage extends HTMLElement {
 
   editCard(item, index) {
     const fields = [
-      ["trackName", "Track name"],
+      ["trackName", "Song name"],
       ["artistName", "Artist"],
       ["albumName", "Album"],
       ["albumArt", "Album art URL"],
@@ -60,9 +60,9 @@ export class ReviewEditPage extends HTMLElement {
       this.inputs.push({ index, key, input });
       return el("label", {}, [el("span", { text: label }), input]);
     });
-    const lyrics = el("textarea", { class: "textarea", placeholder: "Plain lyrics" });
+    const lyrics = el("textarea", { class: "textarea", placeholder: "Lyrics" });
     lyrics.value = item.lyrics || "";
-    const synced = el("textarea", { class: "textarea", placeholder: "Synced lyrics (LRC)" });
+    const synced = el("textarea", { class: "textarea", placeholder: "Synced lyrics" });
     synced.value = item.syncedLyrics || "";
     this.inputs.push({ index, key: "lyrics", input: lyrics }, { index, key: "syncedLyrics", input: synced });
     return el("article", { class: "card edit-card" }, [
@@ -85,10 +85,10 @@ export class ReviewEditPage extends HTMLElement {
   validate(items) {
     const errors = [];
     items.forEach((item, index) => {
-      if (!item.trackName.trim()) errors.push(`Track ${index + 1}: track name required`);
-      if (!item.artistName.trim()) errors.push(`Track ${index + 1}: artist required`);
-      if (!item.albumName.trim()) errors.push(`Track ${index + 1}: album required`);
-      if (item.releaseDate && !/^\d{4}-\d{2}-\d{2}$/.test(item.releaseDate)) errors.push(`Track ${index + 1}: release date must be YYYY-MM-DD`);
+      if (!item.trackName.trim()) errors.push(`Song ${index + 1}: song name required`);
+      if (!item.artistName.trim()) errors.push(`Song ${index + 1}: artist required`);
+      if (!item.albumName.trim()) errors.push(`Song ${index + 1}: album required`);
+      if (item.releaseDate && !/^\d{4}-\d{2}-\d{2}$/.test(item.releaseDate)) errors.push(`Song ${index + 1}: release date must be YYYY-MM-DD`);
     });
     return errors;
   }

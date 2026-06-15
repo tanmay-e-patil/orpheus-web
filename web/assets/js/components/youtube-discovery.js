@@ -49,26 +49,24 @@ export class YouTubeDiscoveryPage extends HTMLElement {
     const input = el("input", { class: "input", value: this.searchQuery || "", placeholder: "Search YouTube..." });
     input.addEventListener("input", () => { this.searchQuery = input.value; });
     input.addEventListener("keydown", (event) => { if (event.key === "Enter") this.search(this.searchQuery); });
-    const selected = this.videos.filter((video) => video.selected);
+    const selected = this.videos.find((video) => video.selected);
     const grid = el("div", { class: "result-grid" });
     for (const video of this.videos) grid.append(this.videoCard(video));
     const status = this.hasSearched
-      ? `Found ${this.videos.length} videos · ${selected.length} selected`
-      : `${selected.length} selected`;
+      ? `Found ${this.videos.length} videos${selected ? ` · selected ${selected.title}` : ""}`
+      : selected ? `Selected ${selected.title}` : "No video selected";
     this.replaceChildren(el("section", { class: "page" }, [
       el("workflow-progress", { stage: "youtube" }),
-      el("div", { class: "page-header" }, [el("h1", { text: "YouTube Discovery" }), el("p", { class: "muted", text: status })]),
-      el("div", { class: "input-row" }, [input, el("button", { class: "button", type: "button", text: this.loading ? "Searching..." : "Search", onclick: () => this.search(this.searchQuery) })]),
+      el("div", { class: "page-header" }, [el("h1", { text: "Find a video" }), el("p", { class: "muted", text: status })]),
+      el("div", { class: "input-row" }, [input, el("button", { class: "button", type: "button", text: this.loading ? "Searching..." : "Search videos", onclick: () => this.search(this.searchQuery) })]),
       this.loading ? el("section", { class: "card loading-card" }, [
         el("span", { class: "spinner", "aria-hidden": "true" }),
         el("span", { text: "Searching YouTube..." }),
       ]) : null,
-      this.hasSearched && this.videos.length ? el("div", { class: "actions split-actions" }, [
+      this.hasSearched && this.videos.length ? el("div", { class: "actions split-actions selection-actions" }, [
         el("span", { class: "muted", text: status }),
         el("span", { class: "actions" }, [
-          el("button", { class: "button secondary", type: "button", text: "Select All", onclick: () => this.setAll(true) }),
-          el("button", { class: "button secondary", type: "button", text: "Deselect All", onclick: () => this.setAll(false) }),
-          el("button", { class: "button", type: "button", text: "Continue", disabled: selected.length === 0, onclick: () => this.continue() }),
+          el("button", { class: "button", type: "button", text: "Use as audio source", disabled: !selected, onclick: () => this.continue() }),
         ]),
       ]) : null,
       this.hasSearched && !this.loading && !this.videos.length ? el("section", { class: "empty-state" }, [
@@ -120,13 +118,7 @@ export class YouTubeDiscoveryPage extends HTMLElement {
   }
 
   toggle(id) {
-    this.videos = this.videos.map((video) => video.id === id ? { ...video, selected: !video.selected } : video);
-    this.persist();
-    this.render();
-  }
-
-  setAll(selected) {
-    this.videos = this.videos.map((video) => ({ ...video, selected }));
+    this.videos = this.videos.map((video) => ({ ...video, selected: video.id === id }));
     this.persist();
     this.render();
   }
@@ -142,8 +134,17 @@ export class YouTubeDiscoveryPage extends HTMLElement {
   preview(video) {
     const dialog = document.getElementById("app-dialog");
     const message = document.getElementById("app-dialog-message");
+    const ok = dialog?.querySelector("form > .button");
+    if (ok) ok.hidden = true;
+    dialog.addEventListener("close", () => {
+      message.replaceChildren();
+      if (ok) ok.hidden = false;
+    }, { once: true });
     message.replaceChildren(el("div", { class: "preview-dialog-content" }, [
-      el("h2", { text: video.title }),
+      el("div", { class: "dialog-header" }, [
+        el("h2", { text: video.title }),
+        el("button", { class: "icon-button dialog-close", type: "button", "aria-label": "Close preview", onclick: () => dialog.close() }, ["×"]),
+      ]),
       el("p", { class: "muted", text: video.channelTitle }),
       el("div", { class: "video-preview-frame" }, [
         el("iframe", {
@@ -158,7 +159,7 @@ export class YouTubeDiscoveryPage extends HTMLElement {
         el("span", { text: formatViewCount(video.viewCount) }),
         el("span", { text: formatDuration(video.duration) }),
       ]),
-      el("button", { class: "button", type: "button", text: video.selected ? "Selected" : "Select Video", onclick: () => { this.toggle(video.id); dialog.close(); } }),
+      el("button", { class: "button", type: "button", text: video.selected ? "Selected" : "Use as audio source", onclick: () => { this.toggle(video.id); dialog.close(); } }),
     ]));
     dialog.showModal();
   }
