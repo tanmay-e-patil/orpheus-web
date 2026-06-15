@@ -50,7 +50,7 @@ export function updateQueueSong(trackId, patch) {
   });
   const current = currentSong();
   if (current?.trackId === trackId && current.isAvailable === false) {
-    state.controller?.pause?.();
+    state.controller?.stop?.();
     state.status = "unavailable";
   } else if (current?.trackId === trackId && sourceChanged(wasCurrent, current) && playableSong(current)) {
     state.currentTime = 0;
