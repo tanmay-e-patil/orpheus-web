@@ -1155,6 +1155,7 @@ h2 {
   display: grid;
   gap: 12px;
   width: min(760px, calc(100vw - 64px));
+  max-width: 100%;
 }
 
 .video-preview-frame {
@@ -1538,7 +1539,12 @@ player-bar .icon-button:disabled {
   border-radius: var(--radius);
   background: var(--card);
   color: var(--foreground);
-  max-width: min(720px, calc(100vw - 32px));
+  max-width: min(800px, calc(100vw - 32px));
+}
+
+.app-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
 }
 
 .app-dialog[open],
