@@ -55,17 +55,59 @@ export class LibrarySongEditPage extends HTMLElement {
   }
 
   metadataSection() {
+    const results = el("div", { class: "result-list" });
+    const fields = {
+      name: field("Name", "name", this.song.name, true),
+      artistName: field("Artist", "artistName", this.song.artistName, true),
+      albumName: field("Album", "albumName", this.song.albumName, true),
+      albumArt: field("Album art URL", "albumArt", this.song.albumArt),
+      releaseDate: field("Release date", "releaseDate", "", false, "YYYY or YYYY-MM-DD; empty preserves current value"),
+    };
+    const find = el("button", { class: "button secondary", type: "button", text: "Find Deezer candidates" });
+    find.addEventListener("click", async () => {
+      find.disabled = true;
+      try {
+        const query = `${fields.name.input.value} ${fields.artistName.input.value} ${fields.albumName.input.value}`.trim();
+        const result = await API.customDeezerMatch({ ...syntheticVideo(this.song), title: query }, query);
+        const matches = result.trackMatches || [];
+        results.replaceChildren(...(matches.length ? matches.map((track) => this.deezerCandidate(track, fields)) : [el("p", { class: "muted", text: "No Deezer candidates found." })]));
+      } catch (error) { showDialog(error.message); }
+      finally { find.disabled = false; }
+    });
     const form = el("form", { class: "page-card form-grid" }, [
       el("h2", { text: "Song Metadata" }),
-      field("Name", "name", this.song.name, true),
-      field("Artist", "artistName", this.song.artistName, true),
-      field("Album", "albumName", this.song.albumName, true),
-      field("Album art URL", "albumArt", this.song.albumArt),
-      field("Release date", "releaseDate", "", false, "YYYY or YYYY-MM-DD; empty preserves current value"),
-      el("button", { class: "button", type: "submit", text: "Save metadata" }),
+      fields.name.label,
+      fields.artistName.label,
+      fields.albumName.label,
+      readonlyField("Duration", formatDuration(this.song.duration) || "Unknown"),
+      fields.albumArt.label,
+      fields.releaseDate.label,
+      el("div", { class: "actions" }, [find, el("button", { class: "button", type: "submit", text: "Save metadata" })]),
+      results,
     ]);
     form.addEventListener("submit", (event) => this.saveMetadata(event, form));
     return form;
+  }
+
+  deezerCandidate(track, fields) {
+    const apply = el("button", { class: "button secondary", type: "button", text: "Use metadata" });
+    apply.addEventListener("click", () => {
+      fields.name.input.value = track.name || "";
+      fields.artistName.input.value = track.artist || "";
+      fields.albumName.input.value = track.album || "";
+      fields.albumArt.input.value = track.albumImageUrl || "";
+      fields.releaseDate.input.value = track.releaseDate || "";
+      toast("Deezer metadata applied; save to update the song", "success");
+    });
+    return el("article", { class: "result-card" }, [
+      track.albumImageUrl ? el("img", { src: track.albumImageUrl, alt: "", loading: "lazy" }) : null,
+      el("div", {}, [
+        el("strong", { text: track.name || "Unknown track" }),
+        el("p", { class: "muted", text: [track.artist, track.album, track.releaseDate].filter(Boolean).join(" · ") }),
+        track.matchScore ? el("p", { class: "muted", text: `Match score ${track.matchScore}` }) : null,
+      ]),
+      el("div", { class: "actions" }, [apply]),
+    ]);
   }
 
   async saveMetadata(event, form) {
@@ -99,6 +141,21 @@ export class LibrarySongEditPage extends HTMLElement {
   videoResult(video) {
     const current = video.id === this.song.youtubeVideoId;
     const warn = durationWarning(this.song.duration, video.duration);
+    const preview = el("div", { class: "audio-source-preview", hidden: true });
+    const previewButton = el("button", { class: "button secondary", type: "button", text: "Preview" });
+    previewButton.addEventListener("click", () => {
+      const open = preview.hasAttribute("hidden");
+      previewButton.textContent = open ? "Close preview" : "Preview";
+      if (open && !preview.childElementCount) {
+        preview.replaceChildren(el("iframe", {
+          src: `https://www.youtube.com/embed/${encodeURIComponent(video.id)}?autoplay=1&rel=0&modestbranding=1`,
+          title: `Preview ${video.title}`,
+          allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share",
+          allowfullscreen: true,
+        }));
+      }
+      preview.toggleAttribute("hidden", !open);
+    });
     const button = el("button", { class: "button secondary", type: "button", text: current ? "Current" : "Use this source" });
     button.disabled = current;
     button.addEventListener("click", async () => {
@@ -107,8 +164,9 @@ export class LibrarySongEditPage extends HTMLElement {
     });
     return el("article", { class: "result-card" }, [
       video.thumbnail ? el("img", { src: video.thumbnail, alt: "" }) : null,
-      el("div", {}, [el("strong", { text: video.title }), el("p", { class: "muted", text: `${video.channelTitle || "Unknown channel"} ${video.duration || ""}` }), warn ? el("p", { class: "warning-text", text: warn }) : null]),
-      button,
+      el("div", {}, [el("strong", { text: video.title }), el("p", { class: "muted", text: `${video.channelTitle || "Unknown channel"} ${formatDuration(video.duration) || video.duration || ""}` }), warn ? el("p", { class: "warning-text", text: warn }) : null]),
+      el("div", { class: "actions" }, [previewButton, button]),
+      preview,
     ]);
   }
 
@@ -126,25 +184,53 @@ export class LibrarySongEditPage extends HTMLElement {
     const synced = el("textarea", { name: "synced", rows: "8" }, [this.song.syncedLyrics || ""]);
     const offset = el("input", { type: "number", step: "0.01", value: "0", "aria-label": "Offset seconds" });
     const preview = el("pre", { class: "lyrics-preview", text: this.song.syncedLyrics || "No synced lyrics." });
+    const adjustedSyncTest = this.syncTestControl(() => adjustLrc(this.song.syncedLyrics || "", Number(offset.value || 0)), "Test adjusted sync");
+    const rawSyncTest = this.syncTestControl(() => synced.value, "Test raw sync");
     const updatePreview = () => { this.offsetSeconds = Number(offset.value || 0); preview.textContent = adjustLrc(this.song.syncedLyrics || "", this.offsetSeconds) || "No synced lyrics."; };
     offset.addEventListener("input", updatePreview);
     return el("section", { class: "page-card" }, [
       el("h2", { text: "Lyrics" }),
       el("p", { class: "muted", text: this.song.lyrics || this.song.syncedLyrics ? "Stored lyrics are shown below." : "No stored lyrics." }),
+      this.song.syncedLyrics ? el("div", { class: "inline-form" }, [adjustedSyncTest.button]) : null,
       el("div", { class: "inline-form" }, [el("button", { class: "button secondary", type: "button", text: "Find LRCLIB options", onclick: () => loadOptions() }), custom, el("button", { class: "button secondary", type: "button", text: "Custom search", onclick: () => loadOptions(custom.value) })]),
       options,
       el("h3", { text: "Timing adjustment" }),
       this.song.syncedLyrics ? el("div", { class: "inline-form" }, ["-1", "-0.5", "0.5", "1"].map((value) => el("button", { class: "button secondary", type: "button", text: `${Number(value) > 0 ? "+" : ""}${value}s`, onclick: () => { offset.value = String(Number(offset.value || 0) + Number(value)); updatePreview(); } })).concat([offset, el("button", { class: "button", type: "button", text: "Save adjusted timing", onclick: () => this.saveLyrics(this.song.lyrics || "", adjustLrc(this.song.syncedLyrics || "", Number(offset.value || 0))) })])) : el("p", { class: "muted", text: "No synced lyrics to adjust. Select LRCLIB synced lyrics or use Advanced edit." }),
+      adjustedSyncTest.mount,
       preview,
-      el("details", {}, [el("summary", { text: "Advanced edit" }), el("label", {}, ["Plain lyrics", plain]), el("label", {}, ["Synced lyrics", synced]), el("button", { class: "button", type: "button", text: "Save raw lyrics", onclick: () => this.saveLyrics(plain.value, synced.value) })]),
+      el("details", {}, [el("summary", { text: "Advanced edit" }), el("label", {}, ["Plain lyrics", plain]), el("label", {}, ["Synced lyrics", synced]), el("div", { class: "inline-form" }, [rawSyncTest.button, el("button", { class: "button", type: "button", text: "Save raw lyrics", onclick: () => this.saveLyrics(plain.value, synced.value) })]), rawSyncTest.mount]),
     ]);
+  }
+
+  syncTestControl(getLyrics, label = "Test sync") {
+    const mount = el("div", { class: "sync-test-shell" });
+    const button = el("button", { class: "button secondary", type: "button", text: label });
+    button.addEventListener("click", () => {
+      const lyrics = getLyrics();
+      const videoId = this.song.youtubeVideoId || this.audioSource?.id;
+      if (!videoId) return showDialog("No YouTube video is linked for this track.");
+      if (!lyrics?.trim()) return showDialog("No synced lyrics to test.");
+      mount.replaceChildren(el("lyrics-sync-test", {
+        "data-video-id": videoId,
+        "data-lyrics": lyrics,
+        "data-key": `${this.trackId}-${Date.now()}`,
+      }));
+    });
+    return { button, mount };
   }
 
   lyricsOption(option) {
     const save = el("button", { class: "button secondary", type: "button", text: "Save lyrics" });
+    const syncTest = this.syncTestControl(() => option.syncedLyrics || "", "Test sync");
     save.addEventListener("click", () => this.saveLyrics(option.plainLyrics || "", option.syncedLyrics || ""));
     return el("article", { class: "result-card" }, [
-      el("div", {}, [el("strong", { text: `${option.trackName} — ${option.artistName}` }), el("p", { class: "muted", text: option.hasSync ? "Synced lyrics" : "Plain lyrics only" }), el("pre", { class: "lyrics-preview compact", text: option.syncedLyrics || option.plainLyrics || "No lyrics text" })]), save,
+      el("div", {}, [
+        el("strong", { text: `${option.trackName} — ${option.artistName}` }),
+        el("p", { class: "muted", text: option.hasSync ? "Synced lyrics" : "Plain lyrics only" }),
+        el("div", { class: "actions" }, [option.syncedLyrics ? syncTest.button : null, save]),
+        syncTest.mount,
+        el("pre", { class: "lyrics-preview compact", text: option.syncedLyrics || option.plainLyrics || "No lyrics text" }),
+      ]),
     ]);
   }
 
@@ -197,7 +283,22 @@ export class LibrarySongEditPage extends HTMLElement {
 }
 
 function field(label, name, value, required = false, help = "") {
-  return el("label", {}, [label, el("input", { name, value, required }), help ? el("small", { class: "muted", text: help }) : null]);
+  const input = el("input", { name, value, required });
+  return { input, label: el("label", {}, [label, input, help ? el("small", { class: "muted", text: help }) : null]) };
+}
+
+function syntheticVideo(song) {
+  return {
+    id: song.youtubeVideoId || song.trackId,
+    title: `${song.name} ${song.artistName}`,
+    thumbnail: song.albumArt || "",
+    channelTitle: song.artistName || "",
+    duration: song.duration || null,
+  };
+}
+
+function readonlyField(label, value) {
+  return el("label", {}, [label, el("input", { value, readonly: true, "aria-readonly": "true" })]);
 }
 
 function syntheticTrack(song) {
@@ -207,6 +308,16 @@ function syntheticTrack(song) {
 function parseISODurationSeconds(duration) {
   const match = String(duration || "").match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   return match ? Number(match[1] || 0) * 3600 + Number(match[2] || 0) * 60 + Number(match[3] || 0) : 0;
+}
+
+function formatDuration(duration) {
+  if (!duration) return "";
+  const seconds = parseISODurationSeconds(duration);
+  if (!seconds) return duration;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remaining = seconds % 60;
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remaining).padStart(2, "0")}` : `${minutes}:${String(remaining).padStart(2, "0")}`;
 }
 
 function durationWarning(currentDuration, candidateDuration) {

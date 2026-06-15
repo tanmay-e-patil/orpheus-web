@@ -56,7 +56,7 @@ func StreamSongAudio(db *store.Store, libraryPath string) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "audio/mp4")
 		w.Header().Set("Accept-Ranges", "bytes")
-		w.Header().Set("Cache-Control", "private, max-age=3600")
+		w.Header().Set("Cache-Control", "private, no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		http.ServeContent(w, r, filepath.Base(path), song.UpdatedAt, file)
 	}

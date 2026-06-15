@@ -331,7 +331,9 @@ function mergeSongs(...groups) {
   for (const group of groups) {
     for (const song of group || []) {
       if (!song?.trackId) continue;
-      byId.set(song.trackId, { playCount: 0, ...(byId.get(song.trackId) || {}), ...song });
+      const merged = { playCount: 0, ...(byId.get(song.trackId) || {}), ...song };
+      if (merged.isAvailable === false) delete merged.audioUrl;
+      byId.set(song.trackId, merged);
     }
   }
   return [...byId.values()];

@@ -120,7 +120,7 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 			song.IsLyricsAvailable = &value
 		}
 		if song.IsAvailable {
-			song.AudioURL = "/api/songs/" + url.PathEscape(song.TrackID) + "/audio"
+			song.AudioURL = librarySongAudioURL(song.TrackID, song.YoutubeVideoID)
 		}
 		songs = append(songs, song)
 	}
@@ -143,6 +143,14 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 		HasMore:      hasMore,
 		PageRevision: types.SongPageRevision(songs),
 	}, nil
+}
+
+func librarySongAudioURL(trackID, revision string) string {
+	path := "/api/songs/" + url.PathEscape(trackID) + "/audio"
+	if revision == "" {
+		return path
+	}
+	return path + "?v=" + url.QueryEscape(revision)
 }
 
 func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (RecordedSongPlay, error) {

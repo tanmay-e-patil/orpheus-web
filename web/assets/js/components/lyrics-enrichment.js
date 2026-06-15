@@ -287,8 +287,14 @@ class LyricsSyncTest extends HTMLElement {
     this.linesNode.querySelectorAll("p").forEach((line) => {
       line.classList.toggle("active", Number(line.dataset.index) === active);
     });
+    if (active === this.activeLineIndex) return;
+    this.activeLineIndex = active;
     const activeLine = this.linesNode.querySelector("p.active");
-    activeLine?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    if (!activeLine) return;
+    this.linesNode.scrollTo({
+      top: activeLine.offsetTop - this.linesNode.offsetTop - (this.linesNode.clientHeight / 2) + (activeLine.clientHeight / 2),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
   }
 }
 

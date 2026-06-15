@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strings"
 
@@ -222,7 +221,7 @@ func scanLibrarySongWithSource(row rowScanner) (types.LibrarySong, *types.YouTub
 		song.IsLyricsAvailable = &v
 	}
 	if song.IsAvailable {
-		song.AudioURL = "/api/songs/" + url.PathEscape(song.TrackID) + "/audio"
+		song.AudioURL = librarySongAudioURL(song.TrackID, song.YoutubeVideoID)
 	}
 	if !vidID.Valid {
 		return song, nil, nil

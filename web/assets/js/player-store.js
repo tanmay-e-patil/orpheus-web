@@ -41,13 +41,28 @@ export function setQueue(queue, currentIndex) {
 }
 
 export function updateQueueSong(trackId, patch) {
-  state.queue = state.queue.map((song) => song.trackId === trackId ? { ...song, ...patch } : song);
+  const wasCurrent = currentSong();
+  state.queue = state.queue.map((song) => {
+    if (song.trackId !== trackId) return song;
+    const next = { ...song, ...patch };
+    if (next.isAvailable === false) delete next.audioUrl;
+    return next;
+  });
   const current = currentSong();
   if (current?.trackId === trackId && current.isAvailable === false) {
     state.controller?.pause?.();
     state.status = "unavailable";
+  } else if (current?.trackId === trackId && sourceChanged(wasCurrent, current) && playableSong(current)) {
+    state.currentTime = 0;
+    state.status = "loading";
+    state.controller?.load?.(current);
   }
   emit();
+}
+
+function sourceChanged(before, after) {
+  if (!before || !after) return false;
+  return before.audioUrl !== after.audioUrl || before.youtubeVideoId !== after.youtubeVideoId;
 }
 
 export function updateSongAlbumArt(trackId, albumArt) {
