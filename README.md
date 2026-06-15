@@ -1,43 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Orpheus Go + Vanilla JS Port
 
-## Getting Started
+Parallel implementation of Orpheus using a Go backend and static browser-native JavaScript.
 
-First, run the development server:
+## Run
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Set the required environment variables:
+
+```sh
+export DATABASE_URL='postgres://...'
+export AUTH_USERNAME='...'
+export AUTH_PASSWORD='...'
+export AUTH_COOKIE_SECRET='change-me'
+export YOUTUBE_API_KEY='...'
+export RABBITMQ_URL='amqp://...'
+export MUSIC_LIBRARY_PATH='/music'
+export DOMAIN='http://localhost:8080'
+export PORT='8080'
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`RABBITMQ_URL` is required in production so committed songs can be queued for
+`orpheus-consumer`. In development, leaving it empty disables queue publishing:
+the song metadata is stored, but the downloaded file will not be created and
+`songs.is_available` remains false until a consumer processes the job.
+`MUSIC_LIBRARY_PATH` must point at the same directory used by `orpheus-consumer`
+so the Go app can stream available `.m4a` files.
 
-## Home Audio Player
+Then run:
 
-- Visit `/home` and click any track row to start playback via YouTube audio.
-- A bottom player shows transport controls and a seek bar.
-- A lyrics panel on the right shows synced lyrics (LRC) when available; otherwise it shows unsynced lyrics or a placeholder.
-- Audio is provided via an offscreen YouTube iframe. An attribution link is shown in the player.
+```sh
+go run ./cmd/orpheus
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Open `http://localhost:8080`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Verify
 
-## Learn More
+```sh
+go test ./...
+find web/assets/js -name '*.js' -print -exec node --check {} \;
+```
 
-To learn more about Next.js, take a look at the following resources:
+The app keeps the existing `songs` and `yt_music_videos` schema and serves the static frontend from `web/`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Redownload library files
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Use the redownload CLI to republish existing songs to RabbitMQ for
+`orpheus-consumer`. By default it queues only songs where `songs.is_available`
+is false or null.
 
-## Deploy on Vercel
+```sh
+DATABASE_URL='postgres://...' RABBITMQ_URL='amqp://...' \
+go run ./cmd/redownload-library
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Preview matches without publishing:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```sh
+DATABASE_URL='postgres://...' \
+go run ./cmd/redownload-library --dry-run --limit 20
+```
+
+Dry runs print tab-separated `track_id`, `song`, and `artist` columns.
+
+Queue unavailable songs updated in a window:
+
+```sh
+go run ./cmd/redownload-library \
+  --updated-after 2026-05-01T00:00:00Z \
+  --updated-before 2026-05-08T00:00:00Z
+```
+
+Queue every song updated in a window:
+
+```sh
+go run ./cmd/redownload-library \
+  --all \
+  --updated-after 2026-05-01T00:00:00Z \
+  --updated-before 2026-05-08T00:00:00Z
+```
+
+The CLI publishes the same payload used by commits:
+`{"jobId":"<track-id>","action":"process-song-data","timestamp":"<utc>"}` to
+the durable `job_queue`. It does not update `songs.is_available`; the consumer
+remains responsible for marking completed downloads available.
