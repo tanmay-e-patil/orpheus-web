@@ -8,6 +8,8 @@ export const THEMES = [
   { id: "gruvbox-dark", label: "Gruvbox Dark", themeColor: "#282828" },
   { id: "nord", label: "Nord", themeColor: "#2e3440" },
   { id: "solarized-light", label: "Solarized Light", themeColor: "#fdf6e3" },
+  { id: "shadcn-neutral", label: "Shadcn Neutral", themeColor: "#fafafa" },
+  { id: "shadcn-dark", label: "Shadcn Dark", themeColor: "#09090b" },
 ];
 
 const themeIds = new Set(THEMES.map((theme) => theme.id));

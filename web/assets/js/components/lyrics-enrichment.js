@@ -1,4 +1,5 @@
 import { API } from "../api.js";
+import { icon } from "../icons.js";
 import { findActiveIndex, parseLRC } from "../lrc.js";
 import { el, loadWorkflowState, saveWorkflowState, showDialog, updateWorkflowStage } from "../store.js";
 
@@ -223,7 +224,7 @@ class LyricsSyncTest extends HTMLElement {
     this.replaceChildren(el("section", { class: "sync-test" }, [
       el("div", { class: "dialog-header" }, [
         el("strong", { text: "Sync test" }),
-        el("button", { class: "icon-button", type: "button", "aria-label": "Close sync test", onclick: () => this.remove() }, ["×"]),
+        el("button", { class: "icon-button dialog-close", type: "button", "aria-label": "Close sync test", onclick: () => this.remove() }, [icon("x", { size: 18 })]),
       ]),
       this.mount,
       this.linesNode,

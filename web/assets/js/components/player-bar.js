@@ -59,8 +59,9 @@ export class PlayerBar extends HTMLElement {
       if (event.target.closest("button,input,a")) return;
       document.getElementById("lyrics-overlay")?.showModal();
     };
+    const elapsed = el("span", { class: "player-time", text: "0:00" });
+    const total = el("span", { class: "player-time", text: "0:00" });
     const bar = el("div", { class: "player-bar-inner", onclick: openLyrics }, [
-      progress,
       el("div", { class: "player-meta" }, [
         song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" }),
         el("div", {}, [
@@ -68,35 +69,43 @@ export class PlayerBar extends HTMLElement {
           el("span", { class: "muted", text: song.artistName }),
         ]),
       ]),
-      el("div", { class: "player-controls" }, [
-        !isPlayable(song) ? el("span", { class: "player-status muted", text: "Unavailable" }) : null,
-        el("button", { class: "icon-button", type: "button", "aria-label": "Previous", onclick: (e) => { e.stopPropagation(); transitionSongChange(prev, "prev"); } }, [
-          icon("skip-back"),
-        ]),
-        toggle,
-        el("button", { class: "icon-button", type: "button", "aria-label": "Next", onclick: (e) => { e.stopPropagation(); transitionSongChange(next, "next"); } }, [
-          icon("skip-forward"),
-        ]),
+      el("div", { class: "player-seek-zone" }, [
+        progress,
+        el("div", { class: "player-time-row" }, [elapsed, total]),
       ]),
-      el("button", {
-        class: "youtube-link",
-        type: "button",
-        "aria-label": "Edit song",
-        onclick: (e) => { e.stopPropagation(); window.Orpheus?.router?.go(`/songs/${encodeURIComponent(song.trackId)}/edit`); },
-      }, [
-        icon("edit"),
-      ]),
-      el("button", {
-        class: "youtube-link",
-        type: "button",
-        "aria-label": "Play YouTube video",
-        onclick: (e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent("orpheus:open-youtube-player")); },
-      }, [
-        icon("youtube"),
+      el("div", { class: "player-actions" }, [
+        el("div", { class: "player-controls" }, [
+          !isPlayable(song) ? el("span", { class: "player-status muted", text: "Unavailable" }) : null,
+          el("button", { class: "icon-button", type: "button", "aria-label": "Previous", onclick: (e) => { e.stopPropagation(); transitionSongChange(prev, "prev"); } }, [
+            icon("skip-back"),
+          ]),
+          toggle,
+          el("button", { class: "icon-button", type: "button", "aria-label": "Next", onclick: (e) => { e.stopPropagation(); transitionSongChange(next, "next"); } }, [
+            icon("skip-forward"),
+          ]),
+        ]),
+        el("button", {
+          class: "youtube-link",
+          type: "button",
+          "aria-label": "Edit song",
+          onclick: (e) => { e.stopPropagation(); window.Orpheus?.router?.go(`/songs/${encodeURIComponent(song.trackId)}/edit`); },
+        }, [
+          icon("edit"),
+        ]),
+        el("button", {
+          class: "youtube-link",
+          type: "button",
+          "aria-label": "Play YouTube video",
+          onclick: (e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent("orpheus:open-youtube-player")); },
+        }, [
+          icon("youtube"),
+        ]),
       ]),
     ]);
     this.progress = progress;
     this.toggle = toggle;
+    this.elapsed = elapsed;
+    this.total = total;
     this.renderedStatus = null;
     this.replaceChildren(bar);
     this.updatePlayerHeight();
@@ -113,6 +122,8 @@ export class PlayerBar extends HTMLElement {
       this.progress.classList.toggle("is-loading", loading);
       this.progress.toggleAttribute("aria-busy", loading);
       this.progress.disabled = !isPlayable(currentSong());
+      if (this.elapsed) this.elapsed.textContent = formatTime(currentTime);
+      if (this.total) this.total.textContent = formatTime(state.duration || 0);
     }
     if (this.toggle && this.renderedStatus !== state.status) {
       const isPlaying = isActivePlayback(state.status);
@@ -128,6 +139,14 @@ export class PlayerBar extends HTMLElement {
     const height = this.hidden ? 0 : Math.ceil(this.getBoundingClientRect().height);
     if (height > 0) document.documentElement.style.setProperty("--player-height", `${height}px`);
   }
+}
+
+function formatTime(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secondsPart = String(total % 60).padStart(2, "0");
+  return hours ? `${hours}:${String(minutes).padStart(2, "0")}:${secondsPart}` : `${minutes}:${secondsPart}`;
 }
 
 function isActivePlayback(status) {

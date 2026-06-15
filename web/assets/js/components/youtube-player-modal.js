@@ -1,3 +1,4 @@
+import { icon } from "../icons.js";
 import { currentSong, getPlayerState, pause, play, playerStore, seek } from "../player-store.js";
 import { el, toast } from "../store.js";
 
@@ -40,7 +41,7 @@ export class YouTubePlayerModal extends HTMLElement {
     this.dialog = el("dialog", { class: "youtube-player-modal", "aria-label": "YouTube video player" }, [
       el("div", { class: "dialog-header" }, [
         this.titleNode,
-        el("button", { class: "icon-button", type: "button", "aria-label": "Close YouTube video", onclick: () => this.dialog.close() }, ["×"]),
+        el("button", { class: "icon-button dialog-close", type: "button", "aria-label": "Close YouTube video", onclick: () => this.dialog.close() }, [icon("x", { size: 18 })]),
       ]),
       this.mount,
       el("div", { class: "youtube-player-controls" }, [

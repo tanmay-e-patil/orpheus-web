@@ -1,5 +1,6 @@
 import { Router } from "./router.js";
 import { API } from "./api.js";
+import { icon } from "./icons.js";
 import { toast } from "./store.js";
 import { initAudioPlayer } from "./audio-player.js";
 import { clearPlayer } from "./player-store.js";
@@ -48,7 +49,10 @@ document.querySelectorAll(".sign-out-button").forEach((button) => {
 
 window.addEventListener("orpheus:unauthorized", () => clearPlayer());
 
-document.querySelector("[data-close-lyrics]")?.addEventListener("click", () => {
+const closeLyricsButton = document.querySelector("[data-close-lyrics]");
+closeLyricsButton?.classList.add("dialog-close");
+closeLyricsButton?.replaceChildren(icon("x", { size: 18 }));
+closeLyricsButton?.addEventListener("click", () => {
   document.getElementById("lyrics-overlay")?.close();
 });
 
