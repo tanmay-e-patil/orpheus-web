@@ -55,13 +55,9 @@ export class PlayerBar extends HTMLElement {
       event.stopPropagation();
       isActivePlayback(getPlayerState().status) ? pause() : play();
     });
-    const openLyrics = (event) => {
-      if (event.target.closest("button,input,a")) return;
-      document.getElementById("lyrics-overlay")?.showModal();
-    };
     const elapsed = el("span", { class: "player-time", text: "0:00" });
     const total = el("span", { class: "player-time", text: "0:00" });
-    const bar = el("div", { class: "player-bar-inner", onclick: openLyrics }, [
+    const bar = el("div", { class: "player-bar-inner" }, [
       el("div", { class: "player-meta" }, [
         song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" }),
         el("div", {}, [

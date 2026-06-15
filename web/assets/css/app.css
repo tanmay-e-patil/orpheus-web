@@ -584,10 +584,6 @@ h2 {
   min-width: 220px;
 }
 
-.passkey-button::before {
-  content: "\1F511";
-}
-
 .login-card .divider {
   display: flex;
   align-items: center;
@@ -815,11 +811,7 @@ h2 {
 }
 
 .sticky-actions {
-  position: sticky;
-  bottom: calc(var(--player-offset) + 8px);
-  background: color-mix(in srgb, var(--background) 88%, transparent);
-  padding: 12px 0;
-  backdrop-filter: blur(10px);
+  margin: 12px 0 16px;
 }
 
 .track-search-row {

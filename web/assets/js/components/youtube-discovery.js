@@ -94,7 +94,7 @@ export class YouTubeDiscoveryPage extends HTMLElement {
     }, [
       el("div", { class: "video-thumb" }, [
         video.thumbnail ? el("img", { src: video.thumbnail, alt: "", loading: "lazy" }) : null,
-        el("span", { class: `video-check ${video.selected ? "checked" : ""}`, text: video.selected ? "✓" : "" }),
+        el("span", { class: `video-check ${video.selected ? "checked" : ""}` }),
         el("span", { class: `badge confidence-badge ${confidenceTone(video.confidence)}`, text: `${video.confidence}% match` }),
         el("span", { class: "video-duration", text: formatDuration(video.duration) }),
         el("button", {

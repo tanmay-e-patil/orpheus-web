@@ -454,7 +454,7 @@ Replace username/password form with passkey-first flow:
 │          Orpheus            │
 │                             │
 │  ┌───────────────────────┐  │
-│  │  🔑 Sign in with      │  │
+│  │  Sign in with         │  │
 │  │     Passkey            │  │
 │  └───────────────────────┘  │
 │                             │
