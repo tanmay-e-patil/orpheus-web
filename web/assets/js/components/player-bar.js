@@ -81,6 +81,14 @@ export class PlayerBar extends HTMLElement {
       el("button", {
         class: "youtube-link",
         type: "button",
+        "aria-label": "Edit song",
+        onclick: (e) => { e.stopPropagation(); window.Orpheus?.router?.go(`/songs/${encodeURIComponent(song.trackId)}/edit`); },
+      }, [
+        icon("edit"),
+      ]),
+      el("button", {
+        class: "youtube-link",
+        type: "button",
         "aria-label": "Play YouTube video",
         onclick: (e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent("orpheus:open-youtube-player")); },
       }, [

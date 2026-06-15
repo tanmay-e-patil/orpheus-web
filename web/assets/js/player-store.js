@@ -40,9 +40,18 @@ export function setQueue(queue, currentIndex) {
   emit();
 }
 
-export function updateSongAlbumArt(trackId, albumArt) {
-  state.queue = state.queue.map((song) => song.trackId === trackId ? { ...song, albumArt } : song);
+export function updateQueueSong(trackId, patch) {
+  state.queue = state.queue.map((song) => song.trackId === trackId ? { ...song, ...patch } : song);
+  const current = currentSong();
+  if (current?.trackId === trackId && current.isAvailable === false) {
+    state.controller?.pause?.();
+    state.status = "unavailable";
+  }
   emit();
+}
+
+export function updateSongAlbumArt(trackId, albumArt) {
+  updateQueueSong(trackId, { albumArt });
 }
 
 export function updateSongPlayCount(trackId, playCount) {
@@ -55,7 +64,7 @@ export function updateSongLyrics(trackId, plainLyrics, syncedLyrics) {
     ...song,
     lyrics: plainLyrics,
     syncedLyrics,
-    isLyricsAvailable: true,
+    isLyricsAvailable: Boolean(plainLyrics || syncedLyrics),
   } : song);
   emit();
 }

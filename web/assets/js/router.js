@@ -12,6 +12,7 @@ export const routes = [
   { path: "/discover/lyrics", component: "lyrics-enrichment-page", protected: true },
   { path: "/discover/review", component: "review-edit-page", protected: true },
   { path: "/discover/commit", component: "commit-library-page", protected: true },
+  { path: "/songs/:trackId/edit", component: "library-song-edit-page", protected: true, match: (path) => /^\/songs\/[^/]+\/edit$/.test(path) },
 ];
 
 export class Router {
@@ -79,7 +80,7 @@ export class Router {
       setSession(null);
     }
 
-    const route = routes.find((candidate) => candidate.path === path) || routes[0];
+    const route = routes.find((candidate) => candidate.path === path || candidate.match?.(path)) || routes[0];
     if (route.protected && !session?.authenticated) {
       return { path: "/", route: routes[0], session };
     }

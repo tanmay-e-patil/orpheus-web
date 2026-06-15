@@ -2044,3 +2044,93 @@ player-bar .icon-button:disabled {
     transition-duration: 1ms !important;
   }
 }
+
+.edit-song-page {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.page-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.form-grid label,
+.edit-song-page details label {
+  display: grid;
+  gap: 6px;
+}
+
+.edit-song-page input,
+.edit-song-page textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--input);
+  color: var(--foreground);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.edit-song-page textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.inline-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.inline-form input {
+  flex: 1 1 220px;
+}
+
+.result-list {
+  display: grid;
+  gap: 10px;
+}
+
+.edit-song-page .result-card {
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+}
+
+.edit-song-page .result-card img {
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+
+.status-pill {
+  justify-self: start;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+
+.status-pill.success { color: var(--success); }
+.status-pill.warning,
+.warning-text { color: var(--warning); }
+
+.lyrics-preview {
+  white-space: pre-wrap;
+  max-height: 280px;
+  overflow: auto;
+  background: var(--input);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.lyrics-preview.compact {
+  max-height: 120px;
+}

@@ -87,8 +87,21 @@ export const API = {
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return request(`/api/songs${suffix}`, { signal });
   },
+  song: (trackId, signal) => request(`/api/songs/${encodeURIComponent(trackId)}`, { signal }),
   recordSongPlay: (trackId) =>
     request(`/api/songs/${encodeURIComponent(trackId)}/plays`, { method: "POST" }),
+  updateSongMetadata: (trackId, metadata) =>
+    request(`/api/songs/${encodeURIComponent(trackId)}/metadata`, {
+      method: "PATCH",
+      body: JSON.stringify(metadata),
+    }),
+  replaceAudioSource: (trackId, video) =>
+    request(`/api/songs/${encodeURIComponent(trackId)}/audio-source`, {
+      method: "POST",
+      body: JSON.stringify(toYouTubeVideoPayload(video)),
+    }),
+  regenerateSong: (trackId) =>
+    request(`/api/songs/${encodeURIComponent(trackId)}/regenerate`, { method: "POST" }),
   refreshAlbumArt: (trackIds) =>
     request("/api/songs/album-art/refresh", {
       method: "POST",

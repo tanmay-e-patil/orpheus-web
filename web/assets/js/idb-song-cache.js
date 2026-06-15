@@ -139,6 +139,19 @@ export async function writeSongsCacheMeta(userId, meta) {
   await txDone(tx);
 }
 
+export async function clearSongsCache(userId) {
+  if (!("indexedDB" in window)) return;
+  const db = await openDb();
+  const scope = scopeKey(userId);
+  const tx = db.transaction([SONG_STORE, PAGE_STORE, META_STORE], "readwrite");
+  const songs = await req(tx.objectStore(SONG_STORE).index("byScope").getAllKeys(IDBKeyRange.only(scope)));
+  const pages = await req(tx.objectStore(PAGE_STORE).index("byScope").getAllKeys(IDBKeyRange.only(scope)));
+  songs.forEach((key) => tx.objectStore(SONG_STORE).delete(key));
+  pages.forEach((key) => tx.objectStore(PAGE_STORE).delete(key));
+  tx.objectStore(META_STORE).delete(metaKey(scope));
+  await txDone(tx);
+}
+
 export async function upsertSongsPage(userId, cursorIn, page, options = {}) {
   if (!("indexedDB" in window)) return;
   const db = await openDb();

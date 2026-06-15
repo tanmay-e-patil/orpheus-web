@@ -68,8 +68,12 @@ func (s *Server) Routes() http.Handler {
 
 	// Protected API routes
 	mux.Handle("GET /api/songs", s.requireAuth(method(http.MethodGet, handlers.GetSongs(s.Store, UserIDFromContext))))
+	mux.Handle("GET /api/songs/{trackId}", s.requireAuth(method(http.MethodGet, handlers.GetSong(s.Store, UserIDFromContext))))
 	mux.Handle("GET /api/songs/{trackId}/audio", s.requireAuth(method(http.MethodGet, handlers.StreamSongAudio(s.Store, s.Config.MusicLibraryPath))))
 	mux.Handle("POST /api/songs/{trackId}/plays", s.requireAuth(method(http.MethodPost, handlers.RecordSongPlay(s.Store, UserIDFromContext))))
+	mux.Handle("PATCH /api/songs/{trackId}/metadata", s.requireAuth(method(http.MethodPatch, handlers.UpdateSongMetadata(s.Store, s.Queue, UserIDFromContext))))
+	mux.Handle("POST /api/songs/{trackId}/audio-source", s.requireAuth(method(http.MethodPost, handlers.ReplaceAudioSource(s.Store, s.Queue, UserIDFromContext))))
+	mux.Handle("POST /api/songs/{trackId}/regenerate", s.requireAuth(method(http.MethodPost, handlers.RegenerateSong(s.Store, s.Queue, UserIDFromContext))))
 	mux.Handle("POST /api/songs/album-art/refresh", s.requireAuth(method(http.MethodPost, handlers.RefreshAlbumArt(s.Store, s.Deezer))))
 	mux.Handle("POST /api/lyrics/lrclib", s.requireAuth(method(http.MethodPost, handlers.LRCLibExact(s.LRCLib))))
 	mux.Handle("POST /api/lyrics/save", s.requireAuth(method(http.MethodPost, handlers.SaveLyrics(s.Store))))
@@ -116,6 +120,14 @@ func knownAppPath(path string) bool {
 	case "/", "/home", "/settings", "/discover", "/discover/youtube", "/discover/spotify", "/discover/lyrics", "/discover/review", "/discover/commit":
 		return true
 	default:
+		return isSongEditPath(path)
+	}
+}
+
+func isSongEditPath(path string) bool {
+	if !strings.HasPrefix(path, "/songs/") || !strings.HasSuffix(path, "/edit") {
 		return false
 	}
+	id := strings.TrimSuffix(strings.TrimPrefix(path, "/songs/"), "/edit")
+	return id != "" && !strings.Contains(id, "/")
 }

@@ -21,6 +21,7 @@ import "./components/deezer-matching.js";
 import "./components/lyrics-enrichment.js";
 import "./components/review-edit.js";
 import "./components/commit-library.js";
+import "./components/library-song-edit.js";
 
 const router = new Router();
 window.Orpheus = { router };
