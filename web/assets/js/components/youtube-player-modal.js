@@ -33,10 +33,7 @@ export class YouTubePlayerModal extends HTMLElement {
     this.titleNode = el("h2", { text: "YouTube video" });
     this.seekInput = el("input", { class: "youtube-player-seek", type: "range", min: "0", max: "1", value: "0", "aria-label": "Seek audio" });
     this.seekInput.addEventListener("input", () => seek(Number(this.seekInput.value)));
-    this.playButton = el("button", { class: "button secondary", type: "button", onclick: () => {
-      const status = getPlayerState().status;
-      status === "playing" || status === "loading" ? pause() : play();
-    } });
+    this.mount.addEventListener("click", () => this.togglePlayback());
     this.timeLabel = el("span", { class: "muted youtube-player-time", text: "0:00 / 0:00" });
     this.dialog = el("dialog", { class: "youtube-player-modal", "aria-label": "YouTube video player" }, [
       el("div", { class: "dialog-header" }, [
@@ -46,9 +43,8 @@ export class YouTubePlayerModal extends HTMLElement {
       this.mount,
       el("div", { class: "youtube-player-controls" }, [
         this.seekInput,
-        el("div", { class: "youtube-player-controls-row" }, [this.playButton, this.timeLabel]),
+        el("div", { class: "youtube-player-controls-row" }, [this.timeLabel]),
       ]),
-      el("p", { class: "muted youtube-player-note", text: "Video controls are hidden. Use these Orpheus controls; audio continues from the server." }),
     ]);
     this.dialog.addEventListener("close", () => {
       this.active = false;
@@ -187,16 +183,19 @@ export class YouTubePlayerModal extends HTMLElement {
   }
 
   updateControls() {
-    if (!this.seekInput || !this.playButton || !this.timeLabel) return;
+    if (!this.seekInput || !this.timeLabel) return;
     const state = getPlayerState();
     const duration = Math.max(1, Number(state.duration) || 1);
     const currentTime = Math.min(Number(state.currentTime) || 0, duration);
     this.seekInput.max = String(duration);
     this.seekInput.value = String(currentTime);
     this.seekInput.style.setProperty("--seek-progress", `${(currentTime / duration) * 100}%`);
-    const isPlaying = state.status === "playing" || state.status === "loading";
-    this.playButton.textContent = isPlaying ? "Pause" : "Play";
     this.timeLabel.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+  }
+
+  togglePlayback() {
+    const status = getPlayerState().status;
+    status === "playing" || status === "loading" ? pause() : play();
   }
 
   ensureMuted() {

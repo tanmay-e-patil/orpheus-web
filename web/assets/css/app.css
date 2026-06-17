@@ -1718,13 +1718,10 @@ player-bar .youtube-link {
 }
 
 player-bar .icon-button:hover,
-player-bar .youtube-link:hover {
-  transform: translateY(-1px);
-}
-
 player-bar .icon-button:active,
+player-bar .youtube-link:hover,
 player-bar .youtube-link:active {
-  transform: translateY(0) scale(0.98);
+  transform: none;
 }
 
 .youtube-link {
@@ -1742,14 +1739,12 @@ player-bar .youtube-link:active {
   border-radius: var(--radius);
   transition:
     color var(--motion-fast) var(--ease-out),
-    background-color var(--motion-fast) var(--ease-out),
-    transform var(--motion-fast) var(--ease-out);
+    background-color var(--motion-fast) var(--ease-out);
 }
 
 .youtube-link:hover {
   color: var(--foreground);
   background: color-mix(in srgb, var(--foreground) 8%, transparent);
-  transform: translateY(-1px);
 }
 
 player-bar .youtube-link:hover {
@@ -1825,6 +1820,7 @@ player-bar .icon-button:disabled {
   overflow: hidden;
   border-radius: var(--radius);
   background: #000;
+  cursor: pointer;
 }
 
 .youtube-player-frame iframe {
@@ -1891,16 +1887,12 @@ player-bar .icon-button:disabled {
 .youtube-player-controls-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
 }
 
 .youtube-player-time {
   white-space: nowrap;
-}
-
-.youtube-player-note {
-  margin-bottom: 0;
 }
 
 .dialog-header {
