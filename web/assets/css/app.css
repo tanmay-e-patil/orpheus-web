@@ -1861,14 +1861,11 @@ player-bar .icon-button:disabled {
 }
 
 .youtube-player-seek::-webkit-slider-thumb {
-  width: 16px;
-  height: 16px;
-  margin-top: -5px;
+  width: 0;
+  height: 0;
   border: 0;
-  border-radius: 999px;
   appearance: none;
   -webkit-appearance: none;
-  background: var(--accent);
 }
 
 .youtube-player-seek::-moz-range-track {
@@ -1877,11 +1874,10 @@ player-bar .icon-button:disabled {
 }
 
 .youtube-player-seek::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 0;
+  height: 0;
   border: 0;
-  border-radius: 999px;
-  background: var(--accent);
+  background: transparent;
 }
 
 .youtube-player-controls-row {
