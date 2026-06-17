@@ -34,7 +34,8 @@ export class YouTubePlayerModal extends HTMLElement {
     this.seekInput = el("input", { class: "youtube-player-seek", type: "range", min: "0", max: "1", value: "0", "aria-label": "Seek audio" });
     this.seekInput.addEventListener("input", () => seek(Number(this.seekInput.value)));
     this.mount.addEventListener("click", () => this.togglePlayback());
-    this.timeLabel = el("span", { class: "muted youtube-player-time", text: "0:00 / 0:00" });
+    this.elapsedLabel = el("span", { text: "0:00" });
+    this.totalLabel = el("span", { text: "0:00" });
     this.dialog = el("dialog", { class: "youtube-player-modal", "aria-label": "YouTube video player" }, [
       el("div", { class: "dialog-header" }, [
         this.titleNode,
@@ -43,7 +44,7 @@ export class YouTubePlayerModal extends HTMLElement {
       this.mount,
       el("div", { class: "youtube-player-controls" }, [
         this.seekInput,
-        el("div", { class: "youtube-player-controls-row" }, [this.timeLabel]),
+        el("div", { class: "player-time-row youtube-player-time" }, [this.elapsedLabel, this.totalLabel]),
       ]),
     ]);
     this.dialog.addEventListener("close", () => {
@@ -183,14 +184,15 @@ export class YouTubePlayerModal extends HTMLElement {
   }
 
   updateControls() {
-    if (!this.seekInput || !this.timeLabel) return;
+    if (!this.seekInput || !this.elapsedLabel || !this.totalLabel) return;
     const state = getPlayerState();
     const duration = Math.max(1, Number(state.duration) || 1);
     const currentTime = Math.min(Number(state.currentTime) || 0, duration);
     this.seekInput.max = String(duration);
     this.seekInput.value = String(currentTime);
     this.seekInput.style.setProperty("--seek-progress", `${(currentTime / duration) * 100}%`);
-    this.timeLabel.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+    this.elapsedLabel.textContent = formatTime(currentTime);
+    this.totalLabel.textContent = formatTime(duration);
   }
 
   togglePlayback() {

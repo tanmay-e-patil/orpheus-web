@@ -1834,7 +1834,8 @@ player-bar .icon-button:disabled {
 .youtube-player-controls {
   display: grid;
   gap: 10px;
-  margin-top: 14px;
+  margin: 14px auto 0;
+  width: 50%;
 }
 
 .youtube-player-seek {
@@ -1880,15 +1881,8 @@ player-bar .icon-button:disabled {
   background: transparent;
 }
 
-.youtube-player-controls-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
 .youtube-player-time {
-  white-space: nowrap;
+  margin-top: -4px;
 }
 
 .dialog-header {
