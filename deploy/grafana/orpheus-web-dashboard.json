@@ -1,0 +1,119 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [{ "expr": "sum by (route, status) (rate(orpheus_http_requests_total{job=\"orpheus-web\"}[5m]))", "legendFormat": "{{route}} {{status}}", "refId": "A" }],
+      "title": "Request rate by route/status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "targets": [{ "expr": "histogram_quantile(0.99, sum by (le, route) (rate(orpheus_http_request_duration_seconds_bucket{job=\"orpheus-web\"}[5m])))", "legendFormat": "{{route}}", "refId": "A" }],
+      "title": "p99 latency by route",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, route) (rate(orpheus_http_request_duration_seconds_bucket{job=\"orpheus-web\"}[5m])))", "legendFormat": "{{route}}", "refId": "A" }],
+      "title": "p95 latency by route",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+      "id": 4,
+      "targets": [{ "expr": "sum(rate(orpheus_http_requests_total{job=\"orpheus-web\",status=~\"5..\"}[5m]))", "legendFormat": "5xx", "refId": "A" }],
+      "title": "5xx rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+      "id": 5,
+      "targets": [{ "expr": "sum(rate(orpheus_http_requests_total{job=\"orpheus-web\",status=~\"4..\"}[5m]))", "legendFormat": "4xx", "refId": "A" }],
+      "title": "4xx rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 6,
+      "targets": [{ "expr": "sum(rate(orpheus_queue_publish_total{job=\"orpheus-web\",result=\"failed\"}[5m]))", "legendFormat": "failed", "refId": "A" }],
+      "title": "RabbitMQ publish failures",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 7,
+      "targets": [{ "expr": "sum by (result) (rate(orpheus_queue_publish_total{job=\"orpheus-web\"}[5m]))", "legendFormat": "{{result}}", "refId": "A" }],
+      "title": "RabbitMQ publish result rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 8,
+      "targets": [{ "expr": "go_memstats_alloc_bytes{job=\"orpheus-web\"}", "legendFormat": "allocated", "refId": "A" }],
+      "title": "Go memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 9,
+      "targets": [{ "expr": "go_goroutines{job=\"orpheus-web\"}", "legendFormat": "goroutines", "refId": "A" }],
+      "title": "Goroutines",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["orpheus-web"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Prometheus",
+        "multi": false,
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "title": "Orpheus Web",
+  "uid": "orpheus-web",
+  "version": 1,
+  "weekStart": ""
+}

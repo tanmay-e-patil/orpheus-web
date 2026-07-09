@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"orpheus-web/internal/http/handlers"
+	"orpheus-web/internal/metrics"
 )
 
 func (s *Server) requireAuth(next http.Handler) http.Handler {
@@ -61,13 +62,15 @@ func logRequests(next http.Handler) http.Handler {
 		if recorder.status == 0 {
 			recorder.status = http.StatusOK
 		}
+		duration := time.Since(start)
+		metrics.ObserveHTTPRequest(r.Method, r.Pattern, recorder.status, duration)
 		log.Printf(
 			"request method=%s path=%s status=%d bytes=%d duration=%s remote=%s",
 			r.Method,
 			r.URL.Path,
 			recorder.status,
 			recorder.bytes,
-			time.Since(start).Round(time.Millisecond),
+			duration.Round(time.Millisecond),
 			r.RemoteAddr,
 		)
 	})

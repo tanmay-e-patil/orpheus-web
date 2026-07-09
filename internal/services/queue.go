@@ -8,6 +8,8 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+
+	"orpheus-web/internal/metrics"
 )
 
 const (
@@ -38,8 +40,18 @@ func (q *QueuePublisher) Enabled() bool {
 
 func (q *QueuePublisher) PublishProcessSong(ctx context.Context, trackID string) error {
 	if !q.Enabled() {
+		metrics.ObserveQueuePublish(JobQueueName, "disabled")
 		return nil
 	}
+	if err := q.publishProcessSong(ctx, trackID); err != nil {
+		metrics.ObserveQueuePublish(JobQueueName, "failed")
+		return err
+	}
+	metrics.ObserveQueuePublish(JobQueueName, "success")
+	return nil
+}
+
+func (q *QueuePublisher) publishProcessSong(ctx context.Context, trackID string) error {
 	ch, err := q.channel()
 	if err != nil {
 		return err

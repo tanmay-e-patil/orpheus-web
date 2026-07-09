@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"orpheus-web/internal/config"
 	"orpheus-web/internal/http/handlers"
 	"orpheus-web/internal/services"
@@ -48,6 +50,7 @@ func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.Handle("GET /healthz", method(http.MethodGet, handlers.Health))
+	mux.Handle("GET /metrics", promhttp.Handler())
 
 	// Auth — public
 	mux.Handle("POST /api/auth/register", method(http.MethodPost, handlers.Register(s.Auth)))
