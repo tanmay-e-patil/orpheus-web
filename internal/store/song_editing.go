@@ -37,6 +37,13 @@ type SongMetadataUpdate struct {
 
 type PublishSongFunc func(context.Context, string) error
 
+func metadataRequiresRegeneration(current, next SongMetadataUpdate) bool {
+	return current.Name != next.Name ||
+		current.ArtistName != next.ArtistName ||
+		current.AlbumName != next.AlbumName ||
+		current.AlbumArt != next.AlbumArt
+}
+
 func (s *Store) FetchLibrarySong(ctx context.Context, userID, trackID string) (types.LibrarySong, *types.YouTubeVideo, error) {
 	row := s.Pool.QueryRow(ctx, librarySongSelect()+`
 		where songs.id = $1
@@ -55,12 +62,13 @@ func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, 
 	}
 	defer tx.Rollback(ctx)
 
-	var currentAlbumArt string
-	err = tx.QueryRow(ctx, `select album_art from songs where id = $1 for update`, trackID).Scan(&currentAlbumArt)
+	var current SongMetadataUpdate
+	err = tx.QueryRow(ctx, `select name, artist_name, album_name, album_art from songs where id = $1 for update`, trackID).
+		Scan(&current.Name, &current.ArtistName, &current.AlbumName, &current.AlbumArt)
 	if err != nil {
 		return SongEditResponse{}, err
 	}
-	regen := currentAlbumArt != in.AlbumArt
+	regen := metadataRequiresRegeneration(current, in)
 	args := []any{in.Name, in.ArtistName, in.AlbumName, in.AlbumArt, regen, trackID}
 	query := `update songs set name = $1, artist_name = $2, album_name = $3, album_art = $4, is_available = case when $5 then false else is_available end, updated_at = now()`
 	if releaseDate != "" {
