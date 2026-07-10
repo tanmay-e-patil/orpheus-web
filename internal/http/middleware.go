@@ -2,12 +2,15 @@ package apphttp
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"orpheus-web/internal/http/handlers"
 	"orpheus-web/internal/metrics"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (s *Server) requireAuth(next http.Handler) http.Handler {
@@ -63,15 +66,24 @@ func logRequests(next http.Handler) http.Handler {
 			recorder.status = http.StatusOK
 		}
 		duration := time.Since(start)
-		metrics.ObserveHTTPRequest(r.Method, r.Pattern, recorder.status, duration)
-		log.Printf(
-			"request method=%s path=%s status=%d bytes=%d duration=%s remote=%s",
-			r.Method,
-			r.URL.Path,
-			recorder.status,
-			recorder.bytes,
-			duration.Round(time.Millisecond),
-			r.RemoteAddr,
+		route := r.Pattern
+		if route == "" {
+			route = "unmatched"
+		}
+		metrics.ObserveHTTPRequest(r.Method, route, recorder.status, duration)
+		span := trace.SpanFromContext(r.Context())
+		if span.IsRecording() {
+			span.SetName(r.Method + " " + route)
+			span.SetAttributes(attribute.String("http.route", route))
+		}
+		slog.InfoContext(r.Context(), "HTTP request",
+			"component", "http",
+			"method", r.Method,
+			"route", route,
+			"path", r.URL.Path,
+			"status", recorder.status,
+			"response_bytes", recorder.bytes,
+			"duration_ms", duration.Milliseconds(),
 		)
 	})
 }

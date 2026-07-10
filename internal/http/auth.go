@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -45,49 +45,34 @@ func NewAuthService(cfg config.Config, db *store.Store) *AuthService {
 // Falls back to legacy env-var credentials for migration, auto-provisioning a DB user.
 func (a *AuthService) ValidateCredentials(email, password string) (*store.User, bool) {
 	ctx := context.Background()
-	log.Printf("auth login attempt email=%q legacy_email_configured=%t legacy_password_configured=%t", email, a.cfg.AuthUsername != "", a.cfg.AuthPassword != "" || a.cfg.AuthPasswordHash != "")
 
 	// 1. Try DB lookup first (normal path)
 	user, err := a.store.GetUserByEmail(ctx, email)
 	if err == nil {
-		log.Printf("auth db user found email=%q user_id=%q", email, user.ID)
 		// Found user — check password from account table
 		hash, hashErr := a.store.GetPasswordForUser(ctx, user.ID)
-		if hashErr != nil {
-			log.Printf("auth db password lookup failed email=%q user_id=%q error=%v", email, user.ID, hashErr)
-		} else if hash == "" {
-			log.Printf("auth db password missing email=%q user_id=%q", email, user.ID)
-		} else if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil {
-			log.Printf("auth db password matched email=%q user_id=%q", email, user.ID)
+		if hashErr == nil && hash != "" && bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil {
 			return user, true
-		} else {
-			log.Printf("auth db password mismatch email=%q user_id=%q", email, user.ID)
 		}
 		// DB password didn't match — fall through to legacy check
-	} else {
-		log.Printf("auth db user lookup failed email=%q error=%v", email, err)
 	}
 
 	// 2. Legacy migration fallback: check env-var credentials
 	if a.cfg.AuthUsername != "" && (a.cfg.AuthPassword != "" || a.cfg.AuthPasswordHash != "") {
 		if email != a.cfg.AuthUsername {
-			log.Printf("auth legacy email mismatch login_email=%q configured_email=%q", email, a.cfg.AuthUsername)
 			return nil, false
 		}
 		if a.cfg.AuthPasswordHash != "" {
 			if bcrypt.CompareHashAndPassword([]byte(a.cfg.AuthPasswordHash), []byte(password)) != nil {
-				log.Printf("auth legacy password hash mismatch email=%q", email)
 				return nil, false
 			}
 		} else if password != a.cfg.AuthPassword {
-			log.Printf("auth legacy password mismatch email=%q", email)
 			return nil, false
 		}
-		log.Printf("auth legacy credentials matched email=%q", email)
 		// Legacy match — auto-provision user in DB
 		user, err = a.provisionFromLegacy(ctx, email, password)
 		if err != nil {
-			log.Printf("auth legacy provision failed email=%q error=%v", email, err)
+			slog.ErrorContext(ctx, "legacy user provisioning failed", "component", "auth", "error", err)
 			return nil, false
 		}
 		return user, true

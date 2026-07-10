@@ -87,6 +87,34 @@
       "targets": [{ "expr": "go_goroutines{job=\"orpheus-web\"}", "legendFormat": "goroutines", "refId": "A" }],
       "title": "Goroutines",
       "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 32 },
+      "id": 10,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "expr": "{service=~\"orpheus-web|orpheus-consumer\", level=~\"ERROR|WARN\"}", "refId": "A" }],
+      "title": "Recent errors and warnings",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 32 },
+      "id": 11,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "expr": "{service=\"orpheus-web\"} | json | status >= 500", "refId": "A" }],
+      "title": "HTTP 5xx logs",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 42 },
+      "id": 12,
+      "options": { "cellHeight": "sm", "showHeader": true },
+      "targets": [{ "query": "{ resource.service.name =~ `orpheus-(web|consumer)` && duration > 1s }", "queryType": "traceql", "refId": "A", "tableType": "traces" }],
+      "title": "Slow traces (>1s)",
+      "type": "table"
     }
   ],
   "refresh": "30s",
@@ -104,6 +132,32 @@
         "name": "DS_PROMETHEUS",
         "options": [],
         "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Loki",
+        "multi": false,
+        "name": "DS_LOKI",
+        "options": [],
+        "query": "loki",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Tempo",
+        "multi": false,
+        "name": "DS_TEMPO",
+        "options": [],
+        "query": "tempo",
         "refresh": 1,
         "regex": "",
         "type": "datasource"

@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -36,18 +36,18 @@ func CommitWorkflow(db *store.Store, queue *services.QueuePublisher) http.Handle
 				continue
 			}
 			if err := db.UpsertSongAndVideo(r.Context(), upsert, item.Video); err != nil {
-				log.Printf("commit workflow: store song failed track_id=%q error=%v", upsert.TrackID, err)
+				slog.ErrorContext(r.Context(), "commit store failed", "component", "workflow", "track_id", upsert.TrackID, "error", err)
 				result.Error = retryableCommitError
 				results = append(results, result)
 				continue
 			}
 			if err := publishWithTimeout(r.Context(), queue, upsert.TrackID); err != nil {
-				log.Printf("commit workflow: RabbitMQ publish failed track_id=%q error=%v", upsert.TrackID, err)
+				slog.ErrorContext(r.Context(), "commit RabbitMQ publish failed", "component", "workflow", "track_id", upsert.TrackID, "error", err)
 				result.Error = retryableCommitError
 				results = append(results, result)
 				continue
 			}
-			log.Printf("commit workflow: queued song processing track_id=%q", upsert.TrackID)
+			slog.InfoContext(r.Context(), "song processing queued", "component", "workflow", "track_id", upsert.TrackID)
 			result.TrackID = upsert.TrackID
 			result.Success = true
 			results = append(results, result)
@@ -58,7 +58,7 @@ func CommitWorkflow(db *store.Store, queue *services.QueuePublisher) http.Handle
 
 func publishWithTimeout(ctx context.Context, queue *services.QueuePublisher, trackID string) error {
 	if queue == nil || !queue.Enabled() {
-		log.Printf("commit workflow: RabbitMQ publish skipped track_id=%q reason=disabled", trackID)
+		slog.InfoContext(ctx, "RabbitMQ publish skipped", "component", "workflow", "track_id", trackID, "reason", "disabled")
 		return nil
 	}
 	publishCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

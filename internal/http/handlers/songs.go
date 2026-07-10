@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -49,7 +49,7 @@ func GetSongs(db *store.Store, userIDFromContext func(context.Context) (string, 
 		}
 		page, err := db.FetchSongsPage(r.Context(), store.FetchSongsOptions{UserID: userID, Cursor: cursor, Limit: limit, Sort: sort})
 		if err != nil {
-			log.Printf("api songs fetch failed cursor=%+v limit=%d error=%v", cursor, limit, err)
+			slog.ErrorContext(r.Context(), "songs fetch failed", "component", "api", "limit", limit, "error", err)
 			Error(w, http.StatusInternalServerError, "songs_failed", "Could not fetch songs")
 			return
 		}
@@ -79,7 +79,7 @@ func RecordSongPlay(db *store.Store, userIDFromContext func(context.Context) (st
 				Error(w, http.StatusConflict, "unavailable", "Song unavailable")
 				return
 			}
-			log.Printf("api song play record failed track_id=%q error=%v", trackID, err)
+			slog.ErrorContext(r.Context(), "song play recording failed", "component", "api", "track_id", trackID, "error", err)
 			Error(w, http.StatusInternalServerError, "play_record_failed", "Could not record play")
 			return
 		}
@@ -96,7 +96,7 @@ func RefreshAlbumArt(db *store.Store, deezer *services.DeezerClient) http.Handle
 		}
 		updated, err := deezer.RefreshAlbumArt(r.Context(), db, body.TrackIDs)
 		if err != nil {
-			log.Printf("api album art refresh failed track_count=%d error=%v", len(body.TrackIDs), err)
+			slog.ErrorContext(r.Context(), "album art refresh failed", "component", "api", "track_count", len(body.TrackIDs), "error", err)
 			Error(w, http.StatusInternalServerError, "album_art_failed", "Could not refresh album art")
 			return
 		}
@@ -124,7 +124,7 @@ func SaveLyrics(db *store.Store) http.HandlerFunc {
 				Error(w, http.StatusNotFound, "not_found", "Song not found")
 				return
 			}
-			log.Printf("api lyrics save failed track_id=%q error=%v", trackID, err)
+			slog.ErrorContext(r.Context(), "lyrics save failed", "component", "api", "track_id", trackID, "error", err)
 			Error(w, http.StatusInternalServerError, "lyrics_save_failed", "Could not save lyrics")
 			return
 		}
