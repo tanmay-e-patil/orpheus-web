@@ -8,6 +8,10 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"orpheus-web/internal/metrics"
 )
@@ -51,7 +55,24 @@ func (q *QueuePublisher) PublishProcessSong(ctx context.Context, trackID string)
 	return nil
 }
 
-func (q *QueuePublisher) publishProcessSong(ctx context.Context, trackID string) error {
+func (q *QueuePublisher) publishProcessSong(ctx context.Context, trackID string) (err error) {
+	ctx, span := otel.Tracer("orpheus-web/rabbitmq").Start(ctx, "rabbitmq publish "+JobQueueName,
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "rabbitmq"),
+			attribute.String("messaging.destination.name", JobQueueName),
+			attribute.String("messaging.operation.name", "publish"),
+			attribute.String("job.id", trackID),
+		),
+	)
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "RabbitMQ publish failed")
+		}
+		span.End()
+	}()
+
 	ch, err := q.channel()
 	if err != nil {
 		return err
@@ -68,19 +89,39 @@ func (q *QueuePublisher) publishProcessSong(ctx context.Context, trackID string)
 	if err != nil {
 		return err
 	}
-	if err := ch.PublishWithContext(ctx, "", JobQueueName, false, false, amqp.Publishing{
+	headers := amqp.Table{
+		"x-job-id":  trackID,
+		"x-song-id": trackID,
+	}
+	otel.GetTextMapPropagator().Inject(ctx, amqpHeaderCarrier(headers))
+	if err = ch.PublishWithContext(ctx, "", JobQueueName, false, false, amqp.Publishing{
 		DeliveryMode: amqp.Persistent,
 		ContentType:  "application/json",
 		Body:         body,
-		Headers: amqp.Table{
-			"x-job-id":  trackID,
-			"x-song-id": trackID,
-		},
+		Headers:      headers,
+		Timestamp:    time.Now().UTC(),
 	}); err != nil {
 		q.reset()
 		return fmt.Errorf("publish RabbitMQ job to %s: %w", JobQueueName, err)
 	}
 	return nil
+}
+
+type amqpHeaderCarrier amqp.Table
+
+func (c amqpHeaderCarrier) Get(key string) string {
+	value, _ := c[key].(string)
+	return value
+}
+
+func (c amqpHeaderCarrier) Set(key, value string) { c[key] = value }
+
+func (c amqpHeaderCarrier) Keys() []string {
+	keys := make([]string, 0, len(c))
+	for key := range c {
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 func (q *QueuePublisher) Close() {

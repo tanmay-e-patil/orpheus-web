@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"orpheus-web/internal/config"
 	"orpheus-web/internal/http/handlers"
@@ -89,7 +90,11 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("POST /api/discover/commit", s.requireAuth(method(http.MethodPost, handlers.CommitWorkflow(s.Store, s.Queue))))
 
 	mux.HandleFunc("/", s.staticOrShell)
-	return logRequests(mux)
+	return otelhttp.NewHandler(logRequests(mux), "http.server",
+		otelhttp.WithFilter(func(r *http.Request) bool {
+			return r.URL.Path != "/healthz" && r.URL.Path != "/metrics"
+		}),
+	)
 }
 
 func (s *Server) staticOrShell(w http.ResponseWriter, r *http.Request) {

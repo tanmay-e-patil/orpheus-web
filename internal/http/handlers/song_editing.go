@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -32,7 +32,7 @@ func GetSong(db *store.Store, userIDFromContext func(context.Context) (string, b
 				Error(w, http.StatusNotFound, "not_found", "Song not found")
 				return
 			}
-			log.Printf("api song fetch failed track_id=%q error=%v", trackID, err)
+			slog.ErrorContext(r.Context(), "song fetch failed", "component", "api", "track_id", trackID, "error", err)
 			Error(w, http.StatusInternalServerError, "song_failed", "Could not fetch song")
 			return
 		}
@@ -65,7 +65,7 @@ func UpdateSongMetadata(db *store.Store, queue *services.QueuePublisher, userIDF
 		resp, err := db.UpdateSongMetadata(r.Context(), userID, r.PathValue("trackId"), store.SongMetadataUpdate{
 			Name: strings.TrimSpace(body.Name), ArtistName: strings.TrimSpace(body.ArtistName), AlbumName: strings.TrimSpace(body.AlbumName), AlbumArt: body.AlbumArt, ReleaseDate: body.ReleaseDate,
 		}, queue.Enabled(), queue.PublishProcessSong)
-		writeSongEditResponse(w, resp, err)
+		writeSongEditResponse(r.Context(), w, resp, err)
 	}
 }
 
@@ -86,7 +86,7 @@ func ReplaceAudioSource(db *store.Store, queue *services.QueuePublisher, userIDF
 			return
 		}
 		resp, err := db.ReplaceAudioSource(r.Context(), userID, r.PathValue("trackId"), video, queue.Enabled(), queue.PublishProcessSong)
-		writeSongEditResponse(w, resp, err)
+		writeSongEditResponse(r.Context(), w, resp, err)
 	}
 }
 
@@ -98,11 +98,11 @@ func RegenerateSong(db *store.Store, queue *services.QueuePublisher, userIDFromC
 			return
 		}
 		resp, err := db.RegenerateSong(r.Context(), userID, r.PathValue("trackId"), queue.Enabled(), queue.PublishProcessSong)
-		writeSongEditResponse(w, resp, err)
+		writeSongEditResponse(r.Context(), w, resp, err)
 	}
 }
 
-func writeSongEditResponse(w http.ResponseWriter, resp store.SongEditResponse, err error) {
+func writeSongEditResponse(ctx context.Context, w http.ResponseWriter, resp store.SongEditResponse, err error) {
 	if err != nil {
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
@@ -114,7 +114,7 @@ func writeSongEditResponse(w http.ResponseWriter, resp store.SongEditResponse, e
 		case errors.Is(err, store.ErrNoAudioSource):
 			Error(w, http.StatusConflict, "no_audio_source", "Song has no audio source")
 		default:
-			log.Printf("api song edit failed error=%v", err)
+			slog.ErrorContext(ctx, "song edit failed", "component", "api", "error", err)
 			Error(w, http.StatusInternalServerError, "song_edit_failed", "Could not update song")
 		}
 		return

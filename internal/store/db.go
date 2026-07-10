@@ -5,10 +5,11 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"sort"
 	"strings"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -20,7 +21,12 @@ type Store struct {
 }
 
 func Open(ctx context.Context, databaseURL string) (*Store, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
+	cfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithDisableSQLStatementInAttributes())
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +96,7 @@ func (s *Store) MigrateUp(ctx context.Context) error {
 			return fmt.Errorf("read migration %s: %w", entry, err)
 		}
 
-		log.Printf("Running migration: %s", version)
+		slog.InfoContext(ctx, "running database migration", "component", "database", "version", version)
 
 		// Run each statement separately (pgx doesn't support multi-statement in Exec)
 		statements := splitStatements(string(sql))
@@ -110,7 +116,7 @@ func (s *Store) MigrateUp(ctx context.Context) error {
 			return fmt.Errorf("record migration %s: %w", version, err)
 		}
 
-		log.Printf("Migration complete: %s", version)
+		slog.InfoContext(ctx, "database migration complete", "component", "database", "version", version)
 	}
 
 	return nil

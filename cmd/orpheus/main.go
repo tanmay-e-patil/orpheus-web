@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,33 +16,52 @@ import (
 	"orpheus-web/internal/config"
 	"orpheus-web/internal/services"
 	"orpheus-web/internal/store"
+	"orpheus-web/internal/telemetry"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	environment := os.Getenv("APP_ENV")
+	if environment == "" {
+		environment = "development"
+	}
+	shutdownTelemetry, err := telemetry.Setup(ctx, "orpheus-web", environment)
+	if err != nil {
+		slog.Error("telemetry setup failed", "error", err)
+		os.Exit(1)
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("config: %v", err)
+		slog.Error("config load failed", "error", err)
+		os.Exit(1)
 	}
 	db, err := store.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("database: %v", err)
+		slog.Error("database connection failed", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	if err := db.MigrateUp(ctx); err != nil {
-		log.Fatalf("migrations: %v", err)
+		slog.Error("database migration failed", "error", err)
+		os.Exit(1)
 	}
 
-	httpClient := &http.Client{Timeout: cfg.HTTPTimeout}
+	httpClient := &http.Client{
+		Timeout:   cfg.HTTPTimeout,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+	}
 	queue := services.NewQueuePublisher(cfg.RabbitMQURL)
 	defer queue.Close()
 	if queue.Enabled() {
-		log.Printf("RabbitMQ publishing enabled queue=%s", services.JobQueueName)
+		slog.Info("RabbitMQ publishing enabled", "queue", services.JobQueueName)
 	} else {
-		log.Printf("RabbitMQ publishing disabled: RABBITMQ_URL is empty")
+		slog.Info("RabbitMQ publishing disabled", "reason", "RABBITMQ_URL is empty")
 	}
 
 	webDir := filepath.Join("web")
@@ -63,9 +82,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Orpheus Go app listening on http://localhost:%s", cfg.Port)
+		slog.Info("server listening", "port", cfg.Port)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("server: %v", err)
+			slog.Error("server failed", "error", err)
+			stop()
 		}
 	}()
 
@@ -73,6 +93,9 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		log.Printf("shutdown: %v", err)
+		slog.Error("server shutdown failed", "error", err)
+	}
+	if err := shutdownTelemetry(shutdownCtx); err != nil {
+		slog.Error("telemetry shutdown failed", "error", err)
 	}
 }

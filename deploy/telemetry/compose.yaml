@@ -1,0 +1,39 @@
+services:
+  alloy:
+    image: grafana/alloy:v1.17.1
+    restart: unless-stopped
+    user: "0"
+    command: run --disable-reporting --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+    networks:
+      - dokploy-network
+
+  loki:
+    image: grafana/loki:3.6.3
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yaml
+    volumes:
+      - ./loki.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - dokploy-network
+
+  tempo:
+    image: grafana/tempo:2.9.0
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/config.yaml
+    volumes:
+      - ./tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo
+    networks:
+      - dokploy-network
+
+volumes:
+  loki-data:
+  tempo-data:
+
+networks:
+  dokploy-network:
+    external: true
