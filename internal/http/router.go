@@ -106,6 +106,7 @@ func (s *Server) staticOrShell(w http.ResponseWriter, r *http.Request) {
 		handlers.Error(w, http.StatusNotFound, "not_found", "Not found")
 		return
 	}
+	w.Header().Set("Cache-Control", "no-cache")
 	if strings.HasPrefix(r.URL.Path, "/assets/") || r.URL.Path == "/manifest.webmanifest" {
 		http.ServeFile(w, r, filepath.Join(s.WebDir, strings.TrimPrefix(filepath.Clean(r.URL.Path), "/")))
 		return
