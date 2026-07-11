@@ -1500,9 +1500,8 @@ h2 {
 .lyrics-header {
   z-index: 2;
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
-  align-items: end;
   padding-bottom: 8px;
   background: var(--background);
 }
@@ -1513,8 +1512,9 @@ h2 {
 
 .lyrics-header img,
 .lyrics-header .album-placeholder {
-  width: 96px;
-  height: 96px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
 }
 
 .lyrics-header h2 {
