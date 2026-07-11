@@ -2,6 +2,24 @@
 
 Parallel implementation of Orpheus using a Go backend and static browser-native JavaScript.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    Browser[Browser\nVanilla JS] -->|HTTP / JSON| App[Orpheus Web\nGo HTTP server]
+    App -->|queries and migrations| DB[(PostgreSQL)]
+    App -->|search and metadata| APIs[YouTube · Deezer · LRCLib]
+    App -->|download jobs| Queue[(RabbitMQ)]
+    Queue --> Consumer[orpheus-consumer]
+    Consumer -->|writes audio| Music[(Shared music library)]
+    Consumer -->|marks available| DB
+    App -->|streams .m4a| Music
+```
+
+The Go server also serves the static frontend from `web/`. Audio processing is
+handled out of process by `orpheus-consumer`; both applications must use the
+same database and music-library directory.
+
 ## Run
 
 Set the required environment variables:
