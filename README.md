@@ -25,23 +25,32 @@ same database and music-library directory.
 Set the required environment variables:
 
 ```sh
-export DATABASE_URL='postgres://...'
-export AUTH_USERNAME='...'
-export AUTH_PASSWORD='...'
-export AUTH_COOKIE_SECRET='change-me'
-export YOUTUBE_API_KEY='...'
-export RABBITMQ_URL='amqp://...'
-export MUSIC_LIBRARY_PATH='/music'
-export DOMAIN='http://localhost:8080'
-export PORT='8080'
+export DATABASE_URL='postgres://user:password@localhost:5432/orpheus'
+export AUTH_COOKIE_SECRET='replace-with-a-long-random-secret'
+export DOMAIN='localhost'
+export AUTH_RP_ORIGIN='http://localhost:8080'
 ```
 
-`RABBITMQ_URL` is required in production so committed songs can be queued for
-`orpheus-consumer`. In development, leaving it empty disables queue publishing:
-the song metadata is stored, but the downloaded file will not be created and
-`songs.is_available` remains false until a consumer processes the job.
-`MUSIC_LIBRARY_PATH` must point at the same directory used by `orpheus-consumer`
-so the Go app can stream available `.m4a` files.
+Optional configuration:
+
+```sh
+export YOUTUBE_API_KEY=''              # Required for YouTube discovery
+export RABBITMQ_URL='amqp://localhost' # Required when APP_ENV=production
+export MUSIC_LIBRARY_PATH='/music'     # Defaults to /music
+export PORT='8080'                     # Defaults to 8080
+export APP_ENV='development'           # Use production for secure cookies
+export HTTP_TIMEOUT_SECONDS='15'       # External API timeout
+```
+
+`DOMAIN` is the WebAuthn relying-party ID (a hostname without a scheme), while
+`AUTH_RP_ORIGIN` is the full browser origin. `RABBITMQ_URL` enables publishing
+committed songs to `orpheus-consumer`; if omitted in development, metadata is
+stored but no audio file is generated. `MUSIC_LIBRARY_PATH` must point at the
+same directory used by the consumer.
+
+`AUTH_EMAIL` (or `AUTH_USERNAME`) plus `AUTH_PASSWORD` or `AUTH_PASSWORD_HASH`
+are optional legacy credentials. On first successful login they are migrated
+to the database and are no longer needed.
 
 Then run:
 
