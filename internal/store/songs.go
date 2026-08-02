@@ -18,8 +18,9 @@ const maxSongLimit = 100
 type SongSort string
 
 const (
-	SongSortArtist     SongSort = "artist"
-	SongSortMostPlayed SongSort = "mostPlayed"
+	SongSortArtist        SongSort = "artist"
+	SongSortMostPlayed    SongSort = "mostPlayed"
+	SongSortRecentlyAdded SongSort = "recentlyAdded"
 )
 
 type FetchSongsOptions struct {
@@ -63,22 +64,29 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 	query := `
 		select songs.id, songs.name, songs.artist_name, songs.album_name, songs.album_art, songs.duration, songs.yt_video_id,
 		       songs.lyrics, songs.synced_lyrics, songs.is_lyrics_available, coalesce(songs.is_available, false),
-		       coalesce(usp.play_count, 0)
+		       coalesce(usp.play_count, 0), songs.created_at
 		from songs
 		left join user_song_plays usp on usp.track_id = songs.id and usp.user_id = $2
 	`
 	if opts.Cursor != nil {
-		if opts.Sort == SongSortMostPlayed {
+		switch opts.Sort {
+		case SongSortMostPlayed:
 			query += ` where coalesce(usp.play_count, 0) < $3 or (coalesce(usp.play_count, 0) = $3 and songs.artist_name > $4) or (coalesce(usp.play_count, 0) = $3 and songs.artist_name = $4 and songs.id > $5)`
 			args = append(args, opts.Cursor.PlayCount, opts.Cursor.ArtistName, opts.Cursor.TrackID)
-		} else {
+		case SongSortRecentlyAdded:
+			query += ` where songs.created_at < $3 or (songs.created_at = $3 and songs.id > $4)`
+			args = append(args, opts.Cursor.CreatedAt, opts.Cursor.TrackID)
+		default:
 			query += ` where songs.artist_name > $3 or (songs.artist_name = $3 and songs.id > $4)`
 			args = append(args, opts.Cursor.ArtistName, opts.Cursor.TrackID)
 		}
 	}
-	if opts.Sort == SongSortMostPlayed {
+	switch opts.Sort {
+	case SongSortMostPlayed:
 		query += ` order by coalesce(usp.play_count, 0) desc, songs.artist_name asc, songs.id asc limit $1`
-	} else {
+	case SongSortRecentlyAdded:
+		query += ` order by songs.created_at desc, songs.id asc limit $1`
+	default:
 		query += ` order by songs.artist_name asc, songs.id asc limit $1`
 	}
 
@@ -106,6 +114,7 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 			&isLyrics,
 			&song.IsAvailable,
 			&song.PlayCount,
+			&song.CreatedAt,
 		); err != nil {
 			return types.SongsPageResponse{}, err
 		}
@@ -136,6 +145,9 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 	if hasMore && len(songs) > 0 {
 		last := songs[len(songs)-1]
 		nextCursor = &types.SongCursor{ArtistName: last.ArtistName, TrackID: last.TrackID, PlayCount: last.PlayCount}
+		if opts.Sort == SongSortRecentlyAdded {
+			nextCursor.CreatedAt = &last.CreatedAt
+		}
 	}
 	return types.SongsPageResponse{
 		Songs:        songs,

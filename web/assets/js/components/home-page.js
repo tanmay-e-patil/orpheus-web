@@ -12,7 +12,8 @@ export class HomePage extends HTMLElement {
     this.visibleSongs = [];
     this.searchableSongs = [];
     this.searchQuery = new URLSearchParams(window.location.search).get("q") || "";
-    this.sort = new URLSearchParams(window.location.search).get("sort") === "mostPlayed" ? "mostPlayed" : "artist";
+    const requestedSort = new URLSearchParams(window.location.search).get("sort");
+    this.sort = ["mostPlayed", "recentlyAdded"].includes(requestedSort) ? requestedSort : "artist";
     this.cacheComplete = false;
     this.hydratingCache = false;
     this.loading = false;
@@ -53,6 +54,7 @@ export class HomePage extends HTMLElement {
     this.sortSelect = el("select", { class: "input track-sort-select", "aria-label": "Sort tracks" }, [
       el("option", { value: "artist", text: "Artist A-Z", selected: this.sort === "artist" }),
       el("option", { value: "mostPlayed", text: "Most played", selected: this.sort === "mostPlayed" }),
+      el("option", { value: "recentlyAdded", text: "Recently added", selected: this.sort === "recentlyAdded" }),
     ]);
     this.boundary = el("div", { class: "scroll-boundary" });
     this.replaceChildren(el("section", { class: "page home-page" }, [
@@ -74,7 +76,7 @@ export class HomePage extends HTMLElement {
     this.addEventListener("albumartfailed", (event) => this.queueAlbumArtRefresh(event.detail));
     this.addEventListener("songselected", (event) => this.playSelectedSong(event.detail));
     this.sortSelect.addEventListener("change", () => {
-      this.sort = this.sortSelect.value === "mostPlayed" ? "mostPlayed" : "artist";
+      this.sort = this.sortSelect.value;
       this.updateSearchURL();
       this.load();
     });
@@ -280,7 +282,7 @@ export class HomePage extends HTMLElement {
     const query = this.searchQuery.trim();
     if (query) url.searchParams.set("q", query);
     else url.searchParams.delete("q");
-    if (this.sort === "mostPlayed") url.searchParams.set("sort", "mostPlayed");
+    if (this.sort !== "artist") url.searchParams.set("sort", this.sort);
     else url.searchParams.delete("sort");
     window.history.replaceState({}, "", url.pathname + url.search + url.hash);
   }

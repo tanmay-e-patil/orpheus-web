@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -22,6 +23,13 @@ func GetSongs(db *store.Store, userIDFromContext func(context.Context) (string, 
 			return
 		}
 		params := r.URL.Query()
+		sort := store.SongSortArtist
+		switch params.Get("sort") {
+		case string(store.SongSortMostPlayed):
+			sort = store.SongSortMostPlayed
+		case string(store.SongSortRecentlyAdded):
+			sort = store.SongSortRecentlyAdded
+		}
 		var cursor *types.SongCursor
 		if params.Get("artistName") != "" && params.Get("trackId") != "" {
 			cursor = &types.SongCursor{ArtistName: params.Get("artistName"), TrackID: params.Get("trackId")}
@@ -33,6 +41,14 @@ func GetSongs(db *store.Store, userIDFromContext func(context.Context) (string, 
 				}
 				cursor.PlayCount = parsed
 			}
+			if sort == store.SongSortRecentlyAdded {
+				createdAt, err := time.Parse(time.RFC3339Nano, params.Get("createdAt"))
+				if err != nil {
+					Error(w, http.StatusBadRequest, "bad_cursor", "Invalid cursor")
+					return
+				}
+				cursor.CreatedAt = &createdAt
+			}
 		}
 		limit := 50
 		if raw := params.Get("limit"); raw != "" {
@@ -42,10 +58,6 @@ func GetSongs(db *store.Store, userIDFromContext func(context.Context) (string, 
 				return
 			}
 			limit = parsed
-		}
-		sort := store.SongSortArtist
-		if params.Get("sort") == string(store.SongSortMostPlayed) {
-			sort = store.SongSortMostPlayed
 		}
 		page, err := db.FetchSongsPage(r.Context(), store.FetchSongsOptions{UserID: userID, Cursor: cursor, Limit: limit, Sort: sort})
 		if err != nil {
