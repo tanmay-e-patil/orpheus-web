@@ -39,7 +39,7 @@ func MatchDeezerTracks(deezer *services.DeezerClient) http.HandlerFunc {
 			Error(w, http.StatusBadRequest, "bad_request", "Invalid track matching request")
 			return
 		}
-		results, err := deezer.FindTrackMatches(r.Context(), body.Videos)
+		results, err := deezer.FindTrackMatches(r.Context(), body.Videos, body.SearchQuery)
 		if err != nil {
 			Error(w, http.StatusBadGateway, "deezer_failed", "Could not find track matches")
 			return

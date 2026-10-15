@@ -121,10 +121,10 @@ export const API = {
       body: JSON.stringify({ query }),
       signal,
     }),
-  matchDeezerTracks: (videos, signal) =>
+  matchDeezerTracks: (videos, searchQuery, signal) =>
     request("/api/discover/deezer/matches", {
       method: "POST",
-      body: JSON.stringify({ videos: videos.map(toYouTubeVideoPayload) }),
+      body: JSON.stringify({ videos: videos.map(toYouTubeVideoPayload), searchQuery }),
       signal,
     }),
   customDeezerMatch: (video, customQuery) =>

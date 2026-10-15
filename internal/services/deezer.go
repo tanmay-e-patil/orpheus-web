@@ -42,10 +42,10 @@ func (c *DeezerClient) SearchMusic(ctx context.Context, query string) (map[strin
 	return out, nil
 }
 
-func (c *DeezerClient) FindTrackMatches(ctx context.Context, videos []types.YouTubeVideo) ([]types.TrackMatchResult, error) {
+func (c *DeezerClient) FindTrackMatches(ctx context.Context, videos []types.YouTubeVideo, searchQuery string) ([]types.TrackMatchResult, error) {
 	results := make([]types.TrackMatchResult, 0, len(videos))
 	for _, video := range videos {
-		result, err := c.findTrackMatchesForVideo(ctx, video, "")
+		result, err := c.findTrackMatchesForVideo(ctx, video, searchQuery)
 		if err != nil {
 			results = append(results, types.TrackMatchResult{YouTubeVideo: video, TrackMatches: []types.MusicTrack{}, Confidence: "none"})
 			continue
@@ -104,6 +104,7 @@ func (c *DeezerClient) findTrackMatchesForVideo(ctx context.Context, video types
 	}
 
 	bestByID := map[string]types.MusicTrack{}
+	var candidateIDs []string
 	for _, searchQuery := range searchQueries {
 		if strings.TrimSpace(searchQuery) == "" {
 			continue
@@ -115,10 +116,10 @@ func (c *DeezerClient) findTrackMatchesForVideo(ctx context.Context, video types
 		for _, track := range response.Data {
 			match := track.toMusicTrack()
 			match.MatchScore = scoreTrackMatch(video, track)
-			if match.MatchScore <= 30 {
-				continue
-			}
 			existing, ok := bestByID[match.ID]
+			if !ok {
+				candidateIDs = append(candidateIDs, match.ID)
+			}
 			if !ok || match.MatchScore > existing.MatchScore {
 				bestByID[match.ID] = match
 			}
@@ -131,12 +132,13 @@ func (c *DeezerClient) findTrackMatchesForVideo(ctx context.Context, video types
 	}
 
 	matches := make([]types.MusicTrack, 0, len(bestByID))
-	for _, match := range bestByID {
-		matches = append(matches, match)
+	for _, id := range candidateIDs {
+		matches = append(matches, bestByID[id])
 	}
-	sort.Slice(matches, func(i, j int) bool { return matches[i].MatchScore > matches[j].MatchScore })
-	if len(matches) > 5 {
-		matches = matches[:5]
+	// Preserve Deezer's relevance order when supporting evidence scores tie.
+	sort.SliceStable(matches, func(i, j int) bool { return matches[i].MatchScore > matches[j].MatchScore })
+	if len(matches) > 10 {
+		matches = matches[:10]
 	}
 	for i := range matches {
 		date, _ := c.fetchTrackDate(ctx, matches[i].ID)
@@ -148,8 +150,10 @@ func (c *DeezerClient) findTrackMatchesForVideo(ctx context.Context, video types
 	var selected *types.MusicTrack
 	confidence := "none"
 	if len(matches) > 0 {
-		selected = &matches[0]
 		confidence = ConfidenceFromScore(matches[0].MatchScore)
+		if confidence == "high" {
+			selected = &matches[0]
+		}
 	}
 	return types.TrackMatchResult{
 		YouTubeVideo:  video,
