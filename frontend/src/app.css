@@ -2157,6 +2157,14 @@ summary {
   pointer-events: none;
 }
 @media (max-width: 767px) {
+  .expanded-seek input[type='range']::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+  .expanded-seek input[type='range']::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+  }
   .now-playing-sheet[data-slot='sheet-content'] {
     padding: calc(20px + env(safe-area-inset-top))
       max(20px, env(safe-area-inset-right))
