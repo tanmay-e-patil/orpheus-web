@@ -8,6 +8,9 @@ import (
 )
 
 var (
+	OutboxPending       = prometheus.NewGauge(prometheus.GaugeOpts{Name: "orpheus_outbox_pending", Help: "Unpublished, unfinished song jobs at the last dispatcher wake-up."})
+	OutboxOldestCreated = prometheus.NewGauge(prometheus.GaugeOpts{Name: "orpheus_outbox_oldest_created_timestamp_seconds", Help: "Creation timestamp of oldest unpublished song job; zero when empty."})
+
 	HTTPRequestDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "orpheus_http_request_duration_seconds",
 		Help:    "HTTP request duration in seconds.",
@@ -26,7 +29,7 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(HTTPRequestDuration, HTTPRequestsTotal, QueuePublishTotal)
+	prometheus.MustRegister(HTTPRequestDuration, HTTPRequestsTotal, QueuePublishTotal, OutboxPending, OutboxOldestCreated)
 }
 
 func ObserveHTTPRequest(method, route string, status int, duration time.Duration) {

@@ -30,12 +30,13 @@ type LibrarySong struct {
 }
 
 type AudioSong struct {
-	TrackID     string
-	Name        string
-	ArtistName  string
-	AlbumName   string
-	IsAvailable bool
-	UpdatedAt   time.Time
+	AudioFilePath string
+	TrackID       string
+	Name          string
+	ArtistName    string
+	AlbumName     string
+	IsAvailable   bool
+	UpdatedAt     time.Time
 }
 
 type SongsPageResponse struct {

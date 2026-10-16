@@ -131,17 +131,17 @@ export const stageRoutes = {
   spotify: "/discover/spotify",
   lyrics: "/discover/lyrics",
   review: "/discover/review",
-  commit: "/discover/commit",
+  commit: "/discover/review",
 };
 
-export const stageOrder = ["search", "youtube", "spotify", "lyrics", "review", "commit"];
+export const stageOrder = ["search", "youtube", "spotify", "lyrics", "review"];
 
 export const stageLabels = {
   search: "Search",
   youtube: "Find video",
   spotify: "Choose song info",
   lyrics: "Add lyrics",
-  review: "Review",
+  review: "Review & save",
   commit: "Save",
 };
 

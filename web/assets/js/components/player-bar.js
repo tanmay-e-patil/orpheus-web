@@ -63,15 +63,16 @@ export class PlayerBar extends HTMLElement {
         el("div", {}, [
           el("strong", { text: song.name }),
           el("span", { class: "muted", text: song.artistName }),
+          !isPlayable(song) ? el("span", { class: "player-status muted", text: "Unavailable" }) : null,
         ]),
       ]),
+      el("button", { class: "button secondary player-lyrics-button", type: "button", text: "Lyrics", onclick: () => document.getElementById("lyrics-overlay")?.showModal() }),
       el("div", { class: "player-seek-zone" }, [
         progress,
         el("div", { class: "player-time-row" }, [elapsed, total]),
       ]),
       el("div", { class: "player-actions" }, [
         el("div", { class: "player-controls" }, [
-          !isPlayable(song) ? el("span", { class: "player-status muted", text: "Unavailable" }) : null,
           el("button", { class: "icon-button", type: "button", "aria-label": "Previous", onclick: (e) => { e.stopPropagation(); transitionSongChange(prev, "prev"); } }, [
             icon("skip-back"),
           ]),

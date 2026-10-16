@@ -19,6 +19,7 @@ export class DeezerMatchingPage extends HTMLElement {
   }
 
   matchesCurrentSelection() {
+    if (this.state.trackMatchSearchQuery !== this.state.searchQuery) return false;
     const selected = new Set(this.selectedVideos.map((video) => video.id));
     const matched = new Set(this.results.map((result) => result.youtubeVideo.id));
     return selected.size === matched.size && [...selected].every((id) => matched.has(id));
@@ -28,7 +29,7 @@ export class DeezerMatchingPage extends HTMLElement {
     this.loading = true;
     this.render();
     try {
-      this.results = await API.matchDeezerTracks(this.selectedVideos);
+      this.results = await API.matchDeezerTracks(this.selectedVideos, this.state.searchQuery);
       this.persist();
     } catch (error) {
       showDialog(error.message || "Deezer matching failed");
@@ -68,7 +69,7 @@ export class DeezerMatchingPage extends HTMLElement {
 
   resultCard(result, resultIndex) {
     const matches = el("div", { class: "match-list" });
-    const visibleMatches = result.trackMatches.slice(0, 3);
+    const visibleMatches = result.trackMatches;
     for (const [matchIndex, match] of visibleMatches.entries()) {
       matches.append(el("button", { class: `match-row ${result.selectedMatch?.id === match.id ? "selected" : ""}`, type: "button", onclick: () => this.select(resultIndex, matchIndex) }, [
         match.albumImageUrl ? el("img", { src: match.albumImageUrl, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" }),
@@ -80,10 +81,7 @@ export class DeezerMatchingPage extends HTMLElement {
         result.selectedMatch?.id === match.id ? el("span", { class: "badge success", text: "Selected" }) : el("span", { class: "badge", text: `${match.matchScore}%` }),
       ]));
     }
-    if (result.trackMatches.length > visibleMatches.length) {
-      matches.append(el("p", { class: "muted compact-note", text: `Showing top 3 of ${result.trackMatches.length} matches` }));
-    }
-    const input = el("input", { class: "input", placeholder: "Custom Deezer query", value: this.customQueryInputs[resultIndex] || "" });
+    const input = el("input", { class: "input", placeholder: "Custom Deezer query", value: this.customQueryInputs[resultIndex] ?? this.state.searchQuery });
     input.addEventListener("input", () => { this.customQueryInputs[resultIndex] = input.value; });
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") this.customSearch(resultIndex, input.value);
@@ -144,6 +142,7 @@ export class DeezerMatchingPage extends HTMLElement {
   persist() {
     const state = loadWorkflowState();
     state.trackMatches = this.results;
+    state.trackMatchSearchQuery = this.state.searchQuery;
     state.currentStage = "spotify";
     saveWorkflowState(state);
     this.state = state;

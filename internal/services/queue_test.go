@@ -2,7 +2,10 @@ package services
 
 import (
 	"context"
+	"net"
+	"orpheus-web/internal/store"
 	"testing"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.opentelemetry.io/otel/propagation"
@@ -29,5 +32,36 @@ func TestAMQPHeaderCarrierPropagatesTraceContext(t *testing.T) {
 	}
 	if headers["x-job-id"] != "song-1" {
 		t.Fatal("existing header was changed")
+	}
+}
+
+func TestPublisherCancellationInterruptsStalledHandshake(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err == nil {
+			accepted <- conn
+		}
+	}()
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	err = NewQueuePublisher("amqp://test:test@"+listener.Addr().String()+"/").Publish(ctx, store.OutboxJob{})
+	if err == nil {
+		t.Fatal("stalled handshake succeeded")
+	}
+	if time.Since(started) > time.Second {
+		t.Fatal("context cancellation did not interrupt handshake")
+	}
+	select {
+	case conn := <-accepted:
+		_ = conn.Close()
+	case <-time.After(time.Second):
+		t.Fatal("publisher never connected")
 	}
 }
