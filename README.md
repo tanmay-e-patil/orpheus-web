@@ -73,6 +73,19 @@ Open the Vite URL (usually `http://localhost:5173`). Vite proxies `/api` to Go s
 
 The production app keeps the existing URLs and API contracts. Playback stays mounted across navigation, and saved add-song drafts retain their existing local-storage keys. Appearance is controlled in Settings; the former theme presets are replaced by Light, Dark, and System.
 
+Library audio uses one persistent native audio element. Where available, the
+Audio Session API declares music playback, and the Media Session API supplies
+lock-screen metadata, transport controls, and progress. These APIs are optional;
+they do not override browser or operating-system background playback policies.
+
+For mobile playback validation, start a library song from a tap in Safari on
+iPhone and Chrome on Android, then lock the phone. Verify that audio continues,
+lock-screen pause/resume and seeking work, and the next queued song starts with
+updated metadata. Also check switching apps, returning to the page, and pausing
+before locking (it should stay paused). Repeat across a track boundary; desktop
+tests cannot reproduce a phone suspending its browser. Test library audio in the
+Song tab separately from embedded YouTube video playback.
+
 Open `http://localhost:8080`.
 
 ## Verify

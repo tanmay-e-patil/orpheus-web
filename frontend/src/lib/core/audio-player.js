@@ -9,6 +9,7 @@ import {
   updateSongPlayCount,
 } from './player-store.js';
 import { toast } from './store.js';
+import { configureAudioSession, initMediaSession } from './media-session.js';
 const withViewTransition = (update) => update();
 
 let audio = null;
@@ -20,6 +21,8 @@ export function initAudioPlayer() {
   if (audio) return;
   audio = new Audio();
   audio.preload = 'metadata';
+  configureAudioSession();
+  initMediaSession();
 
   audio.addEventListener('loadstart', () => {
     if (isActive()) setPlaybackStatus('loading');
@@ -99,6 +102,7 @@ export function initAudioPlayer() {
       audio.load();
     },
     play: () => {
+      configureAudioSession();
       const promise = audio.play();
       if (promise?.catch) {
         promise.catch((error) => {
