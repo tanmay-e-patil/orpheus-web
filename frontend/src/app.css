@@ -332,6 +332,14 @@ label input,
 label textarea {
   color: var(--foreground);
 }
+.library-controls {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin-top: -12px;
+  padding-top: 12px;
+  background: var(--background);
+}
 .library-toolbar {
   display: flex;
   align-items: center;
@@ -1689,6 +1697,7 @@ summary {
     height: 44px;
   }
   .library-controls {
+    top: calc(56px + env(safe-area-inset-top));
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
