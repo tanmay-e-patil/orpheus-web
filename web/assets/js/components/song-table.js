@@ -51,8 +51,8 @@ export class SongTable extends HTMLElement {
           el("th", { text: "Track" }),
           el("th", { text: "Artist" }),
           el("th", { text: "Album" }),
-          ...(this.showPlayCount ? [el("th", { text: "Plays" })] : []),
-          el("th", { text: "Duration" }),
+          ...(this.showPlayCount ? [el("th", { class: "song-plays-cell", text: "Plays" })] : []),
+          el("th", { class: "song-duration-cell", text: "Duration" }),
           el("th", { class: "song-actions-cell", text: "Actions" }),
         ]),
       ]),
@@ -110,8 +110,8 @@ export class SongTable extends HTMLElement {
         el("td", {}, [el("div", { class: "track-cell" }, [art, el("span", { text: song.name })])]),
         el("td", { text: song.artistName }),
         el("td", { text: song.albumName }),
-        ...(this.showPlayCount ? [el("td", { text: String(song.playCount || 0) })] : []),
-        el("td", { text: status }),
+        ...(this.showPlayCount ? [el("td", { class: "song-plays-cell", text: String(song.playCount || 0) })] : []),
+        el("td", { class: "song-duration-cell", text: status }),
         el("td", { class: "song-actions-cell" }, [editLink()]),
       ]);
       row.addEventListener("keydown", (event) => {
