@@ -128,6 +128,12 @@ export function createVideoPlayback() {
   return {
     startTime: time,
     autoplay: playing,
+    retry() {
+      if (!ownsPlayback() || !player) return;
+      playing = true;
+      if (!muted) player.unMute();
+      player.playVideo();
+    },
     get waitingForPlayback() {
       return playing && !handedOff;
     },
@@ -135,9 +141,10 @@ export function createVideoPlayback() {
       if (!ownsPlayback()) return;
       player = instance;
       player.setVolume(volume);
-      // Start muted while native audio continues. Only the confirmed playing
-      // event may silence the old source.
-      player.mute();
+      // Set sound before playVideo, within the tab click when already ready.
+      // Unmuting only after PLAYING can cause the browser to pause autoplay.
+      if (muted) player.mute();
+      else player.unMute();
       if (available) time = audio?.getCurrentTime() ?? time;
       player.seekTo(time, true);
       if (playing) player.playVideo();
@@ -149,16 +156,11 @@ export function createVideoPlayback() {
         if (value !== 1 || !player) return;
         if (available) {
           const position = audio?.getCurrentTime() ?? time;
-          // Loading may have taken seconds. Seek while audio keeps playing,
-          // then wait for playback at the current position before handing off.
-          if (Math.abs(player.getCurrentTime() - position) > 1) {
+          if (Math.abs(player.getCurrentTime() - position) > 1)
             player.seekTo(position, true);
-            return;
-          }
         }
         handedOff = true;
         audio?.pause();
-        if (!muted) player.unMute();
       }
       sync();
       if (value === 1) {

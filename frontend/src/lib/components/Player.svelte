@@ -17,7 +17,6 @@
   import PlayerGlow from './PlayerGlow.svelte';
   import Lyrics from './Lyrics.svelte';
   import InlineVideo from './InlineVideo.svelte';
-  import { loadYouTube } from '$lib/youtube';
   import { playback, nowPlaying, notify } from '$lib/state';
   import {
     play,
@@ -29,9 +28,10 @@
   } from '$lib/core/player-store.js';
   import { clock } from '$lib/music';
   import { playerDismiss } from '$lib/player-dismiss';
+  let videoComponent: { activate(): void } | undefined = $state();
   let playerSheet = $state<HTMLElement | null>(null);
   $effect(() => {
-    if (playerSheet)
+    if (playerSheet && $nowPlaying)
       return playerDismiss(playerSheet, () => nowPlaying.set(false));
   });
   let panel = $state<'lyrics' | 'queue' | null>(null);
@@ -58,12 +58,6 @@
     else if (tab === 'video' && song?.youtubeVideoId)
       videoSongId = song.trackId;
     else if (song?.trackId !== videoSongId) videoSongId = null;
-  });
-  $effect(() => {
-    if ($nowPlaying && song?.youtubeVideoId) {
-      // Warm the API while the listener is still looking at the Song tab.
-      void loadYouTube().catch(() => {});
-    }
   });
   function toggle() {
     playing ? pause() : play();
@@ -225,6 +219,9 @@
   </footer>
   <Sheet.Root bind:open={$nowPlaying}
     ><Sheet.Content
+      forceMount
+      preventScroll={$nowPlaying}
+      style={$nowPlaying ? undefined : 'display: none;'}
       bind:ref={playerSheet}
       side="bottom"
       class="now-playing-sheet"
@@ -249,7 +246,10 @@
               >Song</Tabs.Trigger
             ><Tabs.Trigger
               value="video"
-              onclick={() => (panel = null)}
+              onclick={() => {
+                panel = null;
+                videoComponent?.activate();
+              }}
               disabled={!song.youtubeVideoId}>Video</Tabs.Trigger
             ></Tabs.List
           >
@@ -267,8 +267,10 @@
             </Tabs.Content>
             <Tabs.Content value="video" class="now-playing-listen">
               <div class="now-playing-media showing-video">
-                {#if videoSongId === song.trackId && song.youtubeVideoId}
+                {#if song.youtubeVideoId}
                   {#key song.trackId}<InlineVideo
+                      bind:this={videoComponent}
+                      active={$nowPlaying && tab === 'video'}
                       id={song.youtubeVideoId}
                       onerror={(message) => {
                         tab = 'song';

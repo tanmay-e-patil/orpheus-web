@@ -154,20 +154,22 @@ it('can control a video whose library audio is unavailable, without resuming sta
   expect(getPlayerState().status).toBe('unavailable');
 });
 
-it('keeps audio running through buffering and resynchronizes before handoff', () => {
+it('starts with sound enabled and hands off without a seek/play loop', () => {
   const session = createVideoPlayback(),
     player = video();
   audio.getCurrentTime = () => 50;
+  player.getCurrentTime.mockReturnValue(50);
   session.attach(player);
   expect(player.seekTo).toHaveBeenCalledWith(50, true);
+  expect(player.unMute.mock.invocationCallOrder[0]).toBeLessThan(
+    player.playVideo.mock.invocationCallOrder[0],
+  );
   session.stateChanged(3);
   session.stateChanged(2);
-  session.stateChanged(1);
   expect(audio.pause).not.toHaveBeenCalled();
-  expect(player.unMute).not.toHaveBeenCalled();
-  player.getCurrentTime.mockReturnValue(50);
   session.stateChanged(1);
   expect(audio.pause).toHaveBeenCalledOnce();
+  expect(player.seekTo).toHaveBeenCalledOnce();
   expect(player.unMute).toHaveBeenCalledOnce();
   session.release();
 });
@@ -188,4 +190,17 @@ it('keeps paused audio paused when opening video', () => {
   expect(player.playVideo).not.toHaveBeenCalled();
   session.release();
   expect(getPlayerState().status).toBe('paused');
+});
+
+it('corrects audio drift once when a cold video finally starts', () => {
+  const session = createVideoPlayback(),
+    player = video();
+  session.attach(player);
+  audio.getCurrentTime = () => 48;
+  session.stateChanged(1);
+  session.stateChanged(1);
+  expect(player.seekTo).toHaveBeenLastCalledWith(48, true);
+  expect(player.seekTo).toHaveBeenCalledTimes(2);
+  expect(audio.pause).toHaveBeenCalledOnce();
+  session.release();
 });
