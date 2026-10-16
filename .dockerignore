@@ -7,3 +7,6 @@ Dockerfile
 coverage.out
 dist
 node_modules
+
+**/node_modules
+web

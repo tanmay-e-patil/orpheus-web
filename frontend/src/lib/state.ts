@@ -1,0 +1,38 @@
+import { readable, writable } from 'svelte/store';
+import { getPlayerState, playerStore } from './core/player-store.js';
+import type { Session, Song } from './types';
+export const session = writable<Session | null>(null);
+export const playback = readable(snapshot(), (set) => {
+  const update = () => set(snapshot());
+  playerStore.addEventListener('change', update);
+  return () => playerStore.removeEventListener('change', update);
+});
+function snapshot() {
+  const state = getPlayerState();
+  return {
+    ...state,
+    controller: state.controller as {
+      setVolume: (value: number) => void;
+    } | null,
+    queue: [...state.queue] as Song[],
+    song: (state.queue[state.currentIndex] || null) as Song | null,
+  };
+}
+export const nowPlaying = writable(false);
+export const libraryVersion = writable(0);
+export const notices = writable<
+  { id: number; message: string; tone: string }[]
+>([]);
+let nextNotice = 0;
+export function notify(message: string, tone = 'info') {
+  const id = ++nextNotice;
+  notices.update((items) => [...items.slice(-2), { id, message, tone }]);
+  setTimeout(
+    () => notices.update((items) => items.filter((item) => item.id !== id)),
+    6000,
+  );
+}
+export const errorMessage = (error: unknown) =>
+  error instanceof Error
+    ? error.message
+    : 'Something went wrong. Please try again.';
