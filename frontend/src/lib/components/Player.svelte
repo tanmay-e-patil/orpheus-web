@@ -28,7 +28,8 @@
   } from '$lib/core/player-store.js';
   import { clock } from '$lib/music';
   import { playerDismiss } from '$lib/player-dismiss';
-  let videoComponent: { activate(): void } | undefined = $state();
+  let videoComponent: { activate(fullscreen?: boolean): void } | undefined =
+    $state();
   let playerSheet = $state<HTMLElement | null>(null);
   $effect(() => {
     if (playerSheet && $nowPlaying)
@@ -248,7 +249,8 @@
               value="video"
               onclick={() => {
                 panel = null;
-                videoComponent?.activate();
+                tab = 'video';
+                videoComponent?.activate(true);
               }}
               disabled={!song.youtubeVideoId}>Video</Tabs.Trigger
             ></Tabs.List

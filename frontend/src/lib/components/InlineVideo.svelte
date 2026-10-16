@@ -1,8 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { loadYouTube, type YouTubePlayer } from '$lib/youtube';
   import { createVideoPlayback } from '$lib/video-playback';
   import { errorMessage } from '$lib/state';
+  import {
+    recordFullscreen,
+    requestFullscreenWithDiagnostics,
+  } from '$lib/fullscreen-diagnostics';
   import { getPlayerState } from '$lib/core/player-store.js';
   let {
     id,
@@ -13,6 +17,8 @@
     active?: boolean;
     onerror: (message: string) => void;
   } = $props();
+  let cleanupFullscreenDiagnostics: (() => void) | undefined;
+  let container: HTMLDivElement;
   let target: HTMLDivElement;
   let loading = $state(true);
   let blocked = $state(false);
@@ -30,12 +36,40 @@
     if (active) onerror(message);
   }
 
+  async function enterFullscreen() {
+    cleanupFullscreenDiagnostics?.();
+    recordFullscreen('activation-before-tick', container);
+    await tick();
+    if (!active || !container?.isConnected) {
+      recordFullscreen('cancelled-before-request', container, { active });
+      return;
+    }
+    if (document.fullscreenElement === container) return;
+    cleanupFullscreenDiagnostics = requestFullscreenWithDiagnostics(container);
+  }
+
+  function exitFullscreen() {
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element;
+      webkitExitFullscreen?: () => Promise<void> | void;
+    };
+    const fullscreen = doc.fullscreenElement ?? doc.webkitFullscreenElement;
+    if (!fullscreen || !container?.contains(fullscreen)) return;
+    try {
+      const exit = doc.exitFullscreen ?? doc.webkitExitFullscreen;
+      void Promise.resolve(exit?.call(doc)).catch(() => {});
+    } catch {
+      // The browser may already be leaving fullscreen during cleanup.
+    }
+  }
+
   // Called synchronously from the Video tab click, before Svelte updates it.
-  export function activate() {
+  export function activate(fullscreen = false) {
     if (preparationError) {
       onerror(preparationError);
       return;
     }
+    if (fullscreen) void enterFullscreen();
     if (playback) {
       blocked = false;
       playback.retry();
@@ -60,6 +94,9 @@
   }
 
   function deactivate() {
+    exitFullscreen();
+    cleanupFullscreenDiagnostics?.();
+    cleanupFullscreenDiagnostics = undefined;
     clearTimeout(timeout);
     playback?.release();
     playback = undefined;
@@ -143,10 +180,12 @@
   });
 </script>
 
-<div class="inline-video" aria-busy={active && loading}>
+<div bind:this={container} class="inline-video" aria-busy={active && loading}>
   <div class="inline-video-mount"><div bind:this={target}></div></div>
   {#if active && blocked}
-    <button class="inline-video-loading" onclick={activate}>Play video</button>
+    <button class="inline-video-loading" onclick={() => activate(true)}
+      >Play video</button
+    >
   {:else if active && loading}
     <span class="inline-video-loading" role="status">Loading video…</span>
   {/if}

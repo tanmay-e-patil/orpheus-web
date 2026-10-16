@@ -2171,6 +2171,16 @@ summary {
   border-radius: 8px;
   overflow: hidden;
 }
+.inline-video:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  border-radius: 0;
+}
+button.inline-video-loading {
+  pointer-events: auto;
+  cursor: pointer;
+}
 .inline-video-mount {
   width: 100%;
   height: 100%;

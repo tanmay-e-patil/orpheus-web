@@ -126,3 +126,58 @@ it('retains audio and offers a gesture retry if autoplay is blocked', async () =
   fixture.options.events.onStateChange({ data: 1 });
   expect(audio.pause).toHaveBeenCalledOnce();
 });
+it('requests fullscreen after revealing video and exits when video closes', async () => {
+  const view = await prepared();
+  const container = view.container.querySelector<HTMLElement>('.inline-video')!;
+  const request = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(container, 'requestFullscreen', { value: request });
+  const fullscreenDescriptor = Object.getOwnPropertyDescriptor(
+    document,
+    'fullscreenElement',
+  );
+  const exitDescriptor = Object.getOwnPropertyDescriptor(
+    document,
+    'exitFullscreen',
+  );
+  const exit = vi.fn().mockResolvedValue(undefined);
+  try {
+    view.component.activate(true);
+    await view.rerender({ active: true });
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
+    expect(fixture.player.playVideo).toHaveBeenCalledOnce();
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      value: container,
+    });
+    Object.defineProperty(document, 'exitFullscreen', {
+      configurable: true,
+      value: exit,
+    });
+    await view.rerender({ active: false });
+    expect(exit).toHaveBeenCalledOnce();
+    expect(getPlayerState().controller).toBe(audio);
+  } finally {
+    for (const [key, descriptor] of [
+      ['fullscreenElement', fullscreenDescriptor],
+      ['exitFullscreen', exitDescriptor],
+    ] as const) {
+      if (descriptor) Object.defineProperty(document, key, descriptor);
+      else Reflect.deleteProperty(document, key);
+    }
+  }
+});
+it('continues playback when the browser rejects fullscreen', async () => {
+  const view = await prepared();
+  const request = vi.fn().mockRejectedValue(new Error('Fullscreen denied'));
+  Object.defineProperty(
+    view.container.querySelector('.inline-video')!,
+    'requestFullscreen',
+    { value: request },
+  );
+  view.component.activate(true);
+  await view.rerender({ active: true });
+  await waitFor(() => expect(request).toHaveBeenCalledOnce());
+  fixture.options.events.onStateChange({ data: 1 });
+  expect(getPlayerState().status).toBe('playing');
+  expect(audio.pause).toHaveBeenCalledOnce();
+});
