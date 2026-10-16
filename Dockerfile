@@ -1,5 +1,12 @@
 # syntax=docker/dockerfile:1
 
+FROM node:24-alpine AS frontend
+WORKDIR /src/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+COPY frontend/ ./
+RUN npm run build
+
 FROM golang:1.25-alpine AS build
 
 RUN apk add --no-cache ca-certificates
@@ -26,7 +33,7 @@ LABEL observability.service="orpheus-web" \
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /out/orpheus /orpheus
-COPY --from=build /src/web /web
+COPY --from=frontend /src/web /web
 
 ENV APP_ENV=production \
     APP_VERSION=${APP_VERSION} \

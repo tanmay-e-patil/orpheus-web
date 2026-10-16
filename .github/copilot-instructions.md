@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Orpheus is a music library/player application implemented as a Go HTTP server with a static browser-native JavaScript frontend in `web/`.
+Orpheus is a music library/player application implemented as a Go HTTP server with a Svelte 5 + TypeScript frontend in `frontend/`, compiled by Vite into `web/`.
 
 ## Architecture
 
@@ -12,14 +12,18 @@ Orpheus is a music library/player application implemented as a Go HTTP server wi
 - `internal/services`: external integrations for YouTube, Deezer, LRCLIB, matching, and queue publishing.
 - `internal/store`: PostgreSQL persistence.
 - `internal/types`: shared domain/request/response types.
-- `web/`: static HTML, CSS, manifest, and JavaScript assets served by the Go app.
+- `frontend/`: Svelte screens, Tailwind 4 styling, shadcn-svelte components, shared playback/API services, and frontend tests.
+- `web/`: generated production assets served by Go; run the frontend build before starting Go.
 
 ## Development
 
 ```sh
+npm ci --prefix frontend
+npm run build --prefix frontend
 go run ./cmd/orpheus
 go test ./...
-find web/assets/js -name '*.js' -print -exec node --check {} \;
+npm run check --prefix frontend
+npm test --prefix frontend
 ```
 
 Required runtime environment is documented in `README.md`.
@@ -27,6 +31,7 @@ Required runtime environment is documented in `README.md`.
 ## Conventions
 
 - Keep server code in `internal/` packages; add new binaries under `cmd/`.
-- Keep browser code framework-free and organized under `web/assets/js` and `web/assets/css`.
+- Keep browser source in `frontend/src`; use Svelte 5 with TypeScript and the local shadcn-svelte components. Do not edit generated `web/` files.
+- Keep API contracts and existing draft storage keys compatible. Playback must remain mounted across route changes.
 - Use context-aware database calls and return structured JSON errors from HTTP handlers.
 - Do not reintroduce Next.js/Bun/React tooling.

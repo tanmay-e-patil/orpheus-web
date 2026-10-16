@@ -25,3 +25,6 @@ coverage.out
 node_modules/
 dist/
 build/
+
+# Vite production assets (built from frontend/)
+/web/

@@ -30,5 +30,16 @@ jobs:
         run: go test ./...
       - name: Test outbox with PostgreSQL and RabbitMQ
         run: go test -race -tags=integration ./internal/store ./internal/services -count=1
-      - name: Check browser JavaScript syntax
-        run: find web/assets/js -name '*.js' -print -exec node --check {} \;
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Check Svelte and TypeScript
+        run: npm run check --prefix frontend
+      - name: Test frontend
+        run: npm test --prefix frontend
+      - name: Build frontend
+        run: npm run build --prefix frontend

@@ -1,12 +1,12 @@
-# Orpheus Go + Vanilla JS Port
+# Orpheus
 
-Parallel implementation of Orpheus using a Go backend and static browser-native JavaScript.
+A personal music library with a Go backend and a Svelte 5 + TypeScript frontend, built with Vite, Tailwind CSS 4, and shadcn-svelte.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Browser[Browser\nVanilla JS] -->|HTTP / JSON| App[Orpheus Web\nGo HTTP server]
+    Browser[Browser\nSvelte 5] -->|HTTP / JSON| App[Orpheus Web\nGo HTTP server]
     App -->|queries and migrations| DB[(PostgreSQL)]
     App -->|search and metadata| APIs[YouTube · Deezer · LRCLib]
     App -->|song changes + job requests| DB
@@ -18,7 +18,7 @@ flowchart LR
     App -->|streams .m4a| Music
 ```
 
-The Go server also serves the static frontend from `web/`. Audio processing is
+Frontend source lives in `frontend/`; `npm run build --prefix frontend` produces the static frontend in `web/`, which the Go server serves. Generated assets are not committed. Docker builds the frontend automatically. Audio processing is
 handled out of process by `orpheus-consumer`; both applications must use the
 same database and music-library directory.
 
@@ -55,11 +55,23 @@ same directory used by the consumer.
 are optional legacy credentials. On first successful login they are migrated
 to the database and are no longer needed.
 
-Then run:
+Install Node.js 24, then build the frontend and start Go:
 
 ```sh
+npm ci --prefix frontend
+npm run build --prefix frontend
 go run ./cmd/orpheus
 ```
+
+For frontend development, run Go on port 8080 and Vite in another terminal:
+
+```sh
+npm run dev --prefix frontend
+```
+
+Open the Vite URL (usually `http://localhost:5173`). Vite proxies `/api` to Go so session cookies stay on the browser origin. Set `AUTH_RP_ORIGIN` to that Vite origin when testing passkeys. Override the proxy destination with `API_PROXY_TARGET` if Go runs elsewhere.
+
+The production app keeps the existing URLs and API contracts. Playback stays mounted across navigation, and saved add-song drafts retain their existing local-storage keys. Appearance is controlled in Settings; the former theme presets are replaced by Light, Dark, and System.
 
 Open `http://localhost:8080`.
 
@@ -67,7 +79,9 @@ Open `http://localhost:8080`.
 
 ```sh
 go test ./...
-find web/assets/js -name '*.js' -print -exec node --check {} \;
+npm run check --prefix frontend
+npm test --prefix frontend
+npm run build --prefix frontend
 ```
 
 The app keeps the existing `songs` and `yt_music_videos` schema and serves the static frontend from `web/`.

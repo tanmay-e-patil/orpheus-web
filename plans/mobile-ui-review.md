@@ -1,5 +1,7 @@
 # Mobile UI review
 
+Historical review of the vanilla frontend. The Svelte migration implements the compact player, bottom navigation, settings controls, and collapsible editor described below. See [Svelte migration](svelte-migration.md) for the current implementation and validation.
+
 Reviewed the frontend in the collaborative browser using a temporary private preview and synthetic API data. No production backend was used.
 
 ## Improvements included

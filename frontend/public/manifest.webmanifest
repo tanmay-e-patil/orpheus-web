@@ -1,0 +1,26 @@
+{
+  "name": "Orpheus",
+  "short_name": "Orpheus",
+  "description": "A music library for your personal collection",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#151516",
+  "theme_color": "#151516",
+  "orientation": "portrait-primary",
+  "categories": ["music", "audio", "entertainment"],
+  "icons": [
+    {
+      "src": "/assets/icons/orpheus-logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icons/orpheus-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
