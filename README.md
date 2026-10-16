@@ -110,3 +110,24 @@ The CLI publishes the same payload used by commits:
 `{"jobId":"<track-id>","action":"process-song-data","timestamp":"<utc>"}` to
 the durable `job_queue`. It does not update `songs.is_available`; the consumer
 remains responsible for marking completed downloads available.
+
+## Library file updates
+
+Metadata edits queue `update-song-files`: the consumer reuses the existing audio,
+rewrites tags/artwork with ffmpeg stream copy, and moves renamed tracks into the
+artist/album/title layout. Lyrics edits queue `update-song-lyrics` and only update
+the `.lrc` sidecar. Sidecars use synced lyrics when available and otherwise plain
+lyrics, matching existing exports. Clearing both removes the sidecar. Audio-source replacements and
+manual regeneration still queue `process-song-data` to download new audio.
+
+`songs.audio_file_path` records the current relative audio location, so playback
+continues from the old location until a rename is complete. Obsolete audio and
+sidecars are removed after the new location is committed; pending cleanup is
+persisted in `song_file_cleanup` for retries. The consumer locks each song while
+processing so queued edits read committed metadata and cannot race each other.
+Queue-disabled development mode saves edits without updating library files.
+
+This change requires matching web and consumer versions. Pause the old consumer,
+start the updated web app to apply migration 0008, then start the updated consumer
+before processing queued file-update jobs. The consumer changes are in the sibling
+`../orpheus-consumer` repository.

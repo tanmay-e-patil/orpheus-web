@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"orpheus-web/internal/types"
 )
 
@@ -195,10 +193,10 @@ func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (Rec
 func (s *Store) SongForAudio(ctx context.Context, trackID string) (types.AudioSong, error) {
 	var song types.AudioSong
 	err := s.Pool.QueryRow(ctx, `
-		select id, name, artist_name, album_name, coalesce(is_available, false), updated_at
+		select id, name, artist_name, album_name, coalesce(is_available, false), updated_at, coalesce(audio_file_path, '')
 		from songs
 		where id = $1
-	`, trackID).Scan(&song.TrackID, &song.Name, &song.ArtistName, &song.AlbumName, &song.IsAvailable, &song.UpdatedAt)
+	`, trackID).Scan(&song.TrackID, &song.Name, &song.ArtistName, &song.AlbumName, &song.IsAvailable, &song.UpdatedAt, &song.AudioFilePath)
 	if err != nil {
 		return types.AudioSong{}, err
 	}
@@ -290,29 +288,38 @@ func buildRedownloadSongsQuery(filter RedownloadSongsFilter) (string, []any) {
 	return query.String(), args
 }
 
-func (s *Store) UpdateAlbumArt(ctx context.Context, trackID, albumArt string) error {
-	tag, err := s.Pool.Exec(ctx, `update songs set album_art = $1, updated_at = now() where id = $2`, albumArt, trackID)
+// updateSongFileMetadata publishes while holding the row lock. Consumers lock the
+// same row before reading, so they see the committed metadata.
+func (s *Store) updateSongFileMetadata(ctx context.Context, trackID, query string, args []any, publish PublishSongFunc) error {
+	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("song not found: %s", trackID)
+	defer tx.Rollback(ctx)
+	var id string
+	if err := tx.QueryRow(ctx, `select id from songs where id = $1 for update`, trackID).Scan(&id); err != nil {
+		return err
 	}
-	return nil
+	tag, err := tx.Exec(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() > 0 && publish != nil {
+		if err := publish(ctx, trackID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }
 
-func (s *Store) UpdateLyrics(ctx context.Context, trackID, plainLyrics, syncedLyrics string) error {
+func (s *Store) UpdateAlbumArt(ctx context.Context, trackID, albumArt string, publish PublishSongFunc) error {
+	return s.updateSongFileMetadata(ctx, trackID, `update songs set album_art = $1, updated_at = now() where id = $2 and album_art is distinct from $1`, []any{albumArt, trackID}, publish)
+}
+
+func (s *Store) UpdateLyrics(ctx context.Context, trackID, plainLyrics, syncedLyrics string, publish PublishSongFunc) error {
 	isAvailable := plainLyrics != "" || syncedLyrics != ""
-	tag, err := s.Pool.Exec(ctx, `
-		update songs
-		set lyrics = $1, synced_lyrics = $2, is_lyrics_available = $3, updated_at = now()
-		where id = $4
-	`, plainLyrics, syncedLyrics, isAvailable, trackID)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return pgx.ErrNoRows
-	}
-	return nil
+	return s.updateSongFileMetadata(ctx, trackID, `
+  update songs set lyrics = $1, synced_lyrics = $2, is_lyrics_available = $3, updated_at = now()
+  where id = $4 and (lyrics is distinct from $1 or synced_lyrics is distinct from $2 or is_lyrics_available is distinct from $3)
+ `, []any{plainLyrics, syncedLyrics, isAvailable, trackID}, publish)
 }

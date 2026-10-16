@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -23,6 +24,7 @@ var (
 type SongEditResponse struct {
 	Song               types.LibrarySong   `json:"song"`
 	AudioSource        *types.YouTubeVideo `json:"audioSource,omitempty"`
+	FileUpdateQueued   bool                `json:"fileUpdateQueued"`
 	RegenerationQueued bool                `json:"regenerationQueued"`
 	SongUnavailable    bool                `json:"songUnavailable"`
 }
@@ -37,11 +39,12 @@ type SongMetadataUpdate struct {
 
 type PublishSongFunc func(context.Context, string) error
 
-func metadataRequiresRegeneration(current, next SongMetadataUpdate) bool {
+func metadataRequiresFileUpdate(current, next SongMetadataUpdate) bool {
 	return current.Name != next.Name ||
 		current.ArtistName != next.ArtistName ||
 		current.AlbumName != next.AlbumName ||
-		current.AlbumArt != next.AlbumArt
+		current.AlbumArt != next.AlbumArt ||
+		(next.ReleaseDate != "" && current.ReleaseDate != next.ReleaseDate)
 }
 
 func (s *Store) FetchLibrarySong(ctx context.Context, userID, trackID string) (types.LibrarySong, *types.YouTubeVideo, error) {
@@ -63,23 +66,26 @@ func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, 
 	defer tx.Rollback(ctx)
 
 	var current SongMetadataUpdate
-	err = tx.QueryRow(ctx, `select name, artist_name, album_name, album_art from songs where id = $1 for update`, trackID).
-		Scan(&current.Name, &current.ArtistName, &current.AlbumName, &current.AlbumArt)
+	var currentDate time.Time
+	err = tx.QueryRow(ctx, `select name, artist_name, album_name, album_art, release_date from songs where id = $1 for update`, trackID).
+		Scan(&current.Name, &current.ArtistName, &current.AlbumName, &current.AlbumArt, &currentDate)
 	if err != nil {
 		return SongEditResponse{}, err
 	}
-	regen := metadataRequiresRegeneration(current, in)
-	args := []any{in.Name, in.ArtistName, in.AlbumName, in.AlbumArt, regen, trackID}
-	query := `update songs set name = $1, artist_name = $2, album_name = $3, album_art = $4, is_available = case when $5 then false else is_available end, updated_at = now()`
+	current.ReleaseDate = currentDate.Format("2006-01-02")
+	in.ReleaseDate = releaseDate
+	fileUpdate := metadataRequiresFileUpdate(current, in)
+	args := []any{in.Name, in.ArtistName, in.AlbumName, in.AlbumArt, trackID}
+	query := `update songs set name = $1, artist_name = $2, album_name = $3, album_art = $4, updated_at = now()`
 	if releaseDate != "" {
 		args = append(args, releaseDate)
-		query += fmt.Sprintf(`, release_date = $%d::date, release_year = left($%d, 4)`, len(args), len(args))
+		query += fmt.Sprintf(`, release_date = $%d::text::date, release_year = left($%d::text, 4)`, len(args), len(args))
 	}
-	query += ` where id = $6`
+	query += ` where id = $5`
 	if _, err := tx.Exec(ctx, query, args...); err != nil {
 		return SongEditResponse{}, err
 	}
-	if regen && queueEnabled {
+	if fileUpdate && queueEnabled {
 		if publish == nil {
 			return SongEditResponse{}, fmt.Errorf("publish function missing")
 		}
@@ -94,7 +100,7 @@ func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, 
 	if err != nil {
 		return SongEditResponse{}, err
 	}
-	return SongEditResponse{Song: song, AudioSource: source, RegenerationQueued: regen && queueEnabled, SongUnavailable: regen}, nil
+	return SongEditResponse{Song: song, AudioSource: source, FileUpdateQueued: fileUpdate && queueEnabled, SongUnavailable: !song.IsAvailable}, nil
 }
 
 func (s *Store) ReplaceAudioSource(ctx context.Context, userID, trackID string, video types.YouTubeVideo, queueEnabled bool, publish PublishSongFunc) (SongEditResponse, error) {

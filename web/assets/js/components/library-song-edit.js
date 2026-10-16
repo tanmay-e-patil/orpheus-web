@@ -113,7 +113,6 @@ export class LibrarySongEditPage extends HTMLElement {
   async saveMetadata(event, form) {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form));
-    if (data.albumArt !== this.song.albumArt && !confirm("Changing album art will make this song unavailable and queue audio regeneration. Continue?")) return;
     await this.mutate(() => API.updateSongMetadata(this.trackId, data), "Metadata saved");
   }
 
@@ -258,7 +257,7 @@ export class LibrarySongEditPage extends HTMLElement {
       this.audioSource = response.audioSource;
       updateQueueSong(this.trackId, response.song);
       await clearSongsCache(appState.session?.user?.id || "current");
-      toast(message, "success");
+      toast(response.fileUpdateQueued ? `${message}; library file update queued` : message, "success");
       this.render();
       this.updatePolling();
     } catch (error) { showDialog(error.message); }
