@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Native fullscreen reproduction</title>
+    <style>
+      body {
+        margin: 20px;
+        font: 16px system-ui;
+        background: #171717;
+        color: #eee;
+      }
+      button {
+        margin: 6px;
+        padding: 12px;
+        font: inherit;
+      }
+      #target {
+        padding: 12px;
+        background: #345;
+        min-height: 120px;
+      }
+      #target:fullscreen {
+        background: #123;
+      }
+      iframe {
+        width: 100%;
+        height: 270px;
+        border: 0;
+      }
+      textarea {
+        width: 100%;
+        min-height: 360px;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Native fullscreen reproduction</h1>
+    <p>
+      The first test uses a plain click handler, without Svelte or YouTube. No
+      viewport fallback is used.
+    </p>
+    <div id="target">
+      <button id="request">Request native fullscreen</button>
+      <button id="exit">Exit native fullscreen</button>
+    </div>
+    <h2>YouTube comparison (optional)</h2>
+    <p>
+      Load one mode, then tap Play inside YouTube. Mode 0 requests iOS native
+      video playback; mode 1 requests inline playback. These are separate from
+      HTML element fullscreen.
+    </p>
+    <button id="inline">Load inline YouTube (playsinline=1)</button>
+    <button id="native">Load native-video YouTube (playsinline=0)</button>
+    <div id="video"></div>
+    <h2>Results</h2>
+    <p>
+      After testing, select and copy the text below. It stays on this page and
+      is not uploaded.
+    </p>
+    <textarea
+      id="results"
+      readonly
+      aria-label="Fullscreen diagnostic results"
+    ></textarea>
+    <script>
+      const records = (window.fullscreenReproRecords = []);
+      const target = document.getElementById('target');
+      function record(stage, extra = {}) {
+        const entry = {
+          stage,
+          time: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          activation: navigator.userActivation?.isActive ?? null,
+          api: typeof target.requestFullscreen,
+          webkitApi: typeof target.webkitRequestFullscreen,
+          enabled: document.fullscreenEnabled ?? null,
+          policy:
+            (
+              document.permissionsPolicy ?? document.featurePolicy
+            )?.allowsFeature('fullscreen') ?? null,
+          fullscreen:
+            (document.fullscreenElement ?? document.webkitFullscreenElement)
+              ?.tagName ?? null,
+          focused: document.hasFocus(),
+          topLevel: window === window.top,
+          secureContext: window.isSecureContext,
+          ...extra,
+        };
+        records.push(entry);
+        document.getElementById('results').value = JSON.stringify(
+          records,
+          null,
+          2,
+        );
+        console.info('[Native fullscreen reproduction]', entry);
+      }
+      for (const name of [
+        'fullscreenchange',
+        'webkitfullscreenchange',
+        'fullscreenerror',
+        'webkitfullscreenerror',
+      ]) {
+        document.addEventListener(name, () => record(name));
+      }
+      document.getElementById('request').onclick = () => {
+        const request =
+          target.requestFullscreen ?? target.webkitRequestFullscreen;
+        if (!request) return record('unsupported');
+        let settled = false;
+        record('request');
+        const deadline = setTimeout(() => {
+          if (!settled) record('pending-after-3s');
+        }, 3000);
+        try {
+          const result = request.call(target);
+          if (!result?.then) {
+            settled = true;
+            clearTimeout(deadline);
+            return record('returned-without-promise');
+          }
+          result.then(
+            () => {
+              settled = true;
+              clearTimeout(deadline);
+              record('resolved');
+            },
+            (error) => {
+              settled = true;
+              clearTimeout(deadline);
+              record('rejected', { name: error.name, message: error.message });
+            },
+          );
+        } catch (error) {
+          settled = true;
+          clearTimeout(deadline);
+          record('threw', { name: error.name, message: error.message });
+        }
+      };
+      document.getElementById('exit').onclick = () => {
+        const exit = document.exitFullscreen ?? document.webkitExitFullscreen;
+        try {
+          Promise.resolve(exit?.call(document)).catch((error) =>
+            record('exit-rejected', { message: error.message }),
+          );
+        } catch (error) {
+          record('exit-threw', { message: error.message });
+        }
+      };
+      function loadVideo(mode) {
+        const iframe = document.createElement('iframe');
+        iframe.allow =
+          'autoplay; encrypted-media; fullscreen; picture-in-picture';
+        iframe.allowFullscreen = true;
+        iframe.title = `YouTube playback comparison: playsinline=${mode}`;
+        iframe.src = `https://www.youtube.com/embed/M7lc1UVf-VE?playsinline=${mode}&autoplay=0`;
+        document.getElementById('video').replaceChildren(iframe);
+        record('youtube-loaded', { playsinline: mode });
+      }
+      document.getElementById('inline').onclick = () => loadVideo(1);
+      document.getElementById('native').onclick = () => loadVideo(0);
+      record('environment');
+    </script>
+  </body>
+</html>

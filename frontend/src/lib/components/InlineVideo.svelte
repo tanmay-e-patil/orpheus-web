@@ -17,6 +17,9 @@
     active?: boolean;
     onerror: (message: string) => void;
   } = $props();
+  // iPhone supports native video fullscreen, not fullscreening our div.
+  // YouTube owns the cross-origin video and selects that path via playsinline.
+  const nativeVideoFullscreen = /iPhone|iPod/.test(navigator.userAgent);
   let cleanupFullscreenDiagnostics: (() => void) | undefined;
   let container: HTMLDivElement;
   let target: HTMLDivElement;
@@ -69,7 +72,13 @@
       onerror(preparationError);
       return;
     }
-    if (fullscreen) void enterFullscreen();
+    if (fullscreen) {
+      if (nativeVideoFullscreen)
+        recordFullscreen('native-video-fullscreen-delegated', container, {
+          playsinline: 0,
+        });
+      else void enterFullscreen();
+    }
     if (playback) {
       blocked = false;
       playback.retry();
@@ -86,7 +95,9 @@
   }
 
   function prepare() {
-    if (!ready || !player || playback) return;
+    // A hidden seek can start native video fullscreen on iPhone. Preparing
+    // the iframe is safe; media seeks must wait for explicit activation.
+    if (nativeVideoFullscreen || !ready || !player || playback) return;
     // seekTo requests media, unlike merely cueing a thumbnail. Keep the
     // prepared player paused; buffering while paused is controlled by YouTube.
     player.seekTo(getPlayerState().currentTime, true);
@@ -122,7 +133,7 @@
           height: '100%',
           playerVars: {
             autoplay: 0,
-            playsinline: 1,
+            playsinline: nativeVideoFullscreen ? 0 : 1,
             rel: 0,
             controls: 1,
             origin: location.origin,
@@ -169,7 +180,9 @@
         if (!destroyed) fail(errorMessage(e));
       });
     const timer = setInterval(() => playback?.sync(), 250);
-    const preparationTimer = setInterval(prepare, 5000);
+    const preparationTimer = nativeVideoFullscreen
+      ? undefined
+      : setInterval(prepare, 5000);
     return () => {
       destroyed = true;
       deactivate();

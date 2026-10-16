@@ -75,6 +75,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   clearPlayer();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 async function prepared() {
   const view = render(InlineVideo, {
@@ -90,6 +92,7 @@ it('prepares the iframe while audio is playing without taking over transport', a
   await prepared();
   expect(fixture.options.videoId).toBe('video-one');
   expect(fixture.options.playerVars.autoplay).toBe(0);
+  expect(fixture.options.playerVars.playsinline).toBe(1);
   expect(getPlayerState().controller).toBe(audio);
   expect(audio.pause).not.toHaveBeenCalled();
   expect(fixture.player.playVideo).not.toHaveBeenCalled();
@@ -180,4 +183,63 @@ it('continues playback when the browser rejects fullscreen', async () => {
   fixture.options.events.onStateChange({ data: 1 });
   expect(getPlayerState().status).toBe('playing');
   expect(audio.pause).toHaveBeenCalledOnce();
+});
+
+const iPhoneUserAgent =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1';
+
+it('prepares iPhone YouTube for native fullscreen without hidden seeks or playback', async () => {
+  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(iPhoneUserAgent);
+  vi.useFakeTimers();
+  render(InlineVideo, { id: 'video-one', active: false, onerror: vi.fn() });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(fixture.options).not.toBeNull();
+  fixture.options.events.onReady();
+  await vi.advanceTimersByTimeAsync(10000);
+  expect(fixture.options.playerVars.playsinline).toBe(0);
+  expect(fixture.options.playerVars.autoplay).toBe(0);
+  expect(fixture.player.seekTo).not.toHaveBeenCalled();
+  expect(fixture.player.playVideo).not.toHaveBeenCalled();
+  expect(fixture.player.pauseVideo).not.toHaveBeenCalled();
+  expect(audio.pause).not.toHaveBeenCalled();
+  expect(getPlayerState().controller).toBe(audio);
+});
+
+it('starts iPhone native playback from activation without requesting div fullscreen', async () => {
+  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(iPhoneUserAgent);
+  const view = await prepared();
+  const request = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(
+    view.container.querySelector('.inline-video')!,
+    'requestFullscreen',
+    { value: request },
+  );
+  view.component.activate(true);
+  expect(fixture.player.seekTo).toHaveBeenCalledWith(12, true);
+  expect(fixture.player.unMute).toHaveBeenCalledOnce();
+  expect(fixture.player.playVideo).toHaveBeenCalledOnce();
+  await view.rerender({ active: true });
+  expect(request).not.toHaveBeenCalled();
+  expect(audio.pause).not.toHaveBeenCalled();
+  fixture.options.events.onStateChange({ data: 1 });
+  expect(audio.pause).toHaveBeenCalledOnce();
+  await view.rerender({ active: false });
+  expect(audio.play).toHaveBeenCalledOnce();
+  expect(fixture.player.pauseVideo).toHaveBeenCalledOnce();
+  expect(getPlayerState().controller).toBe(audio);
+});
+
+it('keeps audio playing and retries native iPhone playback when a fresh gesture is required', async () => {
+  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(iPhoneUserAgent);
+  const view = await prepared();
+  view.component.activate(true);
+  await view.rerender({ active: true });
+  fixture.options.events.onAutoplayBlocked();
+  await tick();
+  expect(audio.pause).not.toHaveBeenCalled();
+  expect(getPlayerState().controller).toBe(audio);
+  await fireEvent.click(view.getByRole('button', { name: 'Play video' }));
+  expect(fixture.player.playVideo).toHaveBeenCalledTimes(2);
+  fixture.options.events.onStateChange({ data: 1 });
+  expect(getPlayerState().status).toBe('playing');
 });

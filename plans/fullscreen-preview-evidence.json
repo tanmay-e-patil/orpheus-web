@@ -1,0 +1,50 @@
+{
+  "fullscreen": null,
+  "negativeControl": {
+    "activation": true
+  },
+  "records": [
+    {
+      "activation": false,
+      "api": "function",
+      "enabled": true,
+      "focused": false,
+      "fullscreen": null,
+      "policy": true,
+      "secureContext": false,
+      "stage": "environment",
+      "time": "2026-10-16T21:00:37.452Z",
+      "topLevel": true,
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) T3Code(Alpha)/0.0.45 Chrome/152.0.7977.130 Electron/44.4.2 Safari/537.36",
+      "webkitApi": "function"
+    },
+    {
+      "activation": true,
+      "api": "function",
+      "enabled": true,
+      "focused": true,
+      "fullscreen": null,
+      "policy": true,
+      "secureContext": false,
+      "stage": "request",
+      "time": "2026-10-16T21:00:51.810Z",
+      "topLevel": true,
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) T3Code(Alpha)/0.0.45 Chrome/152.0.7977.130 Electron/44.4.2 Safari/537.36",
+      "webkitApi": "function"
+    },
+    {
+      "activation": false,
+      "api": "function",
+      "enabled": true,
+      "focused": true,
+      "fullscreen": null,
+      "policy": true,
+      "secureContext": false,
+      "stage": "pending-after-3s",
+      "time": "2026-10-16T21:00:54.813Z",
+      "topLevel": true,
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) T3Code(Alpha)/0.0.45 Chrome/152.0.7977.130 Electron/44.4.2 Safari/537.36",
+      "webkitApi": "function"
+    }
+  ]
+}
