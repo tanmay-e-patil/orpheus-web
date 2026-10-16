@@ -19,6 +19,13 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+          # Refresh the cache when dependencies or the test workflow change.
+          cache-dependency-path: |
+            go.mod
+            go.sum
+            .github/workflows/go.yml
+      - name: Download all Go modules, including integration dependencies
+        run: go mod download
       - name: Test
         run: go test ./...
       - name: Test outbox with PostgreSQL and RabbitMQ
