@@ -29,6 +29,8 @@
           width: '100%',
           height: '100%',
           playerVars: {
+            autoplay: playback.autoplay ? 1 : 0,
+            mute: 1,
             playsinline: 1,
             rel: 0,
             controls: 1,
@@ -38,15 +40,23 @@
           events: {
             onReady: () => {
               if (destroyed || !player) return;
-              clearTimeout(timeout);
-              loading = false;
               playback.attach(player);
+              if (!playback.waitingForPlayback) {
+                clearTimeout(timeout);
+                loading = false;
+              }
             },
-            onStateChange: (event: { data: number }) =>
-              playback.stateChanged(event.data),
+            onStateChange: (event: { data: number }) => {
+              playback.stateChanged(event.data);
+              if (!playback.waitingForPlayback) {
+                clearTimeout(timeout);
+                loading = false;
+              }
+            },
             onError: () =>
               fail('This YouTube video could not play. Continuing with audio.'),
-            onAutoplayBlocked: () => playback.stateChanged(2),
+            onAutoplayBlocked: () =>
+              fail('YouTube autoplay was blocked. Continuing with audio.'),
           },
         });
       })
@@ -65,6 +75,6 @@
 <div class="inline-video" aria-busy={loading}>
   <div class="inline-video-mount"><div bind:this={target}></div></div>
   {#if loading}<span class="inline-video-loading" role="status"
-      >Opening audio source…</span
+      >Loading video…</span
     >{/if}
 </div>

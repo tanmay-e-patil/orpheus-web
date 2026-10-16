@@ -36,7 +36,7 @@ export function initAudioPlayer() {
   audio.addEventListener('playing', () => {
     if (!isActive()) return;
     setPlaybackStatus('playing');
-    startPolling();
+    startPolling(isActive);
   });
   audio.addEventListener('canplay', () => {
     if (!isActive()) return;
@@ -138,7 +138,10 @@ export function initAudioPlayer() {
     },
     isMuted: () => audio.muted,
   };
-  const isActive = () => getPlayerState().controller === controller;
+  const isActive = () => {
+    const active = getPlayerState().controller;
+    return active === controller || active?.usesAudio?.(controller);
+  };
   setController(controller);
 }
 
@@ -151,10 +154,14 @@ function syncDuration() {
   setDuration(duration || 0);
 }
 
-function startPolling() {
+function startPolling(isActive) {
   if (raf) return;
   let last = 0;
   const step = () => {
+    if (!isActive()) {
+      stopPolling();
+      return;
+    }
     const now = performance.now();
     if (now - last > 250) {
       last = now;

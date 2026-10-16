@@ -52,14 +52,20 @@ it('ignores native audio events while the YouTube transport owns playback', asyn
   }));
   setQueue(songs, 0);
   const session = createVideoPlayback();
+  AudioFixture.instance.currentTime = 44;
+  AudioFixture.instance.dispatchEvent(new Event('timeupdate'));
+  expect(getPlayerState().currentTime).toBe(44);
+  expect(AudioFixture.instance.paused).toBe(false);
+  AudioFixture.instance.currentTime = 42;
   session.attach({
     destroy() {},
-    getCurrentTime: () => 90,
+    getCurrentTime: () => 42,
     getDuration: () => 200,
     getVolume: () => 80,
     setVolume() {},
     isMuted: () => false,
     mute() {},
+    unMute() {},
     seekTo() {},
     playVideo() {},
     pauseVideo() {},
@@ -75,11 +81,11 @@ it('ignores native audio events while the YouTube transport owns playback', asyn
     'error',
   ])
     AudioFixture.instance.dispatchEvent(new Event(event));
-  expect(getPlayerState().currentTime).toBe(90);
+  expect(getPlayerState().currentTime).toBe(42);
   expect(getPlayerState().duration).toBe(200);
   expect(getPlayerState().status).toBe('playing');
   expect(currentSong()?.trackId).toBe('one');
   session.release();
-  expect(AudioFixture.instance.currentTime).toBe(90);
+  expect(AudioFixture.instance.currentTime).toBe(42);
   vi.unstubAllGlobals();
 });

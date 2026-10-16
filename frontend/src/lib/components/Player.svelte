@@ -17,6 +17,7 @@
   import PlayerGlow from './PlayerGlow.svelte';
   import Lyrics from './Lyrics.svelte';
   import InlineVideo from './InlineVideo.svelte';
+  import { loadYouTube } from '$lib/youtube';
   import { playback, nowPlaying, notify } from '$lib/state';
   import {
     play,
@@ -57,6 +58,12 @@
     else if (tab === 'video' && song?.youtubeVideoId)
       videoSongId = song.trackId;
     else if (song?.trackId !== videoSongId) videoSongId = null;
+  });
+  $effect(() => {
+    if ($nowPlaying && song?.youtubeVideoId) {
+      // Warm the API while the listener is still looking at the Song tab.
+      void loadYouTube().catch(() => {});
+    }
   });
   function toggle() {
     playing ? pause() : play();

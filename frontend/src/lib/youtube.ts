@@ -6,6 +6,7 @@ export interface YouTubePlayer {
   setVolume(volume: number): void;
   isMuted(): boolean;
   mute(): void;
+  unMute(): void;
   playVideo(): void;
   pauseVideo(): void;
   seekTo(seconds: number, allowSeekAhead: boolean): void;
