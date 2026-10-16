@@ -156,6 +156,7 @@ export function setDuration(seconds) {
   emit();
 }
 
+/** @returns {import('../types').Song | null} */
 export function currentSong() {
   return state.queue[state.currentIndex] || null;
 }
@@ -182,7 +183,10 @@ function loadCurrentSong({ autoplay = false } = {}) {
 }
 
 function playableSong(song) {
-  return Boolean(song?.trackId && song?.isAvailable !== false);
+  return Boolean(
+    song?.trackId &&
+    (song.isAvailable !== false || state.controller?.canPlay?.(song)),
+  );
 }
 
 function parseISODurationSeconds(duration) {

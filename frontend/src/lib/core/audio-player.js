@@ -21,24 +21,38 @@ export function initAudioPlayer() {
   audio = new Audio();
   audio.preload = 'metadata';
 
-  audio.addEventListener('loadstart', () => setPlaybackStatus('loading'));
-  audio.addEventListener('loadedmetadata', () => syncDuration());
-  audio.addEventListener('durationchange', () => syncDuration());
+  audio.addEventListener('loadstart', () => {
+    if (isActive()) setPlaybackStatus('loading');
+  });
+  audio.addEventListener('loadedmetadata', () => {
+    if (isActive()) syncDuration();
+  });
+  audio.addEventListener('durationchange', () => {
+    if (isActive()) syncDuration();
+  });
   audio.addEventListener('playing', () => {
+    if (!isActive()) return;
     setPlaybackStatus('playing');
     startPolling();
   });
   audio.addEventListener('canplay', () => {
+    if (!isActive()) return;
     if (!audio.paused) setPlaybackStatus('playing');
   });
   audio.addEventListener('pause', () => {
+    if (!isActive()) return;
     stopPolling();
     setTime(audio.currentTime || 0);
     if (!audio.ended) setPlaybackStatus('paused');
   });
-  audio.addEventListener('waiting', () => setPlaybackStatus('loading'));
-  audio.addEventListener('stalled', () => setPlaybackStatus('loading'));
+  audio.addEventListener('waiting', () => {
+    if (isActive()) setPlaybackStatus('loading');
+  });
+  audio.addEventListener('stalled', () => {
+    if (isActive()) setPlaybackStatus('loading');
+  });
   audio.addEventListener('ended', () => {
+    if (!isActive()) return;
     stopPolling();
     withViewTransition(() => next(), {
       scope: 'song',
@@ -46,6 +60,7 @@ export function initAudioPlayer() {
     });
   });
   audio.addEventListener('error', () => {
+    if (!isActive()) return;
     stopPolling();
     console.warn('Audio playback error', {
       code: audio.error?.code,
@@ -57,9 +72,11 @@ export function initAudioPlayer() {
       songKind: 'auto',
     });
   });
-  audio.addEventListener('timeupdate', () => setTime(audio.currentTime || 0));
+  audio.addEventListener('timeupdate', () => {
+    if (isActive()) setTime(audio.currentTime || 0);
+  });
 
-  setController({
+  const controller = {
     load: (song) => {
       const audioUrl =
         song?.audioUrl ||
@@ -85,12 +102,16 @@ export function initAudioPlayer() {
       const promise = audio.play();
       if (promise?.catch) {
         promise.catch((error) => {
+          if (!isActive()) return;
           console.warn('Audio play failed', error);
           setPlaybackStatus('paused');
         });
       }
     },
-    pause: () => audio.pause(),
+    pause: () => {
+      stopPolling();
+      audio.pause();
+    },
     stop: () => {
       audio.pause();
       audio.removeAttribute('src');
@@ -112,7 +133,9 @@ export function initAudioPlayer() {
       audio.muted = !audio.muted;
     },
     isMuted: () => audio.muted,
-  });
+  };
+  const isActive = () => getPlayerState().controller === controller;
+  setController(controller);
 }
 
 function syncDuration() {

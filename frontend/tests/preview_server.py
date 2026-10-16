@@ -46,7 +46,24 @@ class Preview(SimpleHTTPRequestHandler):
             return self.respond(svg.encode(), 'image/svg+xml')
         if path == '/api/auth/session': return self.respond(dict(authenticated=Preview.authenticated, user=dict(id='preview-user', username='Music lover', email='listener@example.com')))
         if path == '/api/songs': return self.respond(dict(songs=songs, hasMore=False, nextCursor=None))
-        if path.endswith('/audio'): return self.respond(audio.getvalue(), 'audio/wav')
+        if path.endswith('/audio'):
+            data = audio.getvalue()
+            start, end = 0, len(data) - 1
+            requested = self.headers.get('Range')
+            if requested:
+                value = requested.removeprefix('bytes=').split(',')[0]
+                first, last = value.split('-', 1)
+                start = int(first or 0)
+                end = min(int(last) if last else end, end)
+            body = data[start:end + 1]
+            self.send_response(206 if requested else 200)
+            self.send_header('Content-Type', 'audio/wav')
+            self.send_header('Accept-Ranges', 'bytes')
+            self.send_header('Content-Length', str(len(body)))
+            if requested: self.send_header('Content-Range', f'bytes {start}-{end}/{len(data)}')
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path.startswith('/api/songs/'): return self.respond(self.detail())
         if path.startswith('/api/auth/passkeys'): return self.respond(dict(passkeys=[]))
         if path.startswith('/api/'): return self.respond({})
