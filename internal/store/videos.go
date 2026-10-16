@@ -62,5 +62,8 @@ func (s *Store) UpsertSongAndVideo(ctx context.Context, song types.SongUpsert, v
 		return err
 	}
 
+	if _, err := enqueueSongJob(ctx, tx, song.TrackID, ProcessSongAction); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }

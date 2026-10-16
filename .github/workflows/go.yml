@@ -15,11 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
       - name: Test
         run: go test ./...
+      - name: Test outbox with PostgreSQL and RabbitMQ
+        run: go test -race -tags=integration ./internal/store ./internal/services -count=1
       - name: Check browser JavaScript syntax
         run: find web/assets/js -name '*.js' -print -exec node --check {} \;

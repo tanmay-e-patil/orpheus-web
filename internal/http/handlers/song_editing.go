@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
-	"orpheus-web/internal/services"
 	"orpheus-web/internal/store"
 	"orpheus-web/internal/types"
 )
@@ -40,7 +40,7 @@ func GetSong(db *store.Store, userIDFromContext func(context.Context) (string, b
 	}
 }
 
-func UpdateSongMetadata(db *store.Store, queue *services.QueuePublisher, userIDFromContext func(context.Context) (string, bool)) http.HandlerFunc {
+func UpdateSongMetadata(db *store.Store, userIDFromContext func(context.Context) (string, bool)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := userIDFromContext(r.Context())
 		if !ok {
@@ -64,12 +64,12 @@ func UpdateSongMetadata(db *store.Store, queue *services.QueuePublisher, userIDF
 		}
 		resp, err := db.UpdateSongMetadata(r.Context(), userID, r.PathValue("trackId"), store.SongMetadataUpdate{
 			Name: strings.TrimSpace(body.Name), ArtistName: strings.TrimSpace(body.ArtistName), AlbumName: strings.TrimSpace(body.AlbumName), AlbumArt: body.AlbumArt, ReleaseDate: body.ReleaseDate,
-		}, queue.Enabled(), queue.PublishProcessSong)
+		})
 		writeSongEditResponse(r.Context(), w, resp, err)
 	}
 }
 
-func ReplaceAudioSource(db *store.Store, queue *services.QueuePublisher, userIDFromContext func(context.Context) (string, bool)) http.HandlerFunc {
+func ReplaceAudioSource(db *store.Store, userIDFromContext func(context.Context) (string, bool)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := userIDFromContext(r.Context())
 		if !ok {
@@ -85,28 +85,31 @@ func ReplaceAudioSource(db *store.Store, queue *services.QueuePublisher, userIDF
 			Error(w, http.StatusBadRequest, "missing_fields", "Video id and title are required")
 			return
 		}
-		resp, err := db.ReplaceAudioSource(r.Context(), userID, r.PathValue("trackId"), video, queue.Enabled(), queue.PublishProcessSong)
+		resp, err := db.ReplaceAudioSource(r.Context(), userID, r.PathValue("trackId"), video)
 		writeSongEditResponse(r.Context(), w, resp, err)
 	}
 }
 
-func RegenerateSong(db *store.Store, queue *services.QueuePublisher, userIDFromContext func(context.Context) (string, bool)) http.HandlerFunc {
+func RegenerateSong(db *store.Store, userIDFromContext func(context.Context) (string, bool)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := userIDFromContext(r.Context())
 		if !ok {
 			Error(w, http.StatusUnauthorized, "unauthorized", "Unauthorized")
 			return
 		}
-		resp, err := db.RegenerateSong(r.Context(), userID, r.PathValue("trackId"), queue.Enabled(), queue.PublishProcessSong)
+		resp, err := db.RegenerateSong(r.Context(), userID, r.PathValue("trackId"))
 		writeSongEditResponse(r.Context(), w, resp, err)
 	}
 }
 
 func writeSongEditResponse(ctx context.Context, w http.ResponseWriter, resp store.SongEditResponse, err error) {
 	if err != nil {
+		var pgErr *pgconn.PgError
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
 			Error(w, http.StatusNotFound, "not_found", "Song not found")
+		case errors.As(err, &pgErr) && pgErr.Code == "23505":
+			Error(w, http.StatusConflict, "song_exists", "A song with this artist, album, and title already exists")
 		case errors.Is(err, store.ErrBadReleaseDate):
 			Error(w, http.StatusBadRequest, "bad_release_date", "Release date must be empty, YYYY, or YYYY-MM-DD")
 		case errors.Is(err, store.ErrSameAudioSource):

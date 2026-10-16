@@ -9,7 +9,9 @@ flowchart LR
     Browser[Browser\nVanilla JS] -->|HTTP / JSON| App[Orpheus Web\nGo HTTP server]
     App -->|queries and migrations| DB[(PostgreSQL)]
     App -->|search and metadata| APIs[YouTube · Deezer · LRCLib]
-    App -->|download jobs| Queue[(RabbitMQ)]
+    App -->|song changes + job requests| DB
+    DB -->|NOTIFY wakes dispatcher| Dispatcher[Outbox dispatcher]
+    Dispatcher -->|confirmed publication| Queue[(RabbitMQ)]
     Queue --> Consumer[orpheus-consumer]
     Consumer -->|writes audio| Music[(Shared music library)]
     Consumer -->|marks available| DB
@@ -36,6 +38,7 @@ Optional configuration:
 ```sh
 export YOUTUBE_API_KEY=''              # Required for YouTube discovery
 export RABBITMQ_URL='amqp://localhost' # Required when APP_ENV=production
+export OUTBOX_DISPATCH_ENABLED='true'  # Defaults to true when RabbitMQ is configured
 export MUSIC_LIBRARY_PATH='/music'     # Defaults to /music
 export PORT='8080'                     # Defaults to 8080
 export APP_ENV='development'           # Use production for secure cookies
@@ -45,7 +48,7 @@ export HTTP_TIMEOUT_SECONDS='15'       # External API timeout
 `DOMAIN` is the WebAuthn relying-party ID (a hostname without a scheme), while
 `AUTH_RP_ORIGIN` is the full browser origin. `RABBITMQ_URL` enables publishing
 committed songs to `orpheus-consumer`; if omitted in development, metadata is
-stored but no audio file is generated. `MUSIC_LIBRARY_PATH` must point at the
+stored and jobs remain pending until dispatch is enabled. `MUSIC_LIBRARY_PATH` must point at the
 same directory used by the consumer.
 
 `AUTH_EMAIL` (or `AUTH_USERNAME`) plus `AUTH_PASSWORD` or `AUTH_PASSWORD_HASH`
@@ -71,16 +74,17 @@ The app keeps the existing `songs` and `yt_music_videos` schema and serves the s
 
 ## Redownload library files
 
-Use the redownload CLI to republish existing songs to RabbitMQ for
-`orpheus-consumer`. By default it queues only songs where `songs.is_available`
+Use the redownload CLI to schedule existing songs for `orpheus-consumer` through
+the database outbox. It needs only `DATABASE_URL`; a running web dispatcher
+publishes the jobs, including after a RabbitMQ outage. By default it queues only songs where `songs.is_available`
 is false or null.
 
 ```sh
-DATABASE_URL='postgres://...' RABBITMQ_URL='amqp://...' \
+DATABASE_URL='postgres://...' \
 go run ./cmd/redownload-library
 ```
 
-Preview matches without publishing:
+Preview matches without scheduling:
 
 ```sh
 DATABASE_URL='postgres://...' \
@@ -106,7 +110,118 @@ go run ./cmd/redownload-library \
   --updated-before 2026-05-08T00:00:00Z
 ```
 
-The CLI publishes the same payload used by commits:
-`{"jobId":"<track-id>","action":"process-song-data","timestamp":"<utc>"}` to
-the durable `job_queue`. It does not update `songs.is_available`; the consumer
-remains responsible for marking completed downloads available.
+The CLI records the same `process-song-data` requests used by imports. It does not
+update `songs.is_available`; the consumer remains responsible for marking
+completed downloads available. Migration 0009 must already have been applied by
+the web application.
+
+## Library file updates
+
+Metadata edits queue `update-song-files`: the consumer reuses the existing audio,
+rewrites tags/artwork with ffmpeg stream copy, and moves renamed tracks into the
+artist/album/title layout. Lyrics edits queue `update-song-lyrics` and only update
+the `.lrc` sidecar. Sidecars use synced lyrics when available and otherwise plain
+lyrics, matching existing exports. Clearing both removes the sidecar. Audio-source replacements and
+manual regeneration still queue `process-song-data` to download new audio.
+
+`songs.audio_file_path` records the current relative audio location, so playback
+continues from the old location until a rename is complete. Obsolete audio and
+sidecars are removed after the new location is committed; pending cleanup is
+persisted in `song_file_cleanup` for retries. The consumer locks each song while
+processing so queued edits read committed metadata and cannot race each other.
+Paused dispatch saves edits and keeps durable jobs pending until dispatch resumes.
+
+## Transactional job dispatch
+
+Every import, metadata/artwork/lyrics edit, source replacement, regeneration, and
+CLI request records its job in `song_job_outbox`. Song changes and their jobs
+commit together. Requests do not connect to RabbitMQ and can succeed during a
+broker outage. Response flags such as `fileUpdateQueued` mean durably scheduled.
+
+A goroutine listens on a dedicated PostgreSQL connection for `song_jobs_ready`.
+A table trigger emits notifications only on committed inserts/updates. After
+registering the listener, the dispatcher scans for existing work; it does the
+same after reconnecting. While idle it blocks instead of polling every second.
+Retry and lease-expiration deadlines wake it when necessary. Completed-job
+maintenance runs at startup/reconnect and once daily.
+
+Each publication has a 30-second claim lease and a five-second network timeout.
+Expired claims can be recovered by another instance; lease tokens prevent stale
+workers from changing newer claims. Failed publications use exponential backoff
+with jitter, capped at five minutes, and are never automatically discarded.
+Publication uses persistent messages, mandatory routing, and broker confirms.
+At this workload, each attempt uses a fresh bounded AMQP connection.
+
+Each request has an `eventId` (also AMQP `MessageId`); `jobId` remains the song ID.
+The dispatcher sets `published_at` after confirmation. The consumer checks and
+sets `completed_at` on that same outbox row, in the transaction that completes its
+song changes. Duplicate completed events skip media work but resume pending file
+cleanup before acknowledgement. Consumer retry/DLQ handoffs are also confirmed.
+Legacy messages without `eventId` remain supported. Separate requests are not
+coalesced: consumers reconcile current committed metadata rather than replaying
+historical snapshots, and strict request ordering is not promised.
+
+Completed receipts are retained for seven days (the duplicate/replay window).
+Unfinished jobs are retained indefinitely. After that window, replayed event IDs
+whose rows were pruned are rejected by the consumer rather than reprocessed.
+Filesystem effects remain retryable, not exactly once. A crash after file work
+but before the database commit can repeat work safely.
+
+`OUTBOX_DISPATCH_ENABLED=false` pauses dispatch without disabling durable
+scheduling. Without `RABBITMQ_URL` in development, dispatch defaults to paused;
+configuring it later drains the backlog. PostgreSQL connectivity must support a
+persistent session for `LISTEN`, rather than transaction-only pooling.
+
+Metrics include `orpheus_outbox_pending`,
+`orpheus_outbox_oldest_created_timestamp_seconds`, and
+`orpheus_queue_publish_total{result="success|failed"}`. Backlog gauges refresh at
+dispatcher wake-ups; paused instances do not refresh them. Use
+`time() - orpheus_outbox_oldest_created_timestamp_seconds` for backlog age when the
+oldest timestamp is nonzero. Logs include event IDs, attempts, and retry errors.
+
+## Testcontainers integration tests
+
+Docker access is required. Fast unit tests continue to run without Docker:
+
+```sh
+go test ./...
+```
+
+Run database/notification/broker failure tests independently of the consumer:
+
+```sh
+go test -tags=integration ./internal/store ./internal/services -count=1
+```
+
+For the complete suite, check out the matching consumer code in the sibling
+`../orpheus-consumer` directory, or set `ORPHEUS_CONSUMER_DIR`:
+
+```sh
+go test -tags=integration ./... -count=1
+(cd ../orpheus-consumer && go test -tags=integration ./... -count=1)
+```
+
+Consumer tests load this application's actual migrations from the sibling
+`../orpheus-web` directory; set `ORPHEUS_WEB_DIR` for a different layout.
+Tests use pinned PostgreSQL/RabbitMQ images and disposable data. The end-to-end
+suite builds the real consumer in an Alpine container with ffmpeg, generates
+its own audio fixture, checks tags/renames/LRC updates, and restarts the consumer.
+It never contacts YouTube or metadata APIs. Crash hooks exercise publication and
+completion boundaries deterministically; tests use bounded conditions rather
+than fixed sleeps to wait for work.
+
+CI runs unit and core Testcontainers tests on pushes and pull requests. The
+`Outbox end-to-end` workflow accepts a matching consumer ref and runs the complete
+web and consumer suites together, allowing coordinated changes across repositories.
+
+## Outbox rollout
+
+1. Deploy this web version with `OUTBOX_DISPATCH_ENABLED=false` to apply migration
+   0009 and start recording jobs without publishing them.
+2. Deploy the matching `orpheus-consumer` version with same-row event completion.
+3. Enable dispatch and restart the web application. Monitor the backlog and logs.
+
+The consumer changes are in the sibling `../orpheus-consumer` repository. Old
+consumers can decode the extra JSON field, but do not record completion, so deploy
+the matching consumer before enabling dispatch. Reverting to direct-publishing
+web versions would remove the atomic scheduling guarantee.

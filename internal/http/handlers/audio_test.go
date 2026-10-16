@@ -73,3 +73,21 @@ func TestServeContentSupportsAudioRanges(t *testing.T) {
 		t.Fatalf("Content-Range = %q", contentRange)
 	}
 }
+
+func TestLibraryAudioPathUsesStoredLocationDuringRename(t *testing.T) {
+	base := t.TempDir()
+	song := types.AudioSong{Name: "New title", ArtistName: "New artist", AlbumName: "New album", AudioFilePath: "Old artist/Old album/Old title.m4a"}
+	got, err := LibraryAudioPath(base, song)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(base, "Old artist", "Old album", "Old title.m4a"); got != want {
+		t.Fatalf("path = %q, want %q", got, want)
+	}
+	for _, invalid := range []string{"../outside.m4a", "/outside.m4a", `Artist\..\outside.m4a`} {
+		song.AudioFilePath = invalid
+		if _, err := LibraryAudioPath(base, song); err == nil {
+			t.Fatalf("accepted unsafe stored path %q", invalid)
+		}
+	}
+}
