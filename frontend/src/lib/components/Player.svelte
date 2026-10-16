@@ -7,6 +7,7 @@
     ListMusic,
     Volume2,
     Music2,
+    ScrollText,
     X,
   } from '@lucide/svelte';
   import * as Sheet from '$lib/components/ui/sheet';
@@ -92,7 +93,7 @@
         aria-pressed={panel === 'lyrics'}
         aria-controls="player-lyrics"
         onclick={() => (panel = panel === 'lyrics' ? null : 'lyrics')}
-        ><Music2 size={20} /></button
+        ><ScrollText size={20} /></button
       >
       <button class="icon-control" aria-label="Previous song" onclick={prev}
         ><SkipBack size={24} fill="currentColor" /></button
@@ -162,7 +163,7 @@
       <button
         class="icon-control"
         aria-label="Show lyrics"
-        onclick={() => expand('lyrics')}><Music2 size={18} /></button
+        onclick={() => expand('lyrics')}><ScrollText size={18} /></button
       ><button
         class="icon-control"
         aria-label="Show queue"
