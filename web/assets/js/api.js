@@ -81,8 +81,9 @@ export const API = {
       params.set("artistName", cursor.artistName);
       params.set("trackId", cursor.trackId);
       if (cursor.playCount != null) params.set("playCount", String(cursor.playCount));
+      if (cursor.createdAt) params.set("createdAt", cursor.createdAt);
     }
-    if (sort === "mostPlayed") params.set("sort", sort);
+    if (sort !== "artist") params.set("sort", sort);
     if (limit) params.set("limit", String(limit));
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return request(`/api/songs${suffix}`, { signal });
@@ -120,10 +121,10 @@ export const API = {
       body: JSON.stringify({ query }),
       signal,
     }),
-  matchDeezerTracks: (videos, signal) =>
+  matchDeezerTracks: (videos, searchQuery, signal) =>
     request("/api/discover/deezer/matches", {
       method: "POST",
-      body: JSON.stringify({ videos: videos.map(toYouTubeVideoPayload) }),
+      body: JSON.stringify({ videos: videos.map(toYouTubeVideoPayload), searchQuery }),
       signal,
     }),
   customDeezerMatch: (video, customQuery) =>

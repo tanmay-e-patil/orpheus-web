@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"orpheus-web/internal/types"
 )
 
@@ -18,8 +16,9 @@ const maxSongLimit = 100
 type SongSort string
 
 const (
-	SongSortArtist     SongSort = "artist"
-	SongSortMostPlayed SongSort = "mostPlayed"
+	SongSortArtist        SongSort = "artist"
+	SongSortMostPlayed    SongSort = "mostPlayed"
+	SongSortRecentlyAdded SongSort = "recentlyAdded"
 )
 
 type FetchSongsOptions struct {
@@ -63,22 +62,29 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 	query := `
 		select songs.id, songs.name, songs.artist_name, songs.album_name, songs.album_art, songs.duration, songs.yt_video_id,
 		       songs.lyrics, songs.synced_lyrics, songs.is_lyrics_available, coalesce(songs.is_available, false),
-		       coalesce(usp.play_count, 0)
+		       coalesce(usp.play_count, 0), songs.created_at
 		from songs
 		left join user_song_plays usp on usp.track_id = songs.id and usp.user_id = $2
 	`
 	if opts.Cursor != nil {
-		if opts.Sort == SongSortMostPlayed {
+		switch opts.Sort {
+		case SongSortMostPlayed:
 			query += ` where coalesce(usp.play_count, 0) < $3 or (coalesce(usp.play_count, 0) = $3 and songs.artist_name > $4) or (coalesce(usp.play_count, 0) = $3 and songs.artist_name = $4 and songs.id > $5)`
 			args = append(args, opts.Cursor.PlayCount, opts.Cursor.ArtistName, opts.Cursor.TrackID)
-		} else {
+		case SongSortRecentlyAdded:
+			query += ` where songs.created_at < $3 or (songs.created_at = $3 and songs.id > $4)`
+			args = append(args, opts.Cursor.CreatedAt, opts.Cursor.TrackID)
+		default:
 			query += ` where songs.artist_name > $3 or (songs.artist_name = $3 and songs.id > $4)`
 			args = append(args, opts.Cursor.ArtistName, opts.Cursor.TrackID)
 		}
 	}
-	if opts.Sort == SongSortMostPlayed {
+	switch opts.Sort {
+	case SongSortMostPlayed:
 		query += ` order by coalesce(usp.play_count, 0) desc, songs.artist_name asc, songs.id asc limit $1`
-	} else {
+	case SongSortRecentlyAdded:
+		query += ` order by songs.created_at desc, songs.id asc limit $1`
+	default:
 		query += ` order by songs.artist_name asc, songs.id asc limit $1`
 	}
 
@@ -106,6 +112,7 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 			&isLyrics,
 			&song.IsAvailable,
 			&song.PlayCount,
+			&song.CreatedAt,
 		); err != nil {
 			return types.SongsPageResponse{}, err
 		}
@@ -136,6 +143,9 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 	if hasMore && len(songs) > 0 {
 		last := songs[len(songs)-1]
 		nextCursor = &types.SongCursor{ArtistName: last.ArtistName, TrackID: last.TrackID, PlayCount: last.PlayCount}
+		if opts.Sort == SongSortRecentlyAdded {
+			nextCursor.CreatedAt = &last.CreatedAt
+		}
 	}
 	return types.SongsPageResponse{
 		Songs:        songs,
@@ -183,10 +193,10 @@ func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (Rec
 func (s *Store) SongForAudio(ctx context.Context, trackID string) (types.AudioSong, error) {
 	var song types.AudioSong
 	err := s.Pool.QueryRow(ctx, `
-		select id, name, artist_name, album_name, coalesce(is_available, false), updated_at
+		select id, name, artist_name, album_name, coalesce(is_available, false), updated_at, coalesce(audio_file_path, '')
 		from songs
 		where id = $1
-	`, trackID).Scan(&song.TrackID, &song.Name, &song.ArtistName, &song.AlbumName, &song.IsAvailable, &song.UpdatedAt)
+	`, trackID).Scan(&song.TrackID, &song.Name, &song.ArtistName, &song.AlbumName, &song.IsAvailable, &song.UpdatedAt, &song.AudioFilePath)
 	if err != nil {
 		return types.AudioSong{}, err
 	}
@@ -278,29 +288,37 @@ func buildRedownloadSongsQuery(filter RedownloadSongsFilter) (string, []any) {
 	return query.String(), args
 }
 
-func (s *Store) UpdateAlbumArt(ctx context.Context, trackID, albumArt string) error {
-	tag, err := s.Pool.Exec(ctx, `update songs set album_art = $1, updated_at = now() where id = $2`, albumArt, trackID)
+// updateSongFileMetadata records file work in the same transaction as the edit.
+func (s *Store) updateSongFileMetadata(ctx context.Context, trackID, query string, args []any, action string) error {
+	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("song not found: %s", trackID)
+	defer tx.Rollback(ctx)
+	var id string
+	if err := tx.QueryRow(ctx, `select id from songs where id = $1 for update`, trackID).Scan(&id); err != nil {
+		return err
 	}
-	return nil
+	tag, err := tx.Exec(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() > 0 {
+		if _, err := enqueueSongJob(ctx, tx, trackID, action); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *Store) UpdateAlbumArt(ctx context.Context, trackID, albumArt string) error {
+	return s.updateSongFileMetadata(ctx, trackID, `update songs set album_art = $1, updated_at = now() where id = $2 and album_art is distinct from $1`, []any{albumArt, trackID}, UpdateSongFilesAction)
 }
 
 func (s *Store) UpdateLyrics(ctx context.Context, trackID, plainLyrics, syncedLyrics string) error {
 	isAvailable := plainLyrics != "" || syncedLyrics != ""
-	tag, err := s.Pool.Exec(ctx, `
-		update songs
-		set lyrics = $1, synced_lyrics = $2, is_lyrics_available = $3, updated_at = now()
-		where id = $4
-	`, plainLyrics, syncedLyrics, isAvailable, trackID)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return pgx.ErrNoRows
-	}
-	return nil
+	return s.updateSongFileMetadata(ctx, trackID, `
+  update songs set lyrics = $1, synced_lyrics = $2, is_lyrics_available = $3, updated_at = now()
+  where id = $4 and (lyrics is distinct from $1 or synced_lyrics is distinct from $2 or is_lyrics_available is distinct from $3)
+ `, []any{plainLyrics, syncedLyrics, isAvailable, trackID}, UpdateSongLyricsAction)
 }
