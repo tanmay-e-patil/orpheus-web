@@ -14,6 +14,7 @@ export class CommitLibraryPage extends HTMLElement {
 
   render() {
     const items = this.commitItems();
+    const allSaved = this.results?.length > 0 && this.results.every((result) => result.success);
     const list = el("div", { class: "stack" });
     for (const item of items) {
       list.append(el("article", { class: "card compact-card" }, [
@@ -36,8 +37,8 @@ export class CommitLibraryPage extends HTMLElement {
       resultList,
       el("div", { class: "actions sticky-actions" }, [
         el("button", { class: "button secondary", type: "button", text: "Back", onclick: () => window.Orpheus.router.go("/discover/review") }),
-        el("button", { class: "button", type: "button", text: this.saving ? "Saving..." : this.hasFailures() ? "Try Again" : "Save", disabled: this.saving || !items.length, onclick: () => this.commit() }),
-        this.results?.every((result) => result.success) ? el("button", { class: "button", type: "button", text: "Go to Tracks", onclick: () => window.Orpheus.router.go("/home") }) : null,
+        allSaved ? null : el("button", { class: "button", type: "button", text: this.saving ? "Saving..." : this.hasFailures() ? "Try Again" : "Save", disabled: this.saving || !items.length, onclick: () => this.commit() }),
+        allSaved ? el("button", { class: "button", type: "button", text: "Go to Tracks", onclick: () => window.Orpheus.router.go("/home") }) : null,
       ]),
     ]));
   }
