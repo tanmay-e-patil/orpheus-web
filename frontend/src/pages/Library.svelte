@@ -178,7 +178,6 @@
 <section class="page library-page">
   <header class="page-heading">
     <div>
-      <p class="eyebrow">THE COLLECTION</p>
       <h1>Your library<span class="title-dot">.</span></h1>
       <p class="muted">
         {songs.length
@@ -214,11 +213,8 @@
       >{query
         ? `${results.length} ${results.length === 1 ? 'result' : 'results'}`
         : 'ALL SONGS'}</span
-    ><span
-      >{hydrating
-        ? 'Loading the rest of your library…'
-        : 'A collection of your own'}</span
     >
+    {#if hydrating}<span>Loading the rest of your library…</span>{/if}
   </div>
   {#if error}<div class="inline-error" role="alert">
       <p>{error}</p>

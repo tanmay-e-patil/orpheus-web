@@ -200,8 +200,8 @@
         class="icon-control now-playing-close"
         aria-label="Close player"><X size={20} /></Sheet.Close
       ><Sheet.Header
-        ><p class="eyebrow">A MOMENT FOR THE MUSIC</p>
-        <Sheet.Title>Now playing</Sheet.Title><Sheet.Description class="sr-only"
+        ><Sheet.Title class="sr-only">Now playing</Sheet.Title
+        ><Sheet.Description class="sr-only"
           >{song.name} · {song.artistName}</Sheet.Description
         ></Sheet.Header
       ><Tabs.Root bind:value={tab} class="now-playing-body"

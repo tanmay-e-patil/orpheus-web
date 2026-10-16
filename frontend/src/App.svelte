@@ -154,8 +154,6 @@
     <header class="mobile-header">
       <a href="/home" class="wordmark"
         ><AudioLines size={22} />orpheus<span class="brand-dot">.</span></a
-      ><a href="/settings" class="icon-control" aria-label="Account settings"
-        ><SettingsIcon size={20} /></a
       >
     </header>
     <main id="main" tabindex="-1">
