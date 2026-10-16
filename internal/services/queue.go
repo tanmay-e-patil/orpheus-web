@@ -17,8 +17,10 @@ import (
 )
 
 const (
-	ProcessSongAction = "process-song-data"
-	JobQueueName      = "job_queue"
+	ProcessSongAction      = "process-song-data"
+	UpdateSongFilesAction  = "update-song-files"
+	UpdateSongLyricsAction = "update-song-lyrics"
+	JobQueueName           = "job_queue"
 )
 
 type QueuePublisher struct {
@@ -43,11 +45,23 @@ func (q *QueuePublisher) Enabled() bool {
 }
 
 func (q *QueuePublisher) PublishProcessSong(ctx context.Context, trackID string) error {
+	return q.publishSongAction(ctx, trackID, ProcessSongAction)
+}
+
+func (q *QueuePublisher) PublishUpdateSongFiles(ctx context.Context, trackID string) error {
+	return q.publishSongAction(ctx, trackID, UpdateSongFilesAction)
+}
+
+func (q *QueuePublisher) PublishUpdateSongLyrics(ctx context.Context, trackID string) error {
+	return q.publishSongAction(ctx, trackID, UpdateSongLyricsAction)
+}
+
+func (q *QueuePublisher) publishSongAction(ctx context.Context, trackID, action string) error {
 	if !q.Enabled() {
 		metrics.ObserveQueuePublish(JobQueueName, "disabled")
 		return nil
 	}
-	if err := q.publishProcessSong(ctx, trackID); err != nil {
+	if err := q.publishJob(ctx, trackID, action); err != nil {
 		metrics.ObserveQueuePublish(JobQueueName, "failed")
 		return err
 	}
@@ -55,7 +69,7 @@ func (q *QueuePublisher) PublishProcessSong(ctx context.Context, trackID string)
 	return nil
 }
 
-func (q *QueuePublisher) publishProcessSong(ctx context.Context, trackID string) (err error) {
+func (q *QueuePublisher) publishJob(ctx context.Context, trackID, action string) (err error) {
 	ctx, span := otel.Tracer("orpheus-web/rabbitmq").Start(ctx, "rabbitmq publish "+JobQueueName,
 		trace.WithSpanKind(trace.SpanKindProducer),
 		trace.WithAttributes(
@@ -83,7 +97,7 @@ func (q *QueuePublisher) publishProcessSong(ctx context.Context, trackID string)
 	}
 	body, err := json.Marshal(JobPayload{
 		JobID:     trackID,
-		Action:    ProcessSongAction,
+		Action:    action,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {

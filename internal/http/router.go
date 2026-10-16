@@ -78,9 +78,9 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("PATCH /api/songs/{trackId}/metadata", s.requireAuth(method(http.MethodPatch, handlers.UpdateSongMetadata(s.Store, s.Queue, UserIDFromContext))))
 	mux.Handle("POST /api/songs/{trackId}/audio-source", s.requireAuth(method(http.MethodPost, handlers.ReplaceAudioSource(s.Store, s.Queue, UserIDFromContext))))
 	mux.Handle("POST /api/songs/{trackId}/regenerate", s.requireAuth(method(http.MethodPost, handlers.RegenerateSong(s.Store, s.Queue, UserIDFromContext))))
-	mux.Handle("POST /api/songs/album-art/refresh", s.requireAuth(method(http.MethodPost, handlers.RefreshAlbumArt(s.Store, s.Deezer))))
+	mux.Handle("POST /api/songs/album-art/refresh", s.requireAuth(method(http.MethodPost, handlers.RefreshAlbumArt(s.Store, s.Deezer, s.Queue))))
 	mux.Handle("POST /api/lyrics/lrclib", s.requireAuth(method(http.MethodPost, handlers.LRCLibExact(s.LRCLib))))
-	mux.Handle("POST /api/lyrics/save", s.requireAuth(method(http.MethodPost, handlers.SaveLyrics(s.Store))))
+	mux.Handle("POST /api/lyrics/save", s.requireAuth(method(http.MethodPost, handlers.SaveLyrics(s.Store, s.Queue))))
 
 	mux.Handle("POST /api/discover/youtube", s.requireAuth(method(http.MethodPost, handlers.DiscoverYouTube(s.YouTube))))
 	mux.Handle("POST /api/discover/deezer/matches", s.requireAuth(method(http.MethodPost, handlers.MatchDeezerTracks(s.Deezer))))

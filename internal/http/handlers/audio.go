@@ -67,19 +67,26 @@ func LibraryAudioPath(baseDir string, song types.AudioSong) (string, error) {
 	if baseDir == "" {
 		return "", errors.New("library path is empty")
 	}
-	if strings.TrimSpace(song.ArtistName) == "" || strings.TrimSpace(song.AlbumName) == "" || strings.TrimSpace(song.Name) == "" {
-		return "", errors.New("song path fields are required")
-	}
-	for _, component := range []string{song.ArtistName, song.AlbumName, song.Name} {
-		if hasUnsafePathSegment(component) {
-			return "", errors.New("song path field is unsafe")
+	relativePath := song.AudioFilePath
+	if relativePath == "" {
+		if strings.TrimSpace(song.ArtistName) == "" || strings.TrimSpace(song.AlbumName) == "" || strings.TrimSpace(song.Name) == "" {
+			return "", errors.New("song path fields are required")
 		}
+		relativePath = filepath.Join(song.ArtistName, song.AlbumName, song.Name+".m4a")
+		for _, component := range []string{song.ArtistName, song.AlbumName, song.Name} {
+			if hasUnsafePathSegment(component) {
+				return "", errors.New("song path field is unsafe")
+			}
+		}
+	}
+	if hasUnsafePathSegment(relativePath) {
+		return "", errors.New("audio path is unsafe")
 	}
 	baseAbs, err := filepath.Abs(baseDir)
 	if err != nil {
 		return "", fmt.Errorf("resolve library path: %w", err)
 	}
-	fullAbs, err := filepath.Abs(filepath.Join(baseAbs, song.ArtistName, song.AlbumName, song.Name+".m4a"))
+	fullAbs, err := filepath.Abs(filepath.Join(baseAbs, relativePath))
 	if err != nil {
 		return "", fmt.Errorf("resolve audio path: %w", err)
 	}
