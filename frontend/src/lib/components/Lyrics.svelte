@@ -59,10 +59,14 @@
     const first = !wasVisible || lastSongId !== id;
     wasVisible = isVisible;
     lastSongId = id;
-    if (!isVisible || index < 0 || !currentLines.length) return;
+    if (!isVisible) return;
     let cancelled = false;
     tick().then(() => {
       if (cancelled || !scroller) return;
+      if (index < 0 || !currentLines.length) {
+        scroller.scrollTo({ top: 0, behavior: 'instant' });
+        return;
+      }
       const behavior =
         first || matchMedia('(prefers-reduced-motion: reduce)').matches
           ? 'auto'
