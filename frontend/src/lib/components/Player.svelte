@@ -8,7 +8,7 @@
     Volume2,
     Music2,
     ScrollText,
-    X,
+    ChevronDown,
   } from '@lucide/svelte';
   import * as Sheet from '$lib/components/ui/sheet';
   import * as Tabs from '$lib/components/ui/tabs';
@@ -26,6 +26,12 @@
     setQueue,
   } from '$lib/core/player-store.js';
   import { clock } from '$lib/music';
+  import { playerDismiss } from '$lib/player-dismiss';
+  let playerSheet = $state<HTMLElement | null>(null);
+  $effect(() => {
+    if (playerSheet)
+      return playerDismiss(playerSheet, () => nowPlaying.set(false));
+  });
   let panel = $state<'lyrics' | 'queue' | null>(null);
   let tab = $state('song'),
     videoSongId = $state<string | null>(null),
@@ -206,32 +212,38 @@
     <div class="mini-progress" style={`width:${progress}%`}></div>
   </footer>
   <Sheet.Root bind:open={$nowPlaying}
-    ><Sheet.Content class="now-playing-sheet" showCloseButton={false}
+    ><Sheet.Content
+      bind:ref={playerSheet}
+      side="bottom"
+      class="now-playing-sheet"
+      showCloseButton={false}
       ><PlayerArtwork
         src={song.albumArt}
         target={compactArtwork ? smallArtwork : largeArtwork}
-      /><Sheet.Close
-        class="icon-control now-playing-close"
-        aria-label="Close player"><X size={20} /></Sheet.Close
-      ><Sheet.Header
-        ><Sheet.Title class="sr-only">Now playing</Sheet.Title
-        ><Sheet.Description class="sr-only"
+      /><Sheet.Header class="sr-only"
+        ><Sheet.Title>Now playing</Sheet.Title><Sheet.Description
           >{song.name} · {song.artistName}</Sheet.Description
         ></Sheet.Header
       ><Tabs.Root bind:value={tab} class="now-playing-body"
-        ><Tabs.List class="now-playing-tabs" aria-label="Now Playing sections"
-          ><Tabs.Trigger value="song" onclick={() => (panel = null)}
-            >Song</Tabs.Trigger
-          ><Tabs.Trigger
-            value="video"
-            onclick={() => (panel = null)}
-            disabled={!song.youtubeVideoId}>Video</Tabs.Trigger
-          ></Tabs.List
-        >
+        ><div class="now-playing-header" data-player-drag-region>
+          <Sheet.Close
+            class="icon-control now-playing-close"
+            aria-label="Close player"><ChevronDown size={24} /></Sheet.Close
+          >
+          <Tabs.List class="now-playing-tabs" aria-label="Now Playing sections"
+            ><Tabs.Trigger value="song" onclick={() => (panel = null)}
+              >Song</Tabs.Trigger
+            ><Tabs.Trigger
+              value="video"
+              onclick={() => (panel = null)}
+              disabled={!song.youtubeVideoId}>Video</Tabs.Trigger
+            ></Tabs.List
+          >
+        </div>
         <div class="now-playing-stage">
           <div class="now-playing-media-panels" class:auxiliary-open={!!panel}>
             <Tabs.Content value="song" class="now-playing-listen">
-              <div class="now-playing-media">
+              <div class="now-playing-media" data-player-drag-region>
                 <div
                   bind:this={largeArtwork}
                   class="now-playing-artwork-large"
