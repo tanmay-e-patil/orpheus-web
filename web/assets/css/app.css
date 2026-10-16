@@ -899,12 +899,15 @@ h2 {
 
 .song-table th:nth-child(3),
 .song-table td:nth-child(3) {
-  width: 24%;
+  width: auto;
 }
 
-.song-table th:nth-child(4),
-.song-table td:nth-child(4) {
-  width: 10%;
+.song-table .song-duration-cell {
+  width: 116px;
+}
+
+.song-table .song-plays-cell {
+  width: 64px;
 }
 
 .song-table .song-actions-cell {
@@ -1968,6 +1971,11 @@ player-bar .icon-button:disabled {
   color: var(--success);
 }
 
+@media (max-width: 999px) {
+  .song-table { display: none; }
+  .song-list { display: grid; }
+}
+
 @media (max-width: 1199px) {
   .content-frame,
   .content-frame:has(.lyrics-panel-shell[hidden]) {
@@ -1983,7 +1991,7 @@ player-bar .icon-button:disabled {
   }
 
   .player-bar-inner {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
   .player-seek-zone {
@@ -2493,6 +2501,18 @@ player-bar .icon-button:disabled {
     min-height: 44px;
   }
 
+  .library-header {
+    gap: 12px;
+  }
+
+  .library-header h1 {
+    margin-bottom: 8px;
+  }
+
+  .library-header p {
+    margin-bottom: 0;
+  }
+
   .track-search-row {
     flex-wrap: wrap;
   }
@@ -2527,7 +2547,7 @@ player-bar .icon-button:disabled {
 
   .player-bar-inner {
     padding: 12px;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .player-actions {

@@ -1,6 +1,6 @@
 # Mobile UI review
 
-This review covers the frontend implementation. Browser verification is pending access to the remote preview host.
+Reviewed the frontend in the collaborative browser using a temporary private preview and synthetic API data. No production backend was used.
 
 ## Improvements included
 
@@ -20,6 +20,15 @@ This review covers the frontend implementation. Browser verification is pending 
 4. **Evaluate bottom navigation.** Library, Add songs, and Settings are stable destinations. A three-item bottom bar would improve thumb access, but it must share space deliberately with the mini-player and device safe area.
 5. **Use inline validation and preserve form position.** Put errors beside the relevant field, focus the first invalid field, and keep save progress near the button rather than forcing users to find results below a long form.
 
-## Browser checks to complete
+## Validation
 
-Check widths 320, 390, 768, 1024, and 1280px, with and without a selected song. Verify no horizontal overflow, the final song remains above the player, lyrics dialogs close and return focus, modified edit-link clicks preserve browser behavior, and keyboard opening does not obscure active fields. Exercise direct saves, partial failures, and session/draft recovery. Real iOS/Android testing is still needed for the virtual keyboard, safe areas, and audio playback.
+- Library/player layouts checked at 320, 390, 768, 1024, and 1280px, including a selected unavailable song: no document or player horizontal overflow.
+- At 320px, the Review form and progress indicator also fit the viewport; the song editor had no document horizontal overflow.
+- Direct Edit opened a different song without changing the current player selection.
+- Search submitted with Enter. Starting a new search preserved the previous session as a draft; Undo restored a discarded session.
+- The Lyrics button opened the dialog; Escape closed it.
+- Review saved directly, showed a success message, cleared the active draft, and offered Go to Tracks.
+- Clearing a no-results library search restored the song list.
+- Eight Node tests cover matching and saving, including partial retries, duplicate submission protection, missing confirmations, draft isolation, and network failure recovery.
+
+Real iOS/Android testing is still needed for the virtual keyboard, safe areas, audio playback, and dialog focus behavior. Modified-link behavior should also be checked on a desktop browser. The preview server is shut down after review.
