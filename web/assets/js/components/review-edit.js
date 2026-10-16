@@ -1,4 +1,7 @@
-import { el, loadWorkflowState, saveWorkflowState, showDialog, updateWorkflowStage } from "../store.js";
+import { clearSongsCache } from "../idb-song-cache.js";
+import { API } from "../api.js";
+import { buildCommitItems, mergeCommitResults } from "../workflow-save.js";
+import { appState, clearWorkflowState, el, loadWorkflowState, saveWorkflowState, showDialog, updateWorkflowStage } from "../store.js";
 
 export class ReviewEditPage extends HTMLElement {
   connectedCallback() {
@@ -7,6 +10,7 @@ export class ReviewEditPage extends HTMLElement {
       window.Orpheus.router.go("/discover");
       return;
     }
+    this.results = this.state.saveResults || [];
     this.items = this.buildItems();
     this.render();
   }
@@ -32,16 +36,26 @@ export class ReviewEditPage extends HTMLElement {
   }
 
   render() {
+    const allSaved = this.allSaved();
     const stack = el("div", { class: "stack" });
     this.inputs = [];
     this.items.forEach((item, index) => stack.append(this.editCard(item, index)));
     this.replaceChildren(el("section", { class: "page" }, [
-      el("workflow-progress", { stage: "review" }),
+      el("workflow-progress", { stage: "review", locked: this.saving || this.results.length > 0 }),
       el("div", { class: "page-header" }, [el("h1", { text: "Review" }), el("p", { class: "muted", text: "Check song info before saving to the library." })]),
       stack,
+      el("div", { class: "save-results stack", role: "status", "aria-live": "polite", tabindex: "-1" }, [
+        this.saveError ? el("p", { class: "error", text: this.saveError }) : null,
+        ...this.results.map((result) => {
+          const index = this.state.trackMatches.filter((match) => match.selectedMatch).findIndex((match) => match.selectedMatch.id === result.trackId);
+          return el("p", { class: result.success ? "success" : "error", text: `${this.items[index]?.trackName || result.trackId}: ${result.success ? "Saved to library. Audio may still be processing." : result.error || "Could not save. Try again."}` });
+        }),
+      ]),
       el("div", { class: "actions sticky-actions" }, [
-        el("button", { class: "button secondary", type: "button", text: "Back", onclick: () => { this.save(); updateWorkflowStage(loadWorkflowState(), "lyrics"); window.Orpheus.router.go("/discover/lyrics"); } }),
-        el("button", { class: "button", type: "button", text: "Continue", onclick: () => this.continue() }),
+        el("button", { class: "button secondary", type: "button", text: "Back", disabled: this.saving || this.results.length > 0, onclick: () => { this.save(); updateWorkflowStage(loadWorkflowState(), "lyrics"); window.Orpheus.router.go("/discover/lyrics"); } }),
+        allSaved
+          ? el("a", { class: "button", href: "/home", "data-link": "", text: "Go to Tracks" })
+          : el("button", { class: "button", type: "button", text: this.saving ? "Saving..." : this.results.length ? "Retry unsaved songs" : "Save to library", disabled: this.saving || !this.items.length, onclick: () => this.commit() }),
       ]),
     ]));
   }
@@ -65,12 +79,14 @@ export class ReviewEditPage extends HTMLElement {
     const synced = el("textarea", { class: "textarea", placeholder: "Synced lyrics" });
     synced.value = item.syncedLyrics || "";
     this.inputs.push({ index, key: "lyrics", input: lyrics }, { index, key: "syncedLyrics", input: synced });
-    return el("article", { class: "card edit-card" }, [
+    const match = this.state.trackMatches.filter((result) => result.selectedMatch)[index];
+    const saved = this.results.some((result) => result.trackId === match?.selectedMatch.id && result.success);
+    return el("fieldset", { class: "card edit-card", disabled: this.saving || saved }, [
       el("h2", { text: item.youtubeTitle || item.trackName }),
       el("p", { class: "muted", text: item.youtubeChannel || "" }),
       ...controls,
-      lyrics,
-      synced,
+      el("label", {}, [el("span", { text: "Lyrics" }), lyrics]),
+      el("label", {}, [el("span", { text: "Synced lyrics" }), synced]),
     ]);
   }
 
@@ -94,23 +110,52 @@ export class ReviewEditPage extends HTMLElement {
   }
 
   save() {
-    const state = loadWorkflowState();
-    state.editedTracks = this.collect();
-    saveWorkflowState(state);
+    this.state.editedTracks = this.collect();
+    saveWorkflowState(this.state);
   }
 
-  continue() {
+  allSaved() {
+    return this.items.length > 0 && buildCommitItems(this.state, this.results).length === 0;
+  }
+
+  async commit() {
+    if (this.saving || this.allSaved()) return;
     const items = this.collect();
     const errors = this.validate(items);
     if (errors.length) {
       showDialog(errors.join("\n"));
       return;
     }
-    const state = loadWorkflowState();
-    state.editedTracks = items;
-    saveWorkflowState(state);
-    updateWorkflowStage(state, "commit");
-    window.Orpheus.router.go("/discover/commit");
+    this.items = items;
+    this.state.editedTracks = items;
+    this.state.currentStage = "review";
+    saveWorkflowState(this.state);
+    const submitted = buildCommitItems(this.state, this.results);
+    this.saving = true;
+    this.saveError = "";
+    this.render();
+    try {
+      const response = await API.commit(submitted);
+      this.results = mergeCommitResults(this.results, submitted, response.results || []);
+      this.state.saveResults = this.results;
+      // Do not overwrite a different session started while this request was running.
+      if (loadWorkflowState()?.id === this.state.id) {
+        if (this.allSaved()) clearWorkflowState();
+        else saveWorkflowState(this.state);
+      }
+      if (this.results.some((result) => result.success)) {
+        await clearSongsCache(appState.session?.user?.id || "single-user").catch(() => {});
+        window.dispatchEvent(new CustomEvent("song-library-invalidated"));
+      }
+    } catch (error) {
+      this.saveError = error.message || "Could not save songs. Please try again.";
+    } finally {
+      this.saving = false;
+      if (this.isConnected) {
+        this.render();
+        this.querySelector(".save-results")?.focus({ preventScroll: true });
+      }
+    }
   }
 }
 

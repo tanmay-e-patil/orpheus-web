@@ -37,8 +37,6 @@ type SongMetadataUpdate struct {
 	ReleaseDate string
 }
 
-type PublishSongFunc func(context.Context, string) error
-
 func metadataRequiresFileUpdate(current, next SongMetadataUpdate) bool {
 	return current.Name != next.Name ||
 		current.ArtistName != next.ArtistName ||
@@ -54,7 +52,7 @@ func (s *Store) FetchLibrarySong(ctx context.Context, userID, trackID string) (t
 	return scanLibrarySongWithSource(row)
 }
 
-func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, in SongMetadataUpdate, queueEnabled bool, publish PublishSongFunc) (SongEditResponse, error) {
+func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, in SongMetadataUpdate) (SongEditResponse, error) {
 	releaseDate, err := normalizeReleaseDate(in.ReleaseDate)
 	if err != nil {
 		return SongEditResponse{}, err
@@ -85,11 +83,8 @@ func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, 
 	if _, err := tx.Exec(ctx, query, args...); err != nil {
 		return SongEditResponse{}, err
 	}
-	if fileUpdate && queueEnabled {
-		if publish == nil {
-			return SongEditResponse{}, fmt.Errorf("publish function missing")
-		}
-		if err := publish(ctx, trackID); err != nil {
+	if fileUpdate {
+		if _, err := enqueueSongJob(ctx, tx, trackID, UpdateSongFilesAction); err != nil {
 			return SongEditResponse{}, err
 		}
 	}
@@ -100,10 +95,10 @@ func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, 
 	if err != nil {
 		return SongEditResponse{}, err
 	}
-	return SongEditResponse{Song: song, AudioSource: source, FileUpdateQueued: fileUpdate && queueEnabled, SongUnavailable: !song.IsAvailable}, nil
+	return SongEditResponse{Song: song, AudioSource: source, FileUpdateQueued: fileUpdate, SongUnavailable: !song.IsAvailable}, nil
 }
 
-func (s *Store) ReplaceAudioSource(ctx context.Context, userID, trackID string, video types.YouTubeVideo, queueEnabled bool, publish PublishSongFunc) (SongEditResponse, error) {
+func (s *Store) ReplaceAudioSource(ctx context.Context, userID, trackID string, video types.YouTubeVideo) (SongEditResponse, error) {
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return SongEditResponse{}, err
@@ -135,13 +130,8 @@ func (s *Store) ReplaceAudioSource(ctx context.Context, userID, trackID string, 
 	if err != nil {
 		return SongEditResponse{}, err
 	}
-	if queueEnabled {
-		if publish == nil {
-			return SongEditResponse{}, fmt.Errorf("publish function missing")
-		}
-		if err := publish(ctx, trackID); err != nil {
-			return SongEditResponse{}, err
-		}
+	if _, err := enqueueSongJob(ctx, tx, trackID, ProcessSongAction); err != nil {
+		return SongEditResponse{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return SongEditResponse{}, err
@@ -150,10 +140,10 @@ func (s *Store) ReplaceAudioSource(ctx context.Context, userID, trackID string, 
 	if err != nil {
 		return SongEditResponse{}, err
 	}
-	return SongEditResponse{Song: song, AudioSource: source, RegenerationQueued: queueEnabled, SongUnavailable: true}, nil
+	return SongEditResponse{Song: song, AudioSource: source, RegenerationQueued: true, SongUnavailable: true}, nil
 }
 
-func (s *Store) RegenerateSong(ctx context.Context, userID, trackID string, queueEnabled bool, publish PublishSongFunc) (SongEditResponse, error) {
+func (s *Store) RegenerateSong(ctx context.Context, userID, trackID string) (SongEditResponse, error) {
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return SongEditResponse{}, err
@@ -169,13 +159,8 @@ func (s *Store) RegenerateSong(ctx context.Context, userID, trackID string, queu
 	if _, err := tx.Exec(ctx, `update songs set is_available = false, updated_at = now() where id = $1`, trackID); err != nil {
 		return SongEditResponse{}, err
 	}
-	if queueEnabled {
-		if publish == nil {
-			return SongEditResponse{}, fmt.Errorf("publish function missing")
-		}
-		if err := publish(ctx, trackID); err != nil {
-			return SongEditResponse{}, err
-		}
+	if _, err := enqueueSongJob(ctx, tx, trackID, ProcessSongAction); err != nil {
+		return SongEditResponse{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return SongEditResponse{}, err
@@ -184,7 +169,7 @@ func (s *Store) RegenerateSong(ctx context.Context, userID, trackID string, queu
 	if err != nil {
 		return SongEditResponse{}, err
 	}
-	return SongEditResponse{Song: song, AudioSource: source, RegenerationQueued: queueEnabled, SongUnavailable: true}, nil
+	return SongEditResponse{Song: song, AudioSource: source, RegenerationQueued: true, SongUnavailable: true}, nil
 }
 
 func normalizeReleaseDate(value string) (string, error) {

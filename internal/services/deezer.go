@@ -59,7 +59,7 @@ func (c *DeezerClient) SearchTrackWithCustomQuery(ctx context.Context, video typ
 	return c.findTrackMatchesForVideo(ctx, video, query)
 }
 
-func (c *DeezerClient) RefreshAlbumArt(ctx context.Context, db *store.Store, trackIDs []string, publish store.PublishSongFunc) (map[string]string, error) {
+func (c *DeezerClient) RefreshAlbumArt(ctx context.Context, db *store.Store, trackIDs []string) (map[string]string, error) {
 	songs, err := db.SongsForAlbumRefresh(ctx, trackIDs)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func (c *DeezerClient) RefreshAlbumArt(ctx context.Context, db *store.Store, tra
 		if art == "" {
 			continue
 		}
-		if err := db.UpdateAlbumArt(ctx, song.TrackID, art, publish); err != nil {
+		if err := db.UpdateAlbumArt(ctx, song.TrackID, art); err != nil {
 			return updated, err
 		}
 		updated[song.TrackID] = art

@@ -53,18 +53,20 @@ export class SongTable extends HTMLElement {
           el("th", { text: "Album" }),
           ...(this.showPlayCount ? [el("th", { text: "Plays" })] : []),
           el("th", { text: "Duration" }),
+          el("th", { class: "song-actions-cell", text: "Actions" }),
         ]),
       ]),
     ]);
     const tbody = el("tbody");
     const list = el("div", { class: "song-list" });
     if (this.loading && !songs.length) {
-      renderSkeletonRows(tbody, list);
+      renderSkeletonRows(tbody, list, this.showPlayCount);
+      table.append(tbody);
       this.replaceChildren(table, list);
       return;
     }
     if (!songs.length) {
-      renderEmptyState(tbody, list, this.emptyMessage);
+      renderEmptyState(tbody, list, this.emptyMessage, this.showPlayCount ? 6 : 5, this.emptyAction, () => this.dispatchEvent(new CustomEvent("emptyaction")));
       table.append(tbody);
       this.replaceChildren(table, list);
       return;
@@ -83,17 +85,34 @@ export class SongTable extends HTMLElement {
           bubbles: true,
         }));
       };
+      const editPath = `/songs/${encodeURIComponent(song.trackId)}/edit`;
+      const editLink = () => el("a", {
+        class: "button secondary song-edit-action",
+        href: editPath,
+        "data-link": "",
+        "aria-label": `Edit ${song.name}`,
+        text: "Edit",
+        onclick: (event) => {
+          event.stopPropagation();
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          window.Orpheus.router.go(editPath);
+        },
+        onkeydown: (event) => event.stopPropagation(),
+        onpointerdown: (event) => event.stopPropagation(),
+      });
       const unavailable = song.isAvailable === false;
       const rowClass = unavailable ? "unavailable" : "";
       const status = unavailable ? "Unavailable" : formatDuration(song.duration);
       const art = song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" });
       art.addEventListener?.("error", () => this.dispatchEvent(new CustomEvent("albumartfailed", { detail: song.trackId, bubbles: true })));
       const row = el("tr", { class: rowClass, tabindex: "0", onpointerdown: preloadSongVideo, onclick: selectSong }, [
-        el("td", {}, [el("div", { class: "track-cell" }, [art.cloneNode(true), el("span", { text: song.name })])]),
+        el("td", {}, [el("div", { class: "track-cell" }, [art, el("span", { text: song.name })])]),
         el("td", { text: song.artistName }),
         el("td", { text: song.albumName }),
         ...(this.showPlayCount ? [el("td", { text: String(song.playCount || 0) })] : []),
         el("td", { text: status }),
+        el("td", { class: "song-actions-cell" }, [editLink()]),
       ]);
       row.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
@@ -103,27 +122,31 @@ export class SongTable extends HTMLElement {
       tbody.append(row);
       const mobileArt = song.albumArt ? el("img", { src: song.albumArt, alt: "", loading: "lazy" }) : el("div", { class: "album-placeholder" });
       mobileArt.addEventListener?.("error", () => this.dispatchEvent(new CustomEvent("albumartfailed", { detail: song.trackId, bubbles: true })));
-      list.append(el("button", { class: `song-list-item ${rowClass}`.trim(), type: "button", onpointerdown: preloadSongVideo, onclick: selectSong }, [
+      list.append(el("div", { class: `song-list-row ${rowClass}`.trim() }, [el("button", { class: `song-list-item ${rowClass}`.trim(), type: "button", onpointerdown: preloadSongVideo, onclick: selectSong }, [
         mobileArt,
         el("span", {}, [
           el("strong", { text: song.name }),
           el("span", { class: "muted", text: `${song.artistName} · ${song.albumName}${this.showPlayCount ? ` · ${song.playCount || 0} plays` : ""}${unavailable ? " · Unavailable" : ""}` }),
         ]),
-      ]));
+      ]), editLink()]));
     });
     table.append(tbody);
     this.replaceChildren(table, list);
   }
 }
 
-function renderEmptyState(tbody, list, message) {
+function renderEmptyState(tbody, list, message, colspan, action, onAction) {
+  const content = () => [
+    el("p", { text: message }),
+    action ? el("button", { class: "button secondary", type: "button", text: action, onclick: onAction }) : null,
+  ];
   tbody.append(el("tr", { class: "song-empty-state" }, [
-    el("td", { colspan: "5", text: message }),
+    el("td", { colspan }, content()),
   ]));
-  list.append(el("div", { class: "song-empty-state", text: message }));
+  list.append(el("div", { class: "song-empty-state" }, content()));
 }
 
-function renderSkeletonRows(tbody, list) {
+function renderSkeletonRows(tbody, list, showPlayCount) {
   for (let index = 0; index < 10; index += 1) {
     tbody.append(el("tr", { class: "skeleton-row", "aria-hidden": "true" }, [
       el("td", {}, [el("div", { class: "track-cell" }, [
@@ -132,7 +155,9 @@ function renderSkeletonRows(tbody, list) {
       ])]),
       el("td", {}, [el("span", { class: "skeleton skeleton-text medium" })]),
       el("td", {}, [el("span", { class: "skeleton skeleton-text wide" })]),
+      ...(showPlayCount ? [el("td")] : []),
       el("td", {}, [el("span", { class: "skeleton skeleton-text short" })]),
+      el("td", { class: "song-actions-cell" }),
     ]));
     list.append(el("div", { class: "song-list-item skeleton-row", "aria-hidden": "true" }, [
       el("span", { class: "skeleton skeleton-art" }),

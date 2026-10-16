@@ -70,6 +70,7 @@ export class PlayerBar extends HTMLElement {
         el("div", { class: "player-time-row" }, [elapsed, total]),
       ]),
       el("div", { class: "player-actions" }, [
+        el("button", { class: "button secondary player-lyrics-button", type: "button", text: "Lyrics", onclick: () => document.getElementById("lyrics-overlay")?.showModal() }),
         el("div", { class: "player-controls" }, [
           !isPlayable(song) ? el("span", { class: "player-status muted", text: "Unavailable" }) : null,
           el("button", { class: "icon-button", type: "button", "aria-label": "Previous", onclick: (e) => { e.stopPropagation(); transitionSongChange(prev, "prev"); } }, [

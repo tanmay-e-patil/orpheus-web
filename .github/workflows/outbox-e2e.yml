@@ -1,0 +1,38 @@
+name: Outbox end-to-end
+
+on:
+  workflow_dispatch:
+    inputs:
+      consumer_ref:
+        description: Matching orpheus-consumer branch, tag, or commit
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: orpheus-web
+      - uses: actions/checkout@v7
+        with:
+          repository: tanmay-e-patil/orpheus-consumer
+          ref: ${{ inputs.consumer_ref }}
+          path: orpheus-consumer
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: orpheus-web/go.mod
+          cache-dependency-path: |
+            orpheus-web/go.sum
+            orpheus-consumer/go.sum
+      - name: Web and complete file workflow
+        working-directory: orpheus-web
+        run: go test -race -tags=integration ./... -count=1
+      - name: Consumer completion and retry workflow
+        working-directory: orpheus-consumer
+        run: go test -race -tags=integration ./... -count=1

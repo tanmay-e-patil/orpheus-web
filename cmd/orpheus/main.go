@@ -56,13 +56,17 @@ func main() {
 		Timeout:   cfg.HTTPTimeout,
 		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	}
-	queue := services.NewQueuePublisher(cfg.RabbitMQURL)
-	defer queue.Close()
-	if queue.Enabled() {
-		slog.Info("RabbitMQ publishing enabled", "queue", services.JobQueueName)
+	dispatcherCtx, stopDispatcher := context.WithCancel(ctx)
+	dispatcherDone := make(chan struct{})
+	if cfg.OutboxDispatchEnabled {
+		dispatcher := &services.OutboxDispatcher{Store: db, Publisher: services.NewQueuePublisher(cfg.RabbitMQURL)}
+		go func() { defer close(dispatcherDone); _ = dispatcher.Run(dispatcherCtx) }()
+		slog.Info("outbox dispatch enabled", "queue", services.JobQueueName)
 	} else {
-		slog.Info("RabbitMQ publishing disabled", "reason", "RABBITMQ_URL is empty")
+		close(dispatcherDone)
+		slog.Info("outbox dispatch paused; song jobs remain pending")
 	}
+	defer func() { stopDispatcher(); <-dispatcherDone }()
 
 	webDir := filepath.Join("web")
 	server := apphttp.NewServer(
@@ -71,7 +75,6 @@ func main() {
 		services.NewYouTubeClient(cfg.YouTubeAPIKey, httpClient),
 		services.NewDeezerClient(httpClient),
 		services.NewLRCLibClient(httpClient),
-		queue,
 		webDir,
 	)
 
@@ -95,6 +98,8 @@ func main() {
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		slog.Error("server shutdown failed", "error", err)
 	}
+	stopDispatcher()
+	<-dispatcherDone
 	if err := shutdownTelemetry(shutdownCtx); err != nil {
 		slog.Error("telemetry shutdown failed", "error", err)
 	}

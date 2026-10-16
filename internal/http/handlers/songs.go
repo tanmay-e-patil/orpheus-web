@@ -99,14 +99,14 @@ func RecordSongPlay(db *store.Store, userIDFromContext func(context.Context) (st
 	}
 }
 
-func RefreshAlbumArt(db *store.Store, deezer *services.DeezerClient, queue *services.QueuePublisher) http.HandlerFunc {
+func RefreshAlbumArt(db *store.Store, deezer *services.DeezerClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body types.RefreshAlbumArtRequest
 		if err := DecodeJSON(r, &body); err != nil {
 			Error(w, http.StatusBadRequest, "bad_request", "Invalid album art refresh request")
 			return
 		}
-		updated, err := deezer.RefreshAlbumArt(r.Context(), db, body.TrackIDs, queue.PublishUpdateSongFiles)
+		updated, err := deezer.RefreshAlbumArt(r.Context(), db, body.TrackIDs)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "album art refresh failed", "component", "api", "track_count", len(body.TrackIDs), "error", err)
 			Error(w, http.StatusInternalServerError, "album_art_failed", "Could not refresh album art")
@@ -116,7 +116,7 @@ func RefreshAlbumArt(db *store.Store, deezer *services.DeezerClient, queue *serv
 	}
 }
 
-func SaveLyrics(db *store.Store, queue *services.QueuePublisher) http.HandlerFunc {
+func SaveLyrics(db *store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body types.SaveLyricsRequest
 		if err := DecodeJSON(r, &body); err != nil {
@@ -131,7 +131,7 @@ func SaveLyrics(db *store.Store, queue *services.QueuePublisher) http.HandlerFun
 			Error(w, http.StatusBadRequest, "track_required", "trackId required")
 			return
 		}
-		if err := db.UpdateLyrics(r.Context(), trackID, body.PlainLyrics, body.SyncedLyrics, queue.PublishUpdateSongLyrics); err != nil {
+		if err := db.UpdateLyrics(r.Context(), trackID, body.PlainLyrics, body.SyncedLyrics); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				Error(w, http.StatusNotFound, "not_found", "Song not found")
 				return

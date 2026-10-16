@@ -22,11 +22,10 @@ type Server struct {
 	YouTube *services.YouTubeClient
 	Deezer  *services.DeezerClient
 	LRCLib  *services.LRCLibClient
-	Queue   *services.QueuePublisher
 	WebDir  string
 }
 
-func NewServer(cfg config.Config, db *store.Store, youtube *services.YouTubeClient, deezer *services.DeezerClient, lrclib *services.LRCLibClient, queue *services.QueuePublisher, webDir string) *Server {
+func NewServer(cfg config.Config, db *store.Store, youtube *services.YouTubeClient, deezer *services.DeezerClient, lrclib *services.LRCLibClient, webDir string) *Server {
 	auth := NewAuthService(cfg, db)
 	passkey, err := NewPasskeyService(cfg, db)
 	if err != nil {
@@ -42,7 +41,6 @@ func NewServer(cfg config.Config, db *store.Store, youtube *services.YouTubeClie
 		YouTube: youtube,
 		Deezer:  deezer,
 		LRCLib:  lrclib,
-		Queue:   queue,
 		WebDir:  webDir,
 	}
 }
@@ -75,19 +73,19 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("GET /api/songs/{trackId}", s.requireAuth(method(http.MethodGet, handlers.GetSong(s.Store, UserIDFromContext))))
 	mux.Handle("GET /api/songs/{trackId}/audio", s.requireAuth(method(http.MethodGet, handlers.StreamSongAudio(s.Store, s.Config.MusicLibraryPath))))
 	mux.Handle("POST /api/songs/{trackId}/plays", s.requireAuth(method(http.MethodPost, handlers.RecordSongPlay(s.Store, UserIDFromContext))))
-	mux.Handle("PATCH /api/songs/{trackId}/metadata", s.requireAuth(method(http.MethodPatch, handlers.UpdateSongMetadata(s.Store, s.Queue, UserIDFromContext))))
-	mux.Handle("POST /api/songs/{trackId}/audio-source", s.requireAuth(method(http.MethodPost, handlers.ReplaceAudioSource(s.Store, s.Queue, UserIDFromContext))))
-	mux.Handle("POST /api/songs/{trackId}/regenerate", s.requireAuth(method(http.MethodPost, handlers.RegenerateSong(s.Store, s.Queue, UserIDFromContext))))
-	mux.Handle("POST /api/songs/album-art/refresh", s.requireAuth(method(http.MethodPost, handlers.RefreshAlbumArt(s.Store, s.Deezer, s.Queue))))
+	mux.Handle("PATCH /api/songs/{trackId}/metadata", s.requireAuth(method(http.MethodPatch, handlers.UpdateSongMetadata(s.Store, UserIDFromContext))))
+	mux.Handle("POST /api/songs/{trackId}/audio-source", s.requireAuth(method(http.MethodPost, handlers.ReplaceAudioSource(s.Store, UserIDFromContext))))
+	mux.Handle("POST /api/songs/{trackId}/regenerate", s.requireAuth(method(http.MethodPost, handlers.RegenerateSong(s.Store, UserIDFromContext))))
+	mux.Handle("POST /api/songs/album-art/refresh", s.requireAuth(method(http.MethodPost, handlers.RefreshAlbumArt(s.Store, s.Deezer))))
 	mux.Handle("POST /api/lyrics/lrclib", s.requireAuth(method(http.MethodPost, handlers.LRCLibExact(s.LRCLib))))
-	mux.Handle("POST /api/lyrics/save", s.requireAuth(method(http.MethodPost, handlers.SaveLyrics(s.Store, s.Queue))))
+	mux.Handle("POST /api/lyrics/save", s.requireAuth(method(http.MethodPost, handlers.SaveLyrics(s.Store))))
 
 	mux.Handle("POST /api/discover/youtube", s.requireAuth(method(http.MethodPost, handlers.DiscoverYouTube(s.YouTube))))
 	mux.Handle("POST /api/discover/deezer/matches", s.requireAuth(method(http.MethodPost, handlers.MatchDeezerTracks(s.Deezer))))
 	mux.Handle("POST /api/discover/deezer/custom-match", s.requireAuth(method(http.MethodPost, handlers.CustomDeezerMatch(s.Deezer))))
 	mux.Handle("POST /api/discover/lyrics/options", s.requireAuth(method(http.MethodPost, handlers.LyricsOptions(s.LRCLib))))
 	mux.Handle("POST /api/discover/lyrics/custom-search", s.requireAuth(method(http.MethodPost, handlers.CustomLyricsSearch(s.LRCLib))))
-	mux.Handle("POST /api/discover/commit", s.requireAuth(method(http.MethodPost, handlers.CommitWorkflow(s.Store, s.Queue))))
+	mux.Handle("POST /api/discover/commit", s.requireAuth(method(http.MethodPost, handlers.CommitWorkflow(s.Store))))
 
 	mux.HandleFunc("/", s.staticOrShell)
 	return otelhttp.NewHandler(logRequests(mux), "http.server",

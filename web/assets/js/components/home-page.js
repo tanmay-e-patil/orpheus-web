@@ -24,6 +24,8 @@ export class HomePage extends HTMLElement {
       this.searchInput?.select();
     };
     this.renderShell();
+    this.libraryInvalidated = () => this.load();
+    window.addEventListener("song-library-invalidated", this.libraryInvalidated);
     this.playRecorded = (event) => this.updateRecordedPlay(event.detail);
     window.addEventListener("orpheus:focus-track-search", this.focusSearch);
     window.addEventListener("orpheus:song-play-recorded", this.playRecorded);
@@ -31,6 +33,7 @@ export class HomePage extends HTMLElement {
   }
 
   disconnectedCallback() {
+    window.removeEventListener("song-library-invalidated", this.libraryInvalidated);
     this.observer?.disconnect();
     clearTimeout(this.refreshTimer);
     clearTimeout(this.searchTimer);
@@ -42,7 +45,17 @@ export class HomePage extends HTMLElement {
   renderShell() {
     this.table = document.createElement("song-table");
     this.table.loading = true;
-    this.table.emptyMessage = this.searchQuery ? "Searching full library..." : "No tracks";
+    this.table.emptyMessage = this.searchQuery ? "Searching full library..." : "Your library is empty";
+    this.table.emptyAction = this.searchQuery ? "Clear search" : "Add your first song";
+    this.table.addEventListener("emptyaction", () => {
+      if (this.searchQuery.trim()) {
+        this.searchInput.value = "";
+        this.searchQuery = "";
+        this.updateSearchURL();
+        this.applySearch();
+        this.searchInput.focus();
+      } else window.Orpheus.router.go("/discover");
+    });
     this.searchInput = el("input", {
       class: "input",
       type: "search",
@@ -58,9 +71,9 @@ export class HomePage extends HTMLElement {
     ]);
     this.boundary = el("div", { class: "scroll-boundary" });
     this.replaceChildren(el("section", { class: "page home-page" }, [
-      el("div", { class: "page-header" }, [
-        el("h1", { text: "Tracks" }),
-        el("p", { class: "muted", text: "Your personal music library" }),
+      el("div", { class: "page-header library-header" }, [
+        el("div", {}, [el("h1", { text: "Tracks" }), el("p", { class: "muted", text: "Your personal music library" })]),
+        el("a", { class: "button", href: "/discover", "data-link": "", text: "Add songs" }),
       ]),
       el("div", { class: "track-search-row" }, [
         el("label", { class: "track-search-field" }, [
@@ -265,13 +278,15 @@ export class HomePage extends HTMLElement {
     this.table.showPlayCount = this.sort === "mostPlayed";
     const query = this.searchQuery.trim();
     if (!query) {
-      this.table.emptyMessage = "No tracks";
+      this.table.emptyAction = "Add your first song";
+      this.table.emptyMessage = "Your library is empty";
       this.updateSearchStatus("");
       this.updateTableSongs(this.sortSongs(this.visibleSongs));
       return;
     }
     const results = this.sortSongs(filterSongs(this.searchableSongs, query));
     const searchingFullLibrary = this.hydratingCache || !this.cacheComplete;
+    this.table.emptyAction = "Clear search";
     this.table.emptyMessage = searchingFullLibrary ? "Searching full library..." : "No matching tracks";
     this.updateSearchStatus(`${results.length} ${results.length === 1 ? "match" : "matches"}${searchingFullLibrary ? " - searching full library..." : ""}`);
     this.updateTableSongs(results);

@@ -10,20 +10,21 @@ import (
 )
 
 type Config struct {
-	DatabaseURL      string
-	AuthUsername     string // deprecated: only used for legacy migration
-	AuthPassword     string // deprecated: only used for legacy migration
-	AuthPasswordHash string // deprecated: only used for legacy migration
-	AuthCookieSecret string
-	AuthRPOrigin     string
-	YouTubeAPIKey    string
-	RabbitMQURL      string
-	MusicLibraryPath string
-	Domain           string
-	Port             string
-	AppEnv           string
-	CookieSecure     bool
-	HTTPTimeout      time.Duration
+	DatabaseURL           string
+	AuthUsername          string // deprecated: only used for legacy migration
+	AuthPassword          string // deprecated: only used for legacy migration
+	AuthPasswordHash      string // deprecated: only used for legacy migration
+	AuthCookieSecret      string
+	AuthRPOrigin          string
+	YouTubeAPIKey         string
+	RabbitMQURL           string
+	OutboxDispatchEnabled bool
+	MusicLibraryPath      string
+	Domain                string
+	Port                  string
+	AppEnv                string
+	CookieSecure          bool
+	HTTPTimeout           time.Duration
 }
 
 func Load() (Config, error) {
@@ -41,6 +42,17 @@ func Load() (Config, error) {
 		Port:             getenv("PORT", "8080"),
 		AppEnv:           getenv("APP_ENV", "development"),
 		HTTPTimeout:      15 * time.Second,
+	}
+	cfg.OutboxDispatchEnabled = cfg.RabbitMQURL != ""
+	if raw, exists := os.LookupEnv("OUTBOX_DISPATCH_ENABLED"); exists {
+		enabled, err := strconv.ParseBool(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid OUTBOX_DISPATCH_ENABLED: %w", err)
+		}
+		if enabled && cfg.RabbitMQURL == "" {
+			return Config{}, errors.New("RABBITMQ_URL is required when outbox dispatch is enabled")
+		}
+		cfg.OutboxDispatchEnabled = enabled
 	}
 	cfg.CookieSecure = cfg.AppEnv == "production"
 
