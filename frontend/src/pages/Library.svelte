@@ -186,34 +186,36 @@
     </div>
     <Button href="/discover"><Plus size={17} />Add songs</Button>
   </header>
-  <div class="library-toolbar">
-    <div class="search-field">
-      <Search size={18} /><Input
-        id="library-search"
-        type="search"
-        aria-label="Search your library"
-        placeholder="Search songs, artists, albums, or lyrics"
-        bind:value={query}
-        oninput={() => (limit = 100)}
-      /><kbd>{searchShortcut}</kbd>
+  <div class="library-controls">
+    <div class="library-toolbar">
+      <div class="search-field">
+        <Search size={18} /><Input
+          id="library-search"
+          type="search"
+          aria-label="Search your library"
+          placeholder="Search songs, artists, albums, or lyrics"
+          bind:value={query}
+          oninput={() => (limit = 100)}
+        /><kbd>{searchShortcut}</kbd>
+      </div>
+      <label class="sort-control"
+        ><ArrowDownUp size={15} /><span class="sr-only">Sort songs</span><select
+          aria-label="Sort songs"
+          bind:value={sort}
+          ><option value="artist">Artist A–Z</option><option
+            value="recentlyAdded">Recently added</option
+          ><option value="mostPlayed">Most played</option></select
+        ></label
+      >
     </div>
-    <label class="sort-control"
-      ><ArrowDownUp size={15} /><span class="sr-only">Sort songs</span><select
-        aria-label="Sort songs"
-        bind:value={sort}
-        ><option value="artist">Artist A–Z</option><option value="recentlyAdded"
-          >Recently added</option
-        ><option value="mostPlayed">Most played</option></select
-      ></label
-    >
-  </div>
-  <div class="collection-label">
-    <span
-      >{query
-        ? `${results.length} ${results.length === 1 ? 'result' : 'results'}`
-        : 'ALL SONGS'}</span
-    >
-    {#if hydrating}<span>Loading the rest of your library…</span>{/if}
+    <div class="collection-label">
+      <span
+        >{query
+          ? `${results.length} ${results.length === 1 ? 'result' : 'results'}`
+          : 'ALL SONGS'}</span
+      >
+      {#if hydrating}<span>Loading the rest of your library…</span>{/if}
+    </div>
   </div>
   {#if error}<div class="inline-error" role="alert">
       <p>{error}</p>
