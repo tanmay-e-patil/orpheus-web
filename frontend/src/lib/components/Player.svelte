@@ -14,6 +14,7 @@
   import * as Tabs from '$lib/components/ui/tabs';
   import Artwork from './Artwork.svelte';
   import PlayerArtwork from './PlayerArtwork.svelte';
+  import PlayerGlow from './PlayerGlow.svelte';
   import Lyrics from './Lyrics.svelte';
   import InlineVideo from './InlineVideo.svelte';
   import { playback, nowPlaying, notify } from '$lib/state';
@@ -103,37 +104,41 @@
         >
       </div>
     </div>
-    <div class="transport expanded">
-      <button
-        class="icon-control"
-        aria-label="Show lyrics"
-        aria-pressed={panel === 'lyrics'}
-        aria-controls="player-lyrics"
-        onclick={() => (panel = panel === 'lyrics' ? null : 'lyrics')}
-        ><ScrollText size={20} /></button
-      >
-      <button class="icon-control" aria-label="Previous song" onclick={prev}
-        ><SkipBack size={24} fill="currentColor" /></button
-      ><button
-        class="play-control"
-        aria-label={playing ? 'Pause song' : 'Play song'}
-        disabled={!canPlay}
-        onclick={toggle}
-        >{#if playing}<Pause size={23} fill="currentColor" />{:else}<Play
-            size={23}
-            fill="currentColor"
-          />{/if}</button
-      ><button class="icon-control" aria-label="Next song" onclick={next}
-        ><SkipForward size={24} fill="currentColor" /></button
-      >
-      <button
-        class="icon-control"
-        aria-label="Show queue"
-        aria-pressed={panel === 'queue'}
-        aria-controls="player-queue"
-        onclick={() => (panel = panel === 'queue' ? null : 'queue')}
-        ><ListMusic size={20} /></button
-      >
+    <div class="now-playing-actions">
+      <div class="transport expanded">
+        <button class="icon-control" aria-label="Previous song" onclick={prev}
+          ><SkipBack size={24} fill="currentColor" /></button
+        ><button
+          class="play-control"
+          aria-label={playing ? 'Pause song' : 'Play song'}
+          disabled={!canPlay}
+          onclick={toggle}
+          >{#if playing}<Pause size={23} fill="currentColor" />{:else}<Play
+              size={23}
+              fill="currentColor"
+            />{/if}</button
+        ><button class="icon-control" aria-label="Next song" onclick={next}
+          ><SkipForward size={24} fill="currentColor" /></button
+        >
+      </div>
+      <div class="now-playing-utilities">
+        <button
+          class="icon-control now-playing-lyrics-toggle"
+          aria-label="Show lyrics"
+          aria-pressed={panel === 'lyrics'}
+          aria-controls="player-lyrics"
+          onclick={() => (panel = panel === 'lyrics' ? null : 'lyrics')}
+          ><ScrollText size={20} /></button
+        >
+        <button
+          class="icon-control now-playing-queue-toggle"
+          aria-label="Show queue"
+          aria-pressed={panel === 'queue'}
+          aria-controls="player-queue"
+          onclick={() => (panel = panel === 'queue' ? null : 'queue')}
+          ><ListMusic size={20} /></button
+        >
+      </div>
     </div>
   {/snippet}
   <footer class="player-bar" aria-label="Music player">
@@ -217,14 +222,16 @@
       side="bottom"
       class="now-playing-sheet"
       showCloseButton={false}
-      ><PlayerArtwork
+      ><PlayerGlow src={song.albumArt} /><PlayerArtwork
         src={song.albumArt}
         target={compactArtwork ? smallArtwork : largeArtwork}
       /><Sheet.Header class="sr-only"
         ><Sheet.Title>Now playing</Sheet.Title><Sheet.Description
           >{song.name} · {song.artistName}</Sheet.Description
         ></Sheet.Header
-      ><Tabs.Root bind:value={tab} class="now-playing-body"
+      ><Tabs.Root
+        bind:value={tab}
+        class={`now-playing-body${compactArtwork ? '' : ' artwork-view'}`}
         ><div class="now-playing-header" data-player-drag-region>
           <Sheet.Close
             class="icon-control now-playing-close"

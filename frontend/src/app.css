@@ -2350,9 +2350,48 @@ summary {
   flex-shrink: 0;
   min-width: 0;
 }
-.now-playing-controls .transport.expanded {
-  justify-content: space-between;
+.now-playing-actions {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+}
+.now-playing-controls .transport.expanded {
+  justify-content: center;
+  gap: clamp(24px, 8vw, 48px);
+}
+.now-playing-actions .icon-control {
+  width: 44px;
+  height: 44px;
+}
+.now-playing-utilities {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+/* Preserve room for artwork and panels on short or landscape screens. */
+@media (max-height: 700px), (orientation: landscape) {
+  .now-playing-actions {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+    column-gap: 8px;
+  }
+  .now-playing-actions .transport.expanded {
+    grid-column: 2;
+    grid-row: 1;
+    gap: clamp(8px, 3vw, 24px);
+  }
+  .now-playing-utilities {
+    display: contents;
+  }
+  .now-playing-lyrics-toggle {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .now-playing-queue-toggle {
+    grid-column: 3;
+    grid-row: 1;
+  }
 }
 .now-playing-controls .icon-control[aria-pressed='true'] {
   color: var(--primary);
@@ -2362,6 +2401,63 @@ summary {
   .now-playing-controls {
     gap: 8px;
   }
+}
+
+/* Size the artwork area to its cover so spare height stays below the stack. */
+.now-playing-body.artwork-view {
+  container-type: inline-size;
+}
+.now-playing-body.artwork-view .now-playing-stage {
+  flex: 0 1 calc(100cqw + clamp(16px, 4dvh, 36px));
+  margin-top: clamp(12px, 2dvh, 20px);
+  padding-bottom: clamp(16px, 4dvh, 36px);
+}
+.now-playing-body.artwork-view .now-playing-media {
+  align-items: flex-end;
+}
+/* Share spare portrait height between the lower rows, keeping metadata by the cover. */
+@media (min-height: 701px) and (orientation: portrait) {
+  .now-playing-body.artwork-view .now-playing-controls {
+    flex: 1 0 auto;
+    justify-content: space-between;
+  }
+  .now-playing-body.artwork-view .now-playing-actions {
+    display: contents;
+  }
+}
+@media (min-width: 480px) and (max-height: 600px) {
+  .now-playing-body.artwork-view .now-playing-stage {
+    margin-top: 0;
+    padding-bottom: 0;
+  }
+  .now-playing-body.artwork-view .now-playing-media {
+    align-items: center;
+  }
+}
+.now-playing-glow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.2;
+  mask-image: radial-gradient(
+    ellipse 90% 65% at 50% 30%,
+    #000,
+    transparent 85%
+  );
+}
+.now-playing-glow img {
+  position: absolute;
+  top: -15%;
+  left: -25%;
+  width: 150%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  filter: blur(64px) saturate(0.55);
+}
+.now-playing-sheet .now-playing-body {
+  position: relative;
 }
 
 .now-playing-floating-artwork {
