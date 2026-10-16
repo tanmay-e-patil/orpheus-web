@@ -13,6 +13,7 @@
   import * as Sheet from '$lib/components/ui/sheet';
   import * as Tabs from '$lib/components/ui/tabs';
   import Artwork from './Artwork.svelte';
+  import PlayerArtwork from './PlayerArtwork.svelte';
   import Lyrics from './Lyrics.svelte';
   import InlineVideo from './InlineVideo.svelte';
   import { playback, nowPlaying, notify } from '$lib/state';
@@ -29,6 +30,9 @@
   let tab = $state('song'),
     videoSongId = $state<string | null>(null),
     volume = $state(80);
+  let largeArtwork: HTMLDivElement | undefined = $state();
+  let smallArtwork: HTMLDivElement | undefined = $state();
+  const compactArtwork = $derived(!!panel || tab === 'video');
   const song = $derived($playback.song);
   const canPlay = $derived(
     !!song && (song.isAvailable || videoSongId === song.trackId),
@@ -60,7 +64,11 @@
 {#if song}
   {#snippet songControls()}
     <div class="now-playing-song-details">
-      {#if panel}<Artwork src={song.albumArt} />{/if}
+      {#if compactArtwork}<div
+          bind:this={smallArtwork}
+          class="now-playing-artwork-small"
+          aria-hidden="true"
+        ></div>{/if}
       <div class="now-playing-metadata">
         <h2 class="now-playing-title">{song.name}</h2>
         <p class="muted">{song.artistName} · {song.albumName}</p>
@@ -199,7 +207,10 @@
   </footer>
   <Sheet.Root bind:open={$nowPlaying}
     ><Sheet.Content class="now-playing-sheet" showCloseButton={false}
-      ><Sheet.Close
+      ><PlayerArtwork
+        src={song.albumArt}
+        target={compactArtwork ? smallArtwork : largeArtwork}
+      /><Sheet.Close
         class="icon-control now-playing-close"
         aria-label="Close player"><X size={20} /></Sheet.Close
       ><Sheet.Header
@@ -221,7 +232,11 @@
           <div class="now-playing-media-panels" class:auxiliary-open={!!panel}>
             <Tabs.Content value="song" class="now-playing-listen">
               <div class="now-playing-media">
-                <Artwork src={song.albumArt} size="large" />
+                <div
+                  bind:this={largeArtwork}
+                  class="now-playing-artwork-large"
+                  aria-hidden="true"
+                ></div>
               </div>
             </Tabs.Content>
             <Tabs.Content value="video" class="now-playing-listen">

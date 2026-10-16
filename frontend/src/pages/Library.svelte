@@ -6,7 +6,6 @@
     MoreHorizontal,
     Play,
     Pencil,
-    AudioLines,
     Disc3,
     ArrowDownUp,
   } from '@lucide/svelte';
@@ -263,9 +262,15 @@
           role="listitem"
         >
           <span class="song-number"
-            >{#if $playback.song?.trackId === song.trackId}<AudioLines
-                size={16}
-              />{:else}{String(index + 1).padStart(2, '0')}{/if}</span
+            >{#if $playback.song?.trackId === song.trackId}<span
+                class="playing-equalizer"
+                class:active={$playback.status === 'playing'}
+                role="img"
+                aria-label={$playback.status === 'playing'
+                  ? 'Playing'
+                  : 'Selected song'}
+                ><span></span><span></span><span></span><span></span></span
+              >{:else}{String(index + 1).padStart(2, '0')}{/if}</span
           >
           <button
             class="song-main"
