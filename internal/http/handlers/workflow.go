@@ -1,21 +1,17 @@
 package handlers
 
 import (
-	"context"
 	"log/slog"
-	"strings"
-	"time"
-
 	"net/http"
+	"strings"
 
-	"orpheus-web/internal/services"
 	"orpheus-web/internal/store"
 	"orpheus-web/internal/types"
 )
 
 const retryableCommitError = "Something went wrong while saving this track. Please try again."
 
-func CommitWorkflow(db *store.Store, queue *services.QueuePublisher) http.HandlerFunc {
+func CommitWorkflow(db *store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body types.CommitRequest
 		if err := DecodeJSON(r, &body); err != nil {
@@ -41,29 +37,14 @@ func CommitWorkflow(db *store.Store, queue *services.QueuePublisher) http.Handle
 				results = append(results, result)
 				continue
 			}
-			if err := publishWithTimeout(r.Context(), queue, upsert.TrackID); err != nil {
-				slog.ErrorContext(r.Context(), "commit RabbitMQ publish failed", "component", "workflow", "track_id", upsert.TrackID, "error", err)
-				result.Error = retryableCommitError
-				results = append(results, result)
-				continue
-			}
-			slog.InfoContext(r.Context(), "song processing queued", "component", "workflow", "track_id", upsert.TrackID)
+
+			slog.InfoContext(r.Context(), "song processing scheduled", "component", "workflow", "track_id", upsert.TrackID)
 			result.TrackID = upsert.TrackID
 			result.Success = true
 			results = append(results, result)
 		}
 		JSON(w, http.StatusOK, types.CommitResponse{Results: results})
 	}
-}
-
-func publishWithTimeout(ctx context.Context, queue *services.QueuePublisher, trackID string) error {
-	if queue == nil || !queue.Enabled() {
-		slog.InfoContext(ctx, "RabbitMQ publish skipped", "component", "workflow", "track_id", trackID, "reason", "disabled")
-		return nil
-	}
-	publishCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	return queue.PublishProcessSong(publishCtx, trackID)
 }
 
 func commitItemToSong(item types.CommitItem) (types.SongUpsert, error) {

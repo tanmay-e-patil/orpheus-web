@@ -288,9 +288,8 @@ func buildRedownloadSongsQuery(filter RedownloadSongsFilter) (string, []any) {
 	return query.String(), args
 }
 
-// updateSongFileMetadata publishes while holding the row lock. Consumers lock the
-// same row before reading, so they see the committed metadata.
-func (s *Store) updateSongFileMetadata(ctx context.Context, trackID, query string, args []any, publish PublishSongFunc) error {
+// updateSongFileMetadata records file work in the same transaction as the edit.
+func (s *Store) updateSongFileMetadata(ctx context.Context, trackID, query string, args []any, action string) error {
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -304,22 +303,22 @@ func (s *Store) updateSongFileMetadata(ctx context.Context, trackID, query strin
 	if err != nil {
 		return err
 	}
-	if tag.RowsAffected() > 0 && publish != nil {
-		if err := publish(ctx, trackID); err != nil {
+	if tag.RowsAffected() > 0 {
+		if _, err := enqueueSongJob(ctx, tx, trackID, action); err != nil {
 			return err
 		}
 	}
 	return tx.Commit(ctx)
 }
 
-func (s *Store) UpdateAlbumArt(ctx context.Context, trackID, albumArt string, publish PublishSongFunc) error {
-	return s.updateSongFileMetadata(ctx, trackID, `update songs set album_art = $1, updated_at = now() where id = $2 and album_art is distinct from $1`, []any{albumArt, trackID}, publish)
+func (s *Store) UpdateAlbumArt(ctx context.Context, trackID, albumArt string) error {
+	return s.updateSongFileMetadata(ctx, trackID, `update songs set album_art = $1, updated_at = now() where id = $2 and album_art is distinct from $1`, []any{albumArt, trackID}, UpdateSongFilesAction)
 }
 
-func (s *Store) UpdateLyrics(ctx context.Context, trackID, plainLyrics, syncedLyrics string, publish PublishSongFunc) error {
+func (s *Store) UpdateLyrics(ctx context.Context, trackID, plainLyrics, syncedLyrics string) error {
 	isAvailable := plainLyrics != "" || syncedLyrics != ""
 	return s.updateSongFileMetadata(ctx, trackID, `
   update songs set lyrics = $1, synced_lyrics = $2, is_lyrics_available = $3, updated_at = now()
   where id = $4 and (lyrics is distinct from $1 or synced_lyrics is distinct from $2 or is_lyrics_available is distinct from $3)
- `, []any{plainLyrics, syncedLyrics, isAvailable, trackID}, publish)
+ `, []any{plainLyrics, syncedLyrics, isAvailable, trackID}, UpdateSongLyricsAction)
 }

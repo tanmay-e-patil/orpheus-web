@@ -6,7 +6,7 @@ export class WorkflowProgress extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return ["stage"];
+    return ["stage", "locked"];
   }
 
   attributeChangedCallback() {
@@ -26,7 +26,7 @@ export class WorkflowProgress extends HTMLElement {
           el("span", { class: "workflow-step-label", text: label }),
         ];
         return el("li", { class: done ? "done" : active ? "active" : "" }, [
-          done
+          done && !this.hasAttribute("locked")
             ? el("a", { href: stageRoutes[stage], "data-link": "", "aria-label": `Back to ${label}` }, content)
             : el("span", active ? { "aria-current": "step" } : {}, content),
         ]);

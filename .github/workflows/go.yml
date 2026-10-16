@@ -21,5 +21,7 @@ jobs:
           cache: true
       - name: Test
         run: go test ./...
+      - name: Test outbox with PostgreSQL and RabbitMQ
+        run: go test -race -tags=integration ./internal/store ./internal/services -count=1
       - name: Check browser JavaScript syntax
         run: find web/assets/js -name '*.js' -print -exec node --check {} \;
