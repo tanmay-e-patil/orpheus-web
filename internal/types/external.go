@@ -76,7 +76,8 @@ type DiscoverYouTubeRequest struct {
 }
 
 type MatchTracksRequest struct {
-	Videos []YouTubeVideo `json:"videos"`
+	Videos      []YouTubeVideo `json:"videos"`
+	SearchQuery string         `json:"searchQuery"`
 }
 
 type CustomTrackMatchRequest struct {

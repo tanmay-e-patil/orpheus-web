@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"orpheus-web/internal/services"
 	"orpheus-web/internal/store"
 )
 
@@ -25,7 +24,7 @@ func run() error {
 		includeAvailable = flag.Bool("all", false, "queue every song instead of only unavailable songs")
 		updatedAfterRaw  = flag.String("updated-after", "", "only queue songs updated at or after this RFC3339 timestamp")
 		updatedBeforeRaw = flag.String("updated-before", "", "only queue songs updated at or before this RFC3339 timestamp")
-		dryRun           = flag.Bool("dry-run", false, "print matching track IDs without publishing RabbitMQ jobs")
+		dryRun           = flag.Bool("dry-run", false, "print matching track IDs without scheduling jobs")
 		limit            = flag.Int("limit", 0, "maximum songs to queue; 0 means no limit")
 	)
 	flag.Parse()
@@ -48,10 +47,6 @@ func run() error {
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	if databaseURL == "" {
 		return fmt.Errorf("DATABASE_URL is required")
-	}
-	rabbitMQURL := strings.TrimSpace(os.Getenv("RABBITMQ_URL"))
-	if rabbitMQURL == "" && !*dryRun {
-		return fmt.Errorf("RABBITMQ_URL is required unless --dry-run is set")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -90,18 +85,15 @@ func run() error {
 		return nil
 	}
 
-	queue := services.NewQueuePublisher(rabbitMQURL)
-	defer queue.Close()
-
 	for i, song := range songs {
-		if err := queue.PublishProcessSong(ctx, song.TrackID); err != nil {
-			return fmt.Errorf("publish job for %s: %w", song.TrackID, err)
+		if _, err := db.ScheduleSong(ctx, song.TrackID, store.ProcessSongAction); err != nil {
+			return fmt.Errorf("schedule job for %s: %w", song.TrackID, err)
 		}
 		if (i+1)%25 == 0 {
-			fmt.Printf("Published %d/%d jobs\n", i+1, len(songs))
+			fmt.Printf("Scheduled %d/%d jobs\n", i+1, len(songs))
 		}
 	}
-	fmt.Printf("Published %d jobs\n", len(songs))
+	fmt.Printf("Scheduled %d jobs\n", len(songs))
 	return nil
 }
 

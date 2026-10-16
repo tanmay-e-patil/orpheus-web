@@ -6,34 +6,37 @@ import (
 )
 
 type SongCursor struct {
-	ArtistName string `json:"artistName"`
-	TrackID    string `json:"trackId"`
-	PlayCount  int    `json:"playCount,omitempty"`
+	ArtistName string     `json:"artistName"`
+	TrackID    string     `json:"trackId"`
+	PlayCount  int        `json:"playCount,omitempty"`
+	CreatedAt  *time.Time `json:"createdAt,omitempty"`
 }
 
 type LibrarySong struct {
-	TrackID           string `json:"trackId"`
-	Name              string `json:"name"`
-	ArtistName        string `json:"artistName"`
-	AlbumName         string `json:"albumName"`
-	AlbumArt          string `json:"albumArt"`
-	Duration          string `json:"duration"`
-	YoutubeVideoID    string `json:"youtubeVideoId"`
-	IsAvailable       bool   `json:"isAvailable"`
-	AudioURL          string `json:"audioUrl,omitempty"`
-	Lyrics            string `json:"lyrics,omitempty"`
-	SyncedLyrics      string `json:"syncedLyrics,omitempty"`
-	IsLyricsAvailable *bool  `json:"isLyricsAvailable,omitempty"`
-	PlayCount         int    `json:"playCount"`
+	TrackID           string    `json:"trackId"`
+	Name              string    `json:"name"`
+	ArtistName        string    `json:"artistName"`
+	AlbumName         string    `json:"albumName"`
+	AlbumArt          string    `json:"albumArt"`
+	Duration          string    `json:"duration"`
+	YoutubeVideoID    string    `json:"youtubeVideoId"`
+	IsAvailable       bool      `json:"isAvailable"`
+	AudioURL          string    `json:"audioUrl,omitempty"`
+	Lyrics            string    `json:"lyrics,omitempty"`
+	SyncedLyrics      string    `json:"syncedLyrics,omitempty"`
+	IsLyricsAvailable *bool     `json:"isLyricsAvailable,omitempty"`
+	PlayCount         int       `json:"playCount"`
+	CreatedAt         time.Time `json:"-"`
 }
 
 type AudioSong struct {
-	TrackID     string
-	Name        string
-	ArtistName  string
-	AlbumName   string
-	IsAvailable bool
-	UpdatedAt   time.Time
+	AudioFilePath string
+	TrackID       string
+	Name          string
+	ArtistName    string
+	AlbumName     string
+	IsAvailable   bool
+	UpdatedAt     time.Time
 }
 
 type SongsPageResponse struct {
