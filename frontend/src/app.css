@@ -1670,11 +1670,8 @@ summary {
     font-size: 12px;
     margin-top: 12px;
   }
-  .library-page .page-heading .muted {
+  .library-page .page-heading {
     display: none;
-  }
-  .library-page .page-heading h1 {
-    font-size: 32px;
   }
   [data-slot='button'] {
     min-height: 44px;
