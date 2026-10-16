@@ -59,14 +59,17 @@
 
 {#if song}
   {#snippet songControls()}
-    <div class="now-playing-metadata">
-      <h2 class="now-playing-title">{song.name}</h2>
-      <p class="muted">{song.artistName} · {song.albumName}</p>
-      {#if !song.isAvailable && !videoSongId}<p class="availability-note">
-          Audio unavailable.{song.youtubeVideoId
-            ? ' Open the Video tab to listen on YouTube.'
-            : ''}
-        </p>{/if}
+    <div class="now-playing-song-details">
+      {#if panel}<Artwork src={song.albumArt} />{/if}
+      <div class="now-playing-metadata">
+        <h2 class="now-playing-title">{song.name}</h2>
+        <p class="muted">{song.artistName} · {song.albumName}</p>
+        {#if !song.isAvailable && !videoSongId}<p class="availability-note">
+            Audio unavailable.{song.youtubeVideoId
+              ? ' Open the Video tab to listen on YouTube.'
+              : ''}
+          </p>{/if}
+      </div>
     </div>
     <div class="expanded-seek">
       <input

@@ -2075,8 +2075,19 @@ summary {
   aspect-ratio: 1;
   border-radius: 10px;
 }
+.now-playing-song-details {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.now-playing-song-details > .artwork {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+}
 .now-playing-metadata {
-  flex-shrink: 0;
+  flex: 1;
   min-width: 0;
 }
 .now-playing-title {
