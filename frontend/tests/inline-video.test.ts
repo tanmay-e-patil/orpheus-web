@@ -243,3 +243,131 @@ it('keeps audio playing and retries native iPhone playback when a fresh gesture 
   fixture.options.events.onStateChange({ data: 1 });
   expect(getPlayerState().status).toBe('playing');
 });
+
+it('uses one fullscreen owner and exits without pausing or reloading the video', async () => {
+  const view = await prepared();
+  const container = view.container.querySelector<HTMLElement>('.inline-video')!;
+  const descriptors = ['fullscreenElement', 'exitFullscreen'].map(
+    (key) => [key, Object.getOwnPropertyDescriptor(document, key)] as const,
+  );
+  let current: Element | null = null;
+  const changed = () => document.dispatchEvent(new Event('fullscreenchange'));
+  const request = vi.fn(() => {
+    current = container;
+    changed();
+    return Promise.resolve();
+  });
+  const exit = vi.fn(() => {
+    current = null;
+    changed();
+    return Promise.resolve();
+  });
+  Object.defineProperty(container, 'requestFullscreen', { value: request });
+  Object.defineProperty(document, 'fullscreenElement', {
+    configurable: true,
+    get: () => current,
+  });
+  Object.defineProperty(document, 'exitFullscreen', {
+    configurable: true,
+    value: exit,
+  });
+  try {
+    view.component.activate(true);
+    await view.rerender({ active: true });
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
+    expect(fixture.options.playerVars.fs).toBe(0);
+    fixture.options.events.onStateChange({ data: 1 });
+    const controller = getPlayerState().controller;
+    vi.clearAllMocks();
+    await fireEvent.click(
+      view.getByRole('button', { name: 'Exit fullscreen' }),
+    );
+    expect(exit).toHaveBeenCalledOnce();
+    expect(current).toBeNull();
+    expect(getPlayerState().controller).toBe(controller);
+    expect(getPlayerState().status).toBe('playing');
+    expect(fixture.player.pauseVideo).not.toHaveBeenCalled();
+    expect(fixture.player.destroy).not.toHaveBeenCalled();
+    await fireEvent.click(
+      view.getByRole('button', { name: 'Enter fullscreen' }),
+    );
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
+    current = null;
+    changed();
+    await tick();
+    expect(
+      view.getByRole('button', { name: 'Enter fullscreen' }),
+    ).toBeVisible();
+  } finally {
+    await view.rerender({ active: false });
+    for (const [key, descriptor] of descriptors) {
+      if (descriptor) Object.defineProperty(document, key, descriptor);
+      else Reflect.deleteProperty(document, key);
+    }
+  }
+});
+
+it('keeps iPhone fullscreen owned by the native YouTube video controls', async () => {
+  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(iPhoneUserAgent);
+  const view = await prepared();
+  view.component.activate(true);
+  await view.rerender({ active: true });
+  expect(fixture.options.playerVars.fs).toBe(1);
+  expect(fixture.options.playerVars.playsinline).toBe(0);
+  expect(view.queryByRole('button', { name: 'Enter fullscreen' })).toBeNull();
+});
+
+it('requests landscape only after mobile HTML fullscreen enters and releases it on exit', async () => {
+  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+    'Mozilla/5.0 (Linux; Android 15) Chrome/140.0 Mobile Safari/537.36',
+  );
+  const orientationDescriptor = Object.getOwnPropertyDescriptor(
+    screen,
+    'orientation',
+  );
+  const fullscreenDescriptor = Object.getOwnPropertyDescriptor(
+    document,
+    'fullscreenElement',
+  );
+  const lock = vi.fn().mockResolvedValue(undefined),
+    unlock = vi.fn();
+  Object.defineProperty(screen, 'orientation', {
+    configurable: true,
+    value: { lock, unlock },
+  });
+  let current: Element | null = null;
+  Object.defineProperty(document, 'fullscreenElement', {
+    configurable: true,
+    get: () => current,
+  });
+  const view = await prepared();
+  const container = view.container.querySelector<HTMLElement>('.inline-video')!;
+  const request = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(container, 'requestFullscreen', { value: request });
+  try {
+    view.component.activate(true);
+    await view.rerender({ active: true });
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
+    expect(lock).not.toHaveBeenCalled();
+    current = container;
+    document.dispatchEvent(new Event('fullscreenchange'));
+    await tick();
+    expect(lock).toHaveBeenCalledExactlyOnceWith('landscape');
+    current = null;
+    document.dispatchEvent(new Event('fullscreenchange'));
+    await tick();
+    expect(unlock).toHaveBeenCalledOnce();
+  } finally {
+    await view.rerender({ active: false });
+    if (orientationDescriptor)
+      Object.defineProperty(screen, 'orientation', orientationDescriptor);
+    else Reflect.deleteProperty(screen, 'orientation');
+    if (fullscreenDescriptor)
+      Object.defineProperty(
+        document,
+        'fullscreenElement',
+        fullscreenDescriptor,
+      );
+    else Reflect.deleteProperty(document, 'fullscreenElement');
+  }
+});

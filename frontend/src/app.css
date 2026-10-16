@@ -2177,6 +2177,21 @@ summary {
   max-height: none;
   border-radius: 0;
 }
+.inline-video-fullscreen {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #ffffff40;
+  border-radius: 8px;
+  background: #080808cc;
+  color: #fff;
+  cursor: pointer;
+}
 button.inline-video-loading {
   pointer-events: auto;
   cursor: pointer;
