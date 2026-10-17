@@ -24,7 +24,7 @@ jobs:
           repository: tanmay-e-patil/orpheus-consumer
           ref: ${{ inputs.consumer_ref }}
           path: orpheus-consumer
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: orpheus-web/go.mod
           cache: true
