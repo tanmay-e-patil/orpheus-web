@@ -442,12 +442,10 @@ label textarea {
   text-align: right;
 }
 .song-row {
+  position: relative;
   padding: 11px 4px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   border-radius: 3px;
-}
-.song-row:hover {
-  background: color-mix(in srgb, var(--muted) 55%, transparent);
 }
 .song-number {
   font-size: 10px;
@@ -468,6 +466,17 @@ label textarea {
   border: 0;
   background: none;
   padding: 0;
+}
+/* Extend the native play button across the row, keeping actions above it. */
+.song-main::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+}
+.song-main:focus-visible::after {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 .artwork {
   width: 44px;
@@ -537,12 +546,23 @@ label textarea {
   border-radius: 50%;
 }
 .song-menu {
-  opacity: 0.6;
+  position: relative;
+  z-index: 1;
 }
-.song-row:hover .song-menu,
 .song-menu:focus-visible,
 .song-menu[aria-expanded='true'] {
   opacity: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .song-row:hover {
+    background: color-mix(in srgb, var(--muted) 55%, transparent);
+  }
+  .song-menu {
+    opacity: 0.6;
+  }
+  .song-row:hover .song-menu {
+    opacity: 1;
+  }
 }
 .song-skeleton {
   display: flex;
