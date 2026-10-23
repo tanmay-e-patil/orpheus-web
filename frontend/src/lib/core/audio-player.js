@@ -25,7 +25,8 @@ export function initAudioPlayer() {
   initMediaSession();
 
   audio.addEventListener('loadstart', () => {
-    if (isActive()) setPlaybackStatus('loading');
+    if (isActive() && !audio.paused && !audio.ended)
+      setPlaybackStatus('loading');
   });
   audio.addEventListener('loadedmetadata', () => {
     if (isActive()) syncDuration();
@@ -49,10 +50,13 @@ export function initAudioPlayer() {
     if (!audio.ended) setPlaybackStatus('paused');
   });
   audio.addEventListener('waiting', () => {
-    if (isActive()) setPlaybackStatus('loading');
+    if (isActive() && !audio.paused && !audio.ended)
+      setPlaybackStatus('loading');
   });
   audio.addEventListener('stalled', () => {
-    if (isActive()) setPlaybackStatus('loading');
+    // A stalled download can still have enough buffered audio to keep playing.
+    if (isActive() && !audio.paused && !audio.ended && audio.readyState < 3)
+      setPlaybackStatus('loading');
   });
   audio.addEventListener('ended', () => {
     if (!isActive()) return;
@@ -76,7 +80,18 @@ export function initAudioPlayer() {
     });
   });
   audio.addEventListener('timeupdate', () => {
-    if (isActive()) setTime(audio.currentTime || 0);
+    if (!isActive()) return;
+    setTime(audio.currentTime || 0);
+    // Recover from late loading events even if no new `playing` event arrives.
+    if (
+      !audio.paused &&
+      !audio.ended &&
+      !audio.seeking &&
+      audio.readyState >= 3
+    ) {
+      setPlaybackStatus('playing');
+      startPolling(isActive);
+    }
   });
 
   const controller = {
