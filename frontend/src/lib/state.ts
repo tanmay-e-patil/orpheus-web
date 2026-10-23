@@ -1,4 +1,4 @@
-import { readable, writable } from 'svelte/store';
+import { derived, readable, writable } from 'svelte/store';
 import { getPlayerState, playerStore } from './core/player-store.js';
 import type { Session, Song } from './types';
 export const session = writable<Session | null>(null);
@@ -19,6 +19,20 @@ function snapshot() {
   };
 }
 export const nowPlaying = writable(false);
+export const playerPaneCollapsed = writable(false);
+export const widePlayerLayout = readable(false, (set) => {
+  const media = window.matchMedia(
+    '(min-width: 1000px) and (orientation: landscape)',
+  );
+  const update = () => set(media.matches);
+  update();
+  media.addEventListener('change', update);
+  return () => media.removeEventListener('change', update);
+});
+export const dockedPlayer = derived(
+  [playback, widePlayerLayout, playerPaneCollapsed],
+  ([$playback, $wide, $collapsed]) => !!$playback.song && $wide && !$collapsed,
+);
 export const libraryVersion = writable(0);
 export const notices = writable<
   { id: number; message: string; tone: string }[]

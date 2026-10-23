@@ -10,7 +10,14 @@
   } from '@lucide/svelte';
   import { api } from '$lib/api';
   import { route, navigate, syncRoute } from '$lib/navigation';
-  import { session, notices, notify, playback, errorMessage } from '$lib/state';
+  import {
+    session,
+    notices,
+    notify,
+    playback,
+    dockedPlayer,
+    errorMessage,
+  } from '$lib/state';
   import { setSession } from '$lib/core/store.js';
   import { clearPlayer } from '$lib/core/player-store.js';
   import { initAudioPlayer } from '$lib/core/audio-player.js';
@@ -117,24 +124,28 @@
 {:else if !$session?.authenticated}
   <Login onauthenticated={authenticate} />
 {:else}
-  <div class:has-player={!!$playback.song} class="app-layout">
+  <div
+    class:has-player={!!$playback.song}
+    class:docked-player={$dockedPlayer}
+    class="app-layout"
+  >
     <aside class="sidebar">
-      <a class="wordmark" href="/home"
-        ><span class="brand-mark"><AudioLines size={23} /></span>orpheus<span
-          class="brand-dot">.</span
-        ></a
+      <a class="wordmark" href="/home" aria-label="Orpheus home"
+        ><span class="brand-mark"><AudioLines size={23} /></span><span
+          class="brand-name">orpheus</span
+        ><span class="brand-dot">.</span></a
       >
       <div class="sidebar-label">YOUR SPACE</div>
       <nav aria-label="Primary">
         {#each nav as item}<a
             class:active={active(item.href)}
             href={item.href}
+            aria-label={item.label}
+            title={item.label}
             aria-current={active(item.href) ? 'page' : undefined}
-            ><item.icon
-              size={18}
-              strokeWidth={1.7}
-            />{item.label}{#if active(item.href)}<span class="nav-dot"
-              ></span>{/if}</a
+            ><item.icon size={18} strokeWidth={1.7} /><span class="nav-label"
+              >{item.label}</span
+            >{#if active(item.href)}<span class="nav-dot"></span>{/if}</a
           >{/each}
       </nav>
       <div class="sidebar-footer">
@@ -153,7 +164,9 @@
     </aside>
     <header class="mobile-header">
       <a href="/home" class="wordmark"
-        ><AudioLines size={22} />orpheus<span class="brand-dot">.</span></a
+        ><AudioLines size={22} /><span class="brand-name">orpheus</span><span
+          class="brand-dot">.</span
+        ></a
       >
     </header>
     <main id="main" tabindex="-1">

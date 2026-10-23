@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import Player from '../src/lib/components/Player.svelte';
-import { nowPlaying, playback } from '../src/lib/state';
+import { nowPlaying, playback, playerPaneCollapsed } from '../src/lib/state';
 import {
   clearPlayer,
   getPlayerState,
@@ -53,6 +53,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  playerPaneCollapsed.set(false);
   nowPlaying.set(false);
   clearPlayer();
   setController(null);
@@ -98,5 +99,52 @@ it('closes by swipe without interrupting audio and supports reopening and tappin
   ).not.toBeNull();
   await fireEvent.click(close);
   await waitFor(() => expect(get(nowPlaying)).toBe(false));
+  expect(controller.pause).not.toHaveBeenCalled();
+});
+
+it('docks automatically, collapses, and adapts to rotation without reloading audio', async () => {
+  let change: (() => void) | undefined;
+  const media = {
+    matches: true,
+    media: '(min-width: 1000px) and (orientation: landscape)',
+    onchange: null,
+    addEventListener: vi.fn((_event, listener) => {
+      change = listener;
+    }),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  };
+  vi.mocked(window.matchMedia).mockImplementation(() => media);
+  nowPlaying.set(false);
+  const view = render(Player);
+  await waitFor(() =>
+    expect(
+      view.getByRole('complementary', { name: 'Now Playing' }),
+    ).toBeVisible(),
+  );
+  expect(view.queryByRole('contentinfo')).toBeNull();
+  expect(view.queryByRole('dialog')).toBeNull();
+  await fireEvent.click(
+    view.getByRole('button', { name: 'Collapse Now Playing' }),
+  );
+  expect(view.getByRole('contentinfo', { name: 'Music player' })).toBeVisible();
+  await fireEvent.click(
+    view.getByRole('button', { name: 'Open Now Playing: Somebody' }),
+  );
+  await waitFor(() => expect(view.getByRole('complementary')).toBeVisible());
+  // Explicit expansion remains expanded when the viewport becomes portrait.
+  media.matches = false;
+  change?.();
+  await waitFor(() => expect(view.getByRole('dialog')).toBeVisible());
+  await fireEvent.click(view.getByRole('button', { name: 'Close player' }));
+  expect(view.getByRole('contentinfo')).toBeVisible();
+  media.matches = true;
+  change?.();
+  await waitFor(() => expect(view.getByRole('complementary')).toBeVisible());
+  expect(getPlayerState().currentTime).toBe(90);
+  expect(controller.load).not.toHaveBeenCalled();
+  expect(controller.stop).not.toHaveBeenCalled();
   expect(controller.pause).not.toHaveBeenCalled();
 });

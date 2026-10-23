@@ -2562,3 +2562,180 @@ button.inline-video-loading {
     transition: none;
   }
 }
+
+/* Keep browsing and playback side by side when there is room for both. */
+.app-layout.docked-player {
+  --now-playing-width: clamp(320px, 30vw, 420px);
+  padding-right: var(--now-playing-width);
+  padding-bottom: 0;
+}
+.docked-player .sidebar {
+  bottom: 0;
+}
+.now-playing-dock {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: var(--now-playing-width);
+  height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 24px
+    max(24px, env(safe-area-inset-bottom));
+  border-left: 1px solid var(--border);
+  background: var(--background);
+  display: flex;
+  overflow: hidden;
+}
+.now-playing-dock .now-playing-body[data-slot='tabs'] {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 20px;
+}
+.now-playing-dock .now-playing-header {
+  grid-template-columns: 44px minmax(0, 1fr);
+}
+.now-playing-dock .now-playing-stage {
+  margin-top: 0;
+  padding-bottom: 0;
+  flex: 0 1 min(100cqw, 48dvh);
+}
+.now-playing-dock .now-playing-stage:has(.auxiliary-open),
+.now-playing-dock .now-playing-body:not(.artwork-view) .now-playing-stage {
+  flex: 1;
+}
+.now-playing-dock .now-playing-media {
+  align-items: center;
+}
+.now-playing-dock .now-playing-header .now-playing-tabs {
+  width: 100%;
+}
+.now-playing-dock .now-playing-controls {
+  gap: 20px;
+}
+.now-playing-dock .now-playing-title {
+  font-size: 24px;
+}
+.now-playing-dock .now-playing-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.now-playing-dock .now-playing-utilities {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+.now-playing-dock .now-playing-controls .transport.expanded {
+  gap: 32px;
+}
+.now-playing-dock .transport.expanded .play-control {
+  width: 54px;
+  height: 54px;
+}
+@media (min-width: 1000px) and (max-width: 1399px) and (orientation: landscape) {
+  .app-layout.docked-player {
+    padding-left: 76px;
+  }
+  .docked-player .sidebar {
+    width: 76px;
+    padding: 28px 12px 24px;
+    align-items: center;
+  }
+  .docked-player .sidebar .wordmark {
+    padding: 0;
+    font-size: 0;
+    gap: 0;
+  }
+  .docked-player .brand-dot,
+  .docked-player .sidebar-label,
+  .docked-player .nav-label,
+  .docked-player .nav-dot,
+  .docked-player .sidebar-footer > div,
+  .docked-player .sidebar-footer > a {
+    display: none;
+  }
+  .docked-player .sidebar nav a {
+    width: 48px;
+    height: 48px;
+    justify-content: center;
+    padding: 0;
+  }
+  .docked-player .sidebar-footer {
+    width: 48px;
+    justify-content: center;
+  }
+  .docked-player .page {
+    padding: 40px 28px;
+  }
+}
+/* Portrait uses a compact player, opening a centered, full-screen listening view. */
+@media (orientation: portrait) {
+  .player-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    height: 66px;
+    min-height: 66px;
+  }
+  :root {
+    --player-height: 66px;
+  }
+  .player-bar .desktop-playback,
+  .player-bar .player-secondary {
+    display: none;
+  }
+  .player-bar .mobile-playback {
+    display: flex;
+    align-items: center;
+  }
+  .now-playing-sheet[data-slot='sheet-content'] {
+    width: 100vw;
+    padding-inline: max(24px, calc((100vw - 540px) / 2));
+  }
+  .now-playing-sheet .now-playing-body[data-slot='tabs'] {
+    gap: clamp(16px, 3dvh, 32px);
+    justify-content: center;
+  }
+  .now-playing-body.artwork-view .now-playing-stage {
+    flex: 0 1 min(100cqw, 44dvh);
+    margin-top: 0;
+    padding-bottom: 0;
+  }
+  .now-playing-body.artwork-view .now-playing-media {
+    align-items: center;
+  }
+  .now-playing-body.artwork-view .now-playing-controls {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    gap: 20px;
+  }
+  .now-playing-body.artwork-view .now-playing-actions {
+    display: flex;
+    gap: 12px;
+  }
+  .now-playing-utilities {
+    justify-content: center;
+    gap: 32px;
+  }
+}
+@media (max-height: 700px) {
+  .now-playing-dock {
+    padding-block: 12px;
+  }
+  .now-playing-dock .now-playing-body[data-slot='tabs'],
+  .now-playing-dock .now-playing-controls {
+    gap: 12px;
+  }
+  .now-playing-dock .now-playing-stage {
+    flex-basis: min(100cqw, 36dvh);
+  }
+}
+
+.dock-volume {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--muted-foreground);
+}
+.dock-volume input {
+  max-width: 120px;
+}
