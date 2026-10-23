@@ -2883,7 +2883,7 @@ button.inline-video-loading {
   pointer-events: auto;
 }
 @media (orientation: portrait), (max-width: 767px) {
-  .player-bar input.mini-progress {
+  .player-bar .mini-progress {
     display: block;
     position: absolute;
     z-index: 2;
@@ -2896,7 +2896,7 @@ button.inline-video-loading {
     border-radius: 0;
     background: transparent;
   }
-  .mini-progress::-webkit-slider-runnable-track {
+  .mini-progress input::-webkit-slider-runnable-track {
     height: 2px;
     background: linear-gradient(
       to right,
@@ -2904,7 +2904,7 @@ button.inline-video-loading {
       var(--input) var(--progress)
     );
   }
-  .mini-progress::-moz-range-track {
+  .mini-progress input::-moz-range-track {
     height: 2px;
     background: linear-gradient(
       to right,
@@ -2912,21 +2912,21 @@ button.inline-video-loading {
       var(--input) var(--progress)
     );
   }
-  .mini-progress::-webkit-slider-thumb {
+  .mini-progress input::-webkit-slider-thumb {
     margin-top: -4px;
     opacity: 0;
   }
-  .mini-progress::-moz-range-thumb {
+  .mini-progress input::-moz-range-thumb {
     opacity: 0;
   }
-  .mini-progress:hover::-webkit-slider-thumb,
-  .mini-progress:focus-visible::-webkit-slider-thumb,
-  .mini-progress:active::-webkit-slider-thumb {
+  .mini-progress:hover input::-webkit-slider-thumb,
+  .mini-progress:focus-within input::-webkit-slider-thumb,
+  .mini-progress:active input::-webkit-slider-thumb {
     opacity: 1;
   }
-  .mini-progress:hover::-moz-range-thumb,
-  .mini-progress:focus-visible::-moz-range-thumb,
-  .mini-progress:active::-moz-range-thumb {
+  .mini-progress:hover input::-moz-range-thumb,
+  .mini-progress:focus-within input::-moz-range-thumb,
+  .mini-progress:active input::-moz-range-thumb {
     opacity: 1;
   }
 }
@@ -2953,4 +2953,77 @@ button.inline-video-loading {
 }
 .inline-video-error button {
   background: #ffffff18;
+}
+
+/* Keep the loading indicator on the seek track so readiness never shifts layout. */
+.seek-control:not(.mini-progress) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  vertical-align: middle;
+}
+.seek-control input {
+  margin: 0;
+  transition: opacity 220ms ease;
+}
+.seek-loading {
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 10px;
+  background: var(--input);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+  overflow: hidden;
+}
+.seek-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--primary);
+  opacity: 0.35;
+}
+.seek-control.loading input {
+  opacity: 0;
+  cursor: wait;
+}
+.seek-control.loading .seek-loading {
+  opacity: 1;
+}
+.seek-control.loading .seek-loading::after {
+  animation: seek-loading-pulse 1.3s ease-in-out infinite;
+}
+@keyframes seek-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+@media (orientation: portrait), (max-width: 767px) {
+  .mini-progress input {
+    height: 20px;
+    border-radius: 0;
+    background: transparent;
+  }
+  .mini-progress .seek-loading {
+    height: 2px;
+    border-radius: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seek-control input,
+  .seek-loading {
+    transition: none;
+  }
+  .seek-control.loading .seek-loading::after {
+    animation: none;
+    opacity: 0.6;
+  }
 }

@@ -14,6 +14,7 @@ import {
   setController,
   setQueue,
   setTime,
+  setPlaybackStatus,
 } from '../src/lib/core/player-store.js';
 
 const controller = {
@@ -57,6 +58,7 @@ beforeEach(() => {
     0,
   );
   setTime(90);
+  setPlaybackStatus('playing');
   nowPlaying.set(true);
   vi.clearAllMocks();
 });
@@ -186,3 +188,39 @@ it('opens Now Playing from the player-bar background and seeks without expanding
   );
   expect(get(nowPlaying)).toBe(true);
 });
+
+it.each([true, false])(
+  'shows loading in seek tracks and restores seeking when ready (expanded: %s)',
+  async (expanded) => {
+    nowPlaying.set(expanded);
+    setPlaybackStatus('loading');
+    const view = render(Player);
+    const labels = expanded
+      ? ['Seek in Now Playing']
+      : ['Seek playback', 'Seek playback in mini-player'];
+    expect(view.getByRole('status')).toHaveTextContent('Loading audio');
+    const sliders = labels.map((name) => view.getByRole('slider', { name }));
+    for (const slider of sliders) {
+      expect(slider).toBeDisabled();
+      expect(slider).toHaveAttribute('aria-busy', 'true');
+      expect(slider.parentElement).toHaveClass('loading');
+    }
+    setPlaybackStatus('playing');
+    await waitFor(() => {
+      expect(view.getByRole('status').textContent).toBe('');
+      for (const slider of sliders) {
+        expect(slider).toBeEnabled();
+        expect(slider).toHaveAttribute('aria-busy', 'false');
+        expect(slider.parentElement).not.toHaveClass('loading');
+      }
+    });
+    // Keep the same range mounted throughout the transition.
+    expect(view.getByRole('slider', { name: labels[0] })).toBe(sliders[0]);
+    await fireEvent.input(sliders[0], { target: { value: '45' } });
+    expect(controller.seekTo).toHaveBeenCalledWith(45);
+    setPlaybackStatus('loading');
+    await waitFor(() => expect(sliders[0]).toBeDisabled());
+    setPlaybackStatus('paused');
+    await waitFor(() => expect(sliders[0]).toBeEnabled());
+  },
+);

@@ -58,6 +58,7 @@
   const canPlay = $derived(
     !!song && (song.isAvailable || videoSongId === song.trackId),
   );
+  const loading = $derived($playback.status === 'loading');
   const playing = $derived(
     $playback.status === 'playing' || $playback.status === 'loading',
   );
@@ -101,6 +102,24 @@
 </script>
 
 {#if song}
+  <span class="sr-only" role="status">{loading ? 'Loading audio' : ''}</span>
+  {#snippet seekBar(label: string, mini = false)}
+    <span class="seek-control" class:mini-progress={mini} class:loading>
+      <input
+        type="range"
+        min="0"
+        max={$playback.duration || 1}
+        step="0.1"
+        value={$playback.currentTime}
+        oninput={(e) => seek(Number(e.currentTarget.value))}
+        aria-label={label}
+        aria-busy={loading}
+        disabled={!canPlay || loading}
+        style={`--progress:${progress}%`}
+      />
+      <span class="seek-loading" aria-hidden="true"></span>
+    </span>
+  {/snippet}
   {#snippet songControls()}
     <div class="now-playing-song-details">
       {#if compactArtwork}<div
@@ -119,17 +138,7 @@
       </div>
     </div>
     <div class="expanded-seek">
-      <input
-        type="range"
-        min="0"
-        max={$playback.duration || 1}
-        step="0.1"
-        value={$playback.currentTime}
-        oninput={(e) => seek(Number(e.currentTarget.value))}
-        aria-label="Seek in Now Playing"
-        disabled={!canPlay}
-        style={`--progress:${progress}%`}
-      />
+      {@render seekBar('Seek in Now Playing')}
       <div>
         <span>{clock($playback.currentTime)}</span><span
           >{clock($playback.duration)}</span
@@ -227,17 +236,9 @@
           >
         </div>
         <div class="seek-row">
-          <span>{clock($playback.currentTime)}</span><input
-            type="range"
-            min="0"
-            max={$playback.duration || 1}
-            step="0.1"
-            value={$playback.currentTime}
-            oninput={(e) => seek(Number(e.currentTarget.value))}
-            aria-label="Seek playback"
-            disabled={!canPlay}
-            style={`--progress:${progress}%`}
-          /><span>{clock($playback.duration)}</span>
+          <span>{clock($playback.currentTime)}</span>{@render seekBar(
+            'Seek playback',
+          )}<span>{clock($playback.duration)}</span>
         </div>
       </div>
       <div class="player-secondary">
@@ -273,18 +274,7 @@
           ><SkipForward size={19} /></button
         >
       </div>
-      <input
-        class="mini-progress"
-        type="range"
-        min="0"
-        max={$playback.duration || 1}
-        step="0.1"
-        value={$playback.currentTime}
-        aria-label="Seek playback in mini-player"
-        disabled={!canPlay}
-        style={`--progress:${progress}%`}
-        oninput={(e) => seek(Number(e.currentTarget.value))}
-      />
+      {@render seekBar('Seek playback in mini-player', true)}
     </footer>
   {/if}
   {#snippet playerContent()}
