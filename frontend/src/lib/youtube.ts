@@ -51,3 +51,15 @@ export function loadYouTube(): Promise<YouTubeAPI> {
   });
   return loading;
 }
+
+export function youtubeErrorMessage(code: number): string {
+  const reason = {
+    2: 'The YouTube video link is invalid.',
+    5: 'YouTube could not start video playback in this browser. Try playing the video again.',
+    100: 'This YouTube video was removed or is private.',
+    101: 'The owner of this video does not allow embedded playback.',
+    150: 'The owner of this video does not allow embedded playback.',
+    153: 'YouTube could not verify this website. Check browser privacy settings or open the video on YouTube.',
+  }[code];
+  return `${reason || 'YouTube could not play this video.'} (YouTube error ${code})`;
+}

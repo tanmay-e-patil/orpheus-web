@@ -2,7 +2,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import Player from '../src/lib/components/Player.svelte';
-import { nowPlaying, playback, playerPaneCollapsed } from '../src/lib/state';
+import {
+  nowPlaying,
+  playback,
+  playerPaneCollapsed,
+  videoDockedLayout,
+} from '../src/lib/state';
 import {
   clearPlayer,
   getPlayerState,
@@ -16,6 +21,7 @@ const controller = {
   play: vi.fn(),
   pause: vi.fn(),
   stop: vi.fn(),
+  seekTo: vi.fn(),
   setVolume: vi.fn(),
 };
 let unsubscribe: () => void;
@@ -154,8 +160,29 @@ it('docks automatically, collapses, and adapts to rotation without reloading aud
   media.matches = true;
   change?.();
   await waitFor(() => expect(view.getByRole('complementary')).toBeVisible());
+  videoDockedLayout.set(true);
+  media.matches = false;
+  change?.();
+  await waitFor(() => expect(view.getByRole('complementary')).toBeVisible());
+  videoDockedLayout.set(null);
+  await waitFor(() => expect(view.getByRole('contentinfo')).toBeVisible());
   expect(getPlayerState().currentTime).toBe(90);
   expect(controller.load).not.toHaveBeenCalled();
   expect(controller.stop).not.toHaveBeenCalled();
   expect(controller.pause).not.toHaveBeenCalled();
+});
+
+it('opens Now Playing from the player-bar background and seeks without expanding it', async () => {
+  nowPlaying.set(false);
+  const view = render(Player);
+  const seek = view.getByRole('slider', {
+    name: 'Seek playback in mini-player',
+  });
+  await fireEvent.input(seek, { target: { value: '45' } });
+  expect(getPlayerState().currentTime).toBe(45);
+  expect(get(nowPlaying)).toBe(false);
+  await fireEvent.click(
+    view.getByRole('button', { name: 'Expand Now Playing' }),
+  );
+  expect(get(nowPlaying)).toBe(true);
 });

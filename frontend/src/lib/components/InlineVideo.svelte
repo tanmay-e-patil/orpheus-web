@@ -2,7 +2,11 @@
   import { onMount, tick } from 'svelte';
   import { Maximize2, Minimize2 } from '@lucide/svelte';
   import { createLandscapeLock } from '$lib/video-orientation';
-  import { loadYouTube, type YouTubePlayer } from '$lib/youtube';
+  import {
+    loadYouTube,
+    youtubeErrorMessage,
+    type YouTubePlayer,
+  } from '$lib/youtube';
   import { createVideoPlayback } from '$lib/video-playback';
   import { errorMessage } from '$lib/state';
   import {
@@ -28,25 +32,35 @@
   let fullscreen = $state(false);
   let fullscreenRequest = 0;
   let cancelFullscreen = false;
-  const mobile = /iPhone|iPod|iPad|Android/.test(navigator.userAgent);
+  const iPad =
+    /iPad/.test(navigator.userAgent) ||
+    (/Mac/.test(navigator.platform) && navigator.maxTouchPoints > 1);
+  const mobile = iPad || /iPhone|iPod|Android/.test(navigator.userAgent);
   const landscape = createLandscapeLock((stage, detail) =>
     recordFullscreen(stage, container, { detail }),
   );
   let loading = $state(true);
   let blocked = $state(false);
-  let preparationError = '';
+  let preparationError = $state('');
+  let retryPlayer: (() => void) | undefined;
+  let errorReported = false;
   let player: YouTubePlayer | undefined;
   let ready = false;
   let playback: ReturnType<typeof createVideoPlayback> | undefined;
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
   function fail(message: string) {
+    if (preparationError) return;
     clearTimeout(timeout);
     landscape.release();
     playback?.fail();
     playback = undefined;
     preparationError = message;
-    if (active) onerror(message);
+    loading = false;
+    if (active && !errorReported) {
+      errorReported = true;
+      onerror(message);
+    }
   }
 
   function currentFullscreen() {
@@ -107,8 +121,13 @@
   // Called synchronously from the Video tab click, before Svelte updates it.
   export function activate(fullscreen = false) {
     if (preparationError) {
-      onerror(preparationError);
-      return;
+      preparationError = '';
+      errorReported = false;
+      ready = false;
+      player?.destroy();
+      player = undefined;
+      target.replaceChildren();
+      retryPlayer?.();
     }
     if (fullscreen) {
       if (nativeVideoFullscreen)
@@ -135,7 +154,7 @@
   function prepare() {
     // A hidden seek can start native video fullscreen on iPhone. Preparing
     // the iframe is safe; media seeks must wait for explicit activation.
-    if (nativeVideoFullscreen || !ready || !player || playback) return;
+    if (nativeVideoFullscreen || iPad || !ready || !player || playback) return;
     // seekTo requests media, unlike merely cueing a thumbnail. Keep the
     // prepared player paused; buffering while paused is controlled by YouTube.
     player.seekTo(getPlayerState().currentTime, true);
@@ -154,7 +173,7 @@
 
   $effect(() => {
     if (active) {
-      if (!playback) activate();
+      if (!playback && !preparationError && !blocked) activate();
     } else deactivate();
   });
 
@@ -164,75 +183,81 @@
     document.addEventListener('webkitfullscreenchange', fullscreenChanged);
     // Prepare the iframe as soon as this song enters the queue. Keep it cued
     // without playing hidden video or taking control away from native audio.
-    loadYouTube()
-      .then((YT) => {
-        if (destroyed) return;
-        player = new YT.Player(target, {
-          videoId: id,
-          width: '100%',
-          height: '100%',
-          playerVars: {
-            autoplay: 0,
-            playsinline: nativeVideoFullscreen ? 0 : 1,
-            rel: 0,
-            controls: 1,
-            // One owner per platform. An iframe toggle cannot exit a fullscreen
-            // layer created by its parent, so use our toggle for HTML fullscreen.
-            fs: nativeVideoFullscreen ? 1 : 0,
-            origin: location.origin,
-          },
-          events: {
-            onReady: () => {
-              if (destroyed || !player) return;
-              ready = true;
-              if (playback) playback.attach(player);
-              else prepare();
-              if (playback && !playback.waitingForPlayback) {
-                clearTimeout(timeout);
-                loading = false;
-              }
+    let generation = 0;
+    const mountPlayer = () => {
+      const attempt = ++generation;
+      const mount = document.createElement('div');
+      target.replaceChildren(mount);
+      loadYouTube()
+        .then((YT) => {
+          if (destroyed || attempt !== generation) return;
+          player = new YT.Player(mount, {
+            videoId: id,
+            width: '100%',
+            height: '100%',
+            playerVars: {
+              autoplay: 0,
+              playsinline: nativeVideoFullscreen ? 0 : 1,
+              rel: 0,
+              controls: 1,
+              // One owner per platform. An iframe toggle cannot exit a fullscreen
+              // layer created by its parent, so use our toggle for HTML fullscreen.
+              fs: nativeVideoFullscreen ? 1 : 0,
+              origin: location.origin,
             },
-            onStateChange: (event: { data: number }) => {
-              if (destroyed || !playback) return;
-              playback.stateChanged(event.data);
-              if (!playback.waitingForPlayback) {
+            events: {
+              onReady: () => {
+                if (destroyed || attempt !== generation || !player) return;
+                ready = true;
+                if (playback) playback.attach(player);
+                else prepare();
+                if (playback && !playback.waitingForPlayback) {
+                  clearTimeout(timeout);
+                  loading = false;
+                }
+              },
+              onStateChange: (event: { data: number }) => {
+                if (destroyed || attempt !== generation || !playback) return;
+                playback.stateChanged(event.data);
+                if (!playback.waitingForPlayback) {
+                  clearTimeout(timeout);
+                  loading = false;
+                }
+                if (event.data === 1) {
+                  blocked = false;
+                  if (nativeVideoFullscreen) landscape.request();
+                } else if (nativeVideoFullscreen && event.data === 2)
+                  landscape.release();
+              },
+              onError: (event: { data: number }) => {
+                if (!destroyed && attempt === generation)
+                  fail(youtubeErrorMessage(event.data));
+              },
+              onAutoplayBlocked: () => {
+                if (destroyed || attempt !== generation || !playback) return;
                 clearTimeout(timeout);
-                loading = false;
-              }
-              if (event.data === 1) {
-                blocked = false;
-                if (nativeVideoFullscreen) landscape.request();
-              } else if (nativeVideoFullscreen && event.data === 2)
+                // Restore native audio and provide a direct gesture retry.
                 landscape.release();
+                playback.fail();
+                playback = undefined;
+                blocked = true;
+                loading = false;
+              },
             },
-            onError: () => {
-              if (!destroyed)
-                fail(
-                  'This YouTube video could not play. Continuing with audio.',
-                );
-            },
-            onAutoplayBlocked: () => {
-              if (destroyed || !playback) return;
-              clearTimeout(timeout);
-              // Restore native audio and provide a direct gesture retry.
-              landscape.release();
-              playback.fail();
-              playback = undefined;
-              blocked = true;
-              loading = false;
-            },
-          },
+          });
+        })
+        .catch((e) => {
+          if (!destroyed && attempt === generation) fail(errorMessage(e));
         });
-      })
-      .catch((e) => {
-        if (!destroyed) fail(errorMessage(e));
-      });
+    };
+    retryPlayer = mountPlayer;
+    mountPlayer();
     const timer = setInterval(() => playback?.sync(), 250);
-    const preparationTimer = nativeVideoFullscreen
-      ? undefined
-      : setInterval(prepare, 5000);
+    const preparationTimer =
+      nativeVideoFullscreen || iPad ? undefined : setInterval(prepare, 5000);
     return () => {
       destroyed = true;
+      retryPlayer = undefined;
       deactivate();
       document.removeEventListener('fullscreenchange', fullscreenChanged);
       document.removeEventListener('webkitfullscreenchange', fullscreenChanged);
@@ -255,7 +280,17 @@
       {#if fullscreen}<Minimize2 size={20} />{:else}<Maximize2 size={20} />{/if}
     </button>
   {/if}
-  {#if active && blocked}
+  {#if active && preparationError}
+    <div class="inline-video-error" role="alert">
+      <p>{preparationError}</p>
+      <button onclick={() => activate()}>Retry video</button>
+      <a
+        href={`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`}
+        target="_blank"
+        rel="noreferrer">Watch on YouTube</a
+      >
+    </div>
+  {:else if active && blocked}
     <button class="inline-video-loading" onclick={() => activate(true)}
       >Play video</button
     >

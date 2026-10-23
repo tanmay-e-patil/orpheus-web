@@ -193,7 +193,7 @@ strong {
   color: var(--primary);
 }
 .sidebar .wordmark {
-  padding: 0 9px;
+  padding: 0;
   margin-bottom: 60px;
 }
 .sidebar-label {
@@ -222,13 +222,6 @@ strong {
 .sidebar nav a.active {
   background: var(--accent);
   color: var(--primary);
-}
-.nav-dot {
-  width: 4px;
-  height: 4px;
-  background: var(--primary);
-  border-radius: 50%;
-  margin-left: auto;
 }
 .sidebar-footer {
   margin-top: auto;
@@ -259,7 +252,7 @@ strong {
   font-size: 9px;
   color: var(--muted-foreground);
 }
-.sidebar-footer a {
+.sidebar-footer .account-chevron {
   margin-left: auto;
   color: var(--muted-foreground);
 }
@@ -386,17 +379,38 @@ label textarea {
 }
 .sort-control {
   display: flex;
-  flex-direction: row;
-  gap: 9px;
   align-items: center;
-}
-.sort-control select {
-  border: 0;
+  gap: 8px;
+  min-width: 160px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   background: transparent;
-  color: var(--foreground);
-  padding: 8px 0;
+  color: var(--muted-foreground);
   font-size: 12px;
-  max-width: 150px;
+  white-space: nowrap;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease;
+}
+.sort-control > span {
+  flex: 1;
+  text-align: left;
+  color: var(--foreground);
+}
+.sort-control:hover,
+.sort-control[data-state='open'] {
+  background: var(--muted);
+  border-color: var(--border);
+  color: var(--primary);
+}
+.sort-control > svg:last-child {
+  transition: transform 140ms ease;
+}
+.sort-control[data-state='open'] > svg:last-child {
+  transform: rotate(180deg);
 }
 .collection-label {
   display: flex;
@@ -1723,7 +1737,7 @@ summary {
   .search-field input {
     font-size: 14px;
   }
-  .sort-control select {
+  .sort-control {
     font-size: 12px;
     min-height: 32px;
   }
@@ -2593,9 +2607,8 @@ button.inline-video-loading {
 .sidebar .brand-dot,
 .nav-label,
 .sidebar-label,
-.nav-dot,
 .sidebar-footer > div,
-.sidebar-footer > a {
+.sidebar-footer > .account-chevron {
   white-space: nowrap;
   overflow: hidden;
   max-width: 200px;
@@ -2689,16 +2702,20 @@ button.inline-video-loading {
   .docked-player .sidebar .wordmark {
     padding: 0;
     gap: 0;
+    width: 100%;
+    justify-content: center;
   }
   .docked-player .brand-name,
   .docked-player .brand-dot,
   .docked-player .sidebar-label,
   .docked-player .nav-label,
-  .docked-player .nav-dot,
   .docked-player .sidebar-footer > div,
-  .docked-player .sidebar-footer > a {
+  .docked-player .sidebar-footer > .account-chevron {
     max-width: 0;
     opacity: 0;
+  }
+  .docked-player .brand-dot {
+    margin-left: 0;
   }
   .docked-player .sidebar nav a {
     height: 48px;
@@ -2792,4 +2809,148 @@ button.inline-video-loading {
   .docked-player .page {
     transition: none;
   }
+}
+
+.sidebar-footer strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-footer > div {
+  min-width: 0;
+}
+.sidebar-footer:hover {
+  color: var(--primary);
+}
+.library-sort-menu[data-slot='dropdown-menu-content'] {
+  min-width: 192px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: 0 8px 24px #0003;
+}
+.library-sort-menu [data-slot='dropdown-menu-radio-group'] {
+  display: grid;
+  gap: 3px;
+}
+.library-sort-menu [data-slot='dropdown-menu-radio-item'] {
+  min-height: 40px;
+  padding: 10px 36px 10px 12px;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.library-sort-menu [data-slot='dropdown-menu-radio-item'][data-highlighted] {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.library-sort-menu
+  [data-slot='dropdown-menu-radio-item'][data-state='checked'] {
+  background: var(--accent);
+  color: var(--primary);
+}
+.library-sort-menu [data-slot='dropdown-menu-radio-item-indicator'] {
+  right: 12px;
+  color: var(--primary);
+}
+.library-sort-menu [data-slot='dropdown-menu-radio-item-indicator'] svg {
+  width: 14px;
+  height: 14px;
+}
+@media (pointer: coarse) {
+  .library-sort-menu [data-slot='dropdown-menu-radio-item'] {
+    min-height: 44px;
+  }
+}
+.player-bar-open {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  z-index: 0;
+}
+.player-bar > :not(.player-bar-open):not(.mini-progress) {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+.player-bar .mini-song,
+.player-bar button:not(.player-bar-open),
+.player-bar input {
+  pointer-events: auto;
+}
+@media (orientation: portrait), (max-width: 767px) {
+  .player-bar input.mini-progress {
+    display: block;
+    position: absolute;
+    z-index: 2;
+    left: 0;
+    top: -10px;
+    bottom: auto;
+    width: 100%;
+    height: 20px;
+    margin: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .mini-progress::-webkit-slider-runnable-track {
+    height: 2px;
+    background: linear-gradient(
+      to right,
+      var(--primary) var(--progress),
+      var(--input) var(--progress)
+    );
+  }
+  .mini-progress::-moz-range-track {
+    height: 2px;
+    background: linear-gradient(
+      to right,
+      var(--primary) var(--progress),
+      var(--input) var(--progress)
+    );
+  }
+  .mini-progress::-webkit-slider-thumb {
+    margin-top: -4px;
+    opacity: 0;
+  }
+  .mini-progress::-moz-range-thumb {
+    opacity: 0;
+  }
+  .mini-progress:hover::-webkit-slider-thumb,
+  .mini-progress:focus-visible::-webkit-slider-thumb,
+  .mini-progress:active::-webkit-slider-thumb {
+    opacity: 1;
+  }
+  .mini-progress:hover::-moz-range-thumb,
+  .mini-progress:focus-visible::-moz-range-thumb,
+  .mini-progress:active::-moz-range-thumb {
+    opacity: 1;
+  }
+}
+
+.inline-video-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  background: #080808;
+  color: #eee;
+}
+.inline-video-error button,
+.inline-video-error a {
+  border: 1px solid #ffffff40;
+  border-radius: 6px;
+  padding: 10px 16px;
+  min-height: 44px;
+}
+.inline-video-error button {
+  background: #ffffff18;
 }

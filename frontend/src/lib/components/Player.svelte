@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import {
@@ -25,6 +26,7 @@
     nowPlaying,
     dockedPlayer,
     playerPaneCollapsed,
+    videoDockedLayout,
     notify,
   } from '$lib/state';
   import {
@@ -70,6 +72,10 @@
       videoSongId = song.trackId;
     else if (song?.trackId !== videoSongId) videoSongId = null;
   });
+  $effect(() => {
+    if (tab !== 'video' || !visible) videoDockedLayout.set(null);
+  });
+  onDestroy(() => videoDockedLayout.set(null));
   function playerMotion(node: Element, { pane = false } = {}) {
     return fly(node, {
       x: pane ? node.getBoundingClientRect().width : 0,
@@ -191,6 +197,11 @@
       aria-hidden={$dockedPlayer || $nowPlaying}
     >
       <button
+        class="player-bar-open"
+        aria-label="Expand Now Playing"
+        onclick={() => expand()}
+      ></button>
+      <button
         class="mini-song"
         onclick={() => expand()}
         aria-label={`Open Now Playing: ${song.name}`}
@@ -262,7 +273,18 @@
           ><SkipForward size={19} /></button
         >
       </div>
-      <div class="mini-progress" style={`width:${progress}%`}></div>
+      <input
+        class="mini-progress"
+        type="range"
+        min="0"
+        max={$playback.duration || 1}
+        step="0.1"
+        value={$playback.currentTime}
+        aria-label="Seek playback in mini-player"
+        disabled={!canPlay}
+        style={`--progress:${progress}%`}
+        oninput={(e) => seek(Number(e.currentTarget.value))}
+      />
     </footer>
   {/if}
   {#snippet playerContent()}
@@ -279,6 +301,7 @@
           class="icon-control now-playing-close"
           aria-label={$dockedPlayer ? 'Collapse Now Playing' : 'Close player'}
           onclick={() => {
+            videoDockedLayout.set(null);
             if ($dockedPlayer) playerPaneCollapsed.set(true);
             nowPlaying.set(false);
           }}
@@ -293,6 +316,7 @@
             value="video"
             onclick={() => {
               panel = null;
+              videoDockedLayout.set($dockedPlayer);
               tab = 'video';
               videoComponent?.activate(true);
             }}
@@ -311,7 +335,11 @@
               ></div>
             </div>
           </Tabs.Content>
-          <Tabs.Content value="video" class="now-playing-listen">
+          <Tabs.Content
+            value="video"
+            class="now-playing-listen"
+            hidden={tab !== 'video' || !!panel}
+          >
             <div class="now-playing-media showing-video">
               {#if song.youtubeVideoId}
                 {#key song.trackId}<InlineVideo
@@ -319,7 +347,6 @@
                     active={visible && tab === 'video'}
                     id={song.youtubeVideoId}
                     onerror={(message) => {
-                      tab = 'song';
                       videoSongId = null;
                       notify(message, 'error');
                     }}

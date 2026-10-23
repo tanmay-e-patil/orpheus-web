@@ -8,6 +8,7 @@
     Pencil,
     Disc3,
     ArrowDownUp,
+    ChevronDown,
   } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -73,6 +74,11 @@
   const searchShortcut = /Mac|iPhone|iPad/.test(navigator.platform)
     ? '⌘ K'
     : 'Ctrl K';
+  const sortOptions = [
+    { value: 'artist', label: 'Artist A–Z' },
+    { value: 'recentlyAdded', label: 'Recently added' },
+    { value: 'mostPlayed', label: 'Most played' },
+  ];
   const sorted = $derived(
     sort === 'mostPlayed'
       ? [...songs].sort((a, b) => (b.playCount || 0) - (a.playCount || 0))
@@ -177,11 +183,10 @@
 <section class="page library-page">
   <header class="page-heading">
     <div>
-      <h1>Your library<span class="title-dot">.</span></h1>
+      <h1>Library<span class="title-dot">.</span></h1>
       <p class="muted">
-        {songs.length
-          ? `${songs.length.toLocaleString()} songs, each with a story.`
-          : 'A home for the songs you keep coming back to.'}
+        {songs.length.toLocaleString()}
+        {songs.length === 1 ? 'song' : 'songs'}
       </p>
     </div>
     <Button href="/discover"><Plus size={17} />Add songs</Button>
@@ -198,15 +203,25 @@
           oninput={() => (limit = 100)}
         /><kbd>{searchShortcut}</kbd>
       </div>
-      <label class="sort-control"
-        ><ArrowDownUp size={15} /><span class="sr-only">Sort songs</span><select
-          aria-label="Sort songs"
-          bind:value={sort}
-          ><option value="artist">Artist A–Z</option><option
-            value="recentlyAdded">Recently added</option
-          ><option value="mostPlayed">Most played</option></select
-        ></label
-      >
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger class="sort-control" aria-label="Sort songs">
+          <ArrowDownUp size={15} />
+          <span
+            >{sortOptions.find((option) => option.value === sort)?.label ||
+              'Artist A–Z'}</span
+          >
+          <ChevronDown size={14} />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="end" class="library-sort-menu">
+          <DropdownMenu.RadioGroup bind:value={sort}>
+            {#each sortOptions as option}
+              <DropdownMenu.RadioItem value={option.value} closeOnSelect
+                >{option.label}</DropdownMenu.RadioItem
+              >
+            {/each}
+          </DropdownMenu.RadioGroup>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
     </div>
     <div class="collection-label">
       <span

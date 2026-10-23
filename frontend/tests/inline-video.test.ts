@@ -27,7 +27,8 @@ const fixture = vi.hoisted(() => ({
     unMute: vi.fn(),
   },
 }));
-vi.mock('../src/lib/youtube', () => ({
+vi.mock('../src/lib/youtube', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/lib/youtube')>()),
   loadYouTube: () =>
     Promise.resolve({
       Player: class {
@@ -370,4 +371,53 @@ it('requests landscape only after mobile HTML fullscreen enters and releases it 
       );
     else Reflect.deleteProperty(document, 'fullscreenElement');
   }
+});
+
+it('recognizes an iPad using the desktop user agent and never seeks hidden video', async () => {
+  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15',
+  );
+  vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+  Object.defineProperty(navigator, 'maxTouchPoints', {
+    configurable: true,
+    get: () => 0,
+  });
+  vi.spyOn(navigator, 'maxTouchPoints', 'get').mockReturnValue(5);
+  vi.useFakeTimers();
+  render(InlineVideo, { id: 'video-one', active: false, onerror: vi.fn() });
+  await vi.advanceTimersByTimeAsync(0);
+  fixture.options.events.onReady();
+  await vi.advanceTimersByTimeAsync(10000);
+  expect(fixture.player.seekTo).not.toHaveBeenCalled();
+  expect(fixture.player.playVideo).not.toHaveBeenCalled();
+  expect(fixture.options.playerVars.playsinline).toBe(1);
+});
+
+it('reports a specific YouTube error once, keeps audio, and creates a fresh player on retry', async () => {
+  const onerror = vi.fn();
+  const view = render(InlineVideo, { id: 'video-one', active: false, onerror });
+  await waitFor(() => expect(fixture.options).not.toBeNull());
+  fixture.options.events.onReady();
+  view.component.activate();
+  await view.rerender({ active: true });
+  const oldEvents = fixture.options.events;
+  oldEvents.onError({ data: 150 });
+  oldEvents.onError({ data: 150 });
+  oldEvents.onError({ data: 150 });
+  await tick();
+  expect(onerror).toHaveBeenCalledOnce();
+  expect(onerror).toHaveBeenCalledWith(
+    expect.stringContaining('does not allow embedded playback'),
+  );
+  expect(getPlayerState().controller).toBe(audio);
+  expect(view.getByRole('alert')).toHaveTextContent('YouTube error 150');
+  await fireEvent.click(view.getByRole('button', { name: 'Retry video' }));
+  await waitFor(() => expect(fixture.constructors).toHaveBeenCalledTimes(2));
+  oldEvents.onError({ data: 150 });
+  expect(onerror).toHaveBeenCalledOnce();
+  fixture.options.events.onReady();
+  fixture.options.events.onStateChange({ data: 1 });
+  expect(audio.pause).toHaveBeenCalledOnce();
+  expect(getPlayerState().status).toBe('playing');
+  expect(view.queryByRole('alert')).toBeNull();
 });

@@ -29,9 +29,12 @@ export const widePlayerLayout = readable(false, (set) => {
   media.addEventListener('change', update);
   return () => media.removeEventListener('change', update);
 });
+// Preserve the iframe's container while fullscreen changes the viewport.
+export const videoDockedLayout = writable<boolean | null>(null);
 export const dockedPlayer = derived(
-  [playback, widePlayerLayout, playerPaneCollapsed],
-  ([$playback, $wide, $collapsed]) => !!$playback.song && $wide && !$collapsed,
+  [playback, widePlayerLayout, playerPaneCollapsed, videoDockedLayout],
+  ([$playback, $wide, $collapsed, $videoLayout]) =>
+    !!$playback.song && ($videoLayout ?? $wide) && !$collapsed,
 );
 export const libraryVersion = writable(0);
 export const notices = writable<

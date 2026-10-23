@@ -28,6 +28,9 @@
   import SongEditor from './pages/SongEditor.svelte';
   import Player from '$lib/components/Player.svelte';
   let ready = $state(false);
+  const accountName = $derived(
+    $session?.user?.username || $session?.user?.email || 'Account',
+  );
   const nav = [
     { href: '/home', label: 'Library', icon: Library },
     { href: '/discover', label: 'Add songs', icon: Plus },
@@ -145,22 +148,21 @@
             aria-current={active(item.href) ? 'page' : undefined}
             ><item.icon size={18} strokeWidth={1.7} /><span class="nav-label"
               >{item.label}</span
-            >{#if active(item.href)}<span class="nav-dot"></span>{/if}</a
+            ></a
           >{/each}
       </nav>
-      <div class="sidebar-footer">
+      <a
+        class="sidebar-footer"
+        href="/settings"
+        aria-label={`Account settings: ${accountName}`}
+        title={accountName}
+      >
         <span class="account-avatar"
-          >{($session.user?.username || $session.user?.email || 'M')
-            .slice(0, 1)
-            .toUpperCase()}</span
+          >{accountName.slice(0, 1).toUpperCase()}</span
         >
-        <div>
-          <strong>Your collection</strong><span>A little more personal.</span>
-        </div>
-        <a href="/settings" aria-label="Account settings"
-          ><ChevronRight size={16} /></a
-        >
-      </div>
+        <div><strong>{accountName}</strong></div>
+        <ChevronRight class="account-chevron" size={16} />
+      </a>
     </aside>
     <header class="mobile-header">
       <a href="/home" class="wordmark"
