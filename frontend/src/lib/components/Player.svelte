@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import {
     Play,
     Pause,
@@ -68,6 +70,19 @@
       videoSongId = song.trackId;
     else if (song?.trackId !== videoSongId) videoSongId = null;
   });
+  function playerMotion(node: Element, { pane = false } = {}) {
+    return fly(node, {
+      x: pane ? node.getBoundingClientRect().width : 0,
+      y: pane ? 0 : 20,
+      opacity: pane ? 1 : 0,
+      duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 0
+        : pane
+          ? 320
+          : 180,
+      easing: cubicOut,
+    });
+  }
   function toggle() {
     playing ? pause() : play();
   }
@@ -168,7 +183,13 @@
     {/if}
   {/snippet}
   {#if !$dockedPlayer && !$nowPlaying}
-    <footer class="player-bar" aria-label="Music player">
+    <footer
+      class="player-bar"
+      aria-label="Music player"
+      transition:playerMotion
+      inert={$dockedPlayer || $nowPlaying}
+      aria-hidden={$dockedPlayer || $nowPlaying}
+    >
       <button
         class="mini-song"
         onclick={() => expand()}
@@ -343,7 +364,13 @@
     </Tabs.Root>
   {/snippet}
   {#if $dockedPlayer}
-    <aside class="now-playing-sheet now-playing-dock" aria-label="Now Playing">
+    <aside
+      class="now-playing-sheet now-playing-dock"
+      aria-label="Now Playing"
+      transition:playerMotion={{ pane: true }}
+      inert={!$dockedPlayer}
+      aria-hidden={!$dockedPlayer}
+    >
       {@render playerContent()}
     </aside>
   {:else}

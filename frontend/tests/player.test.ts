@@ -21,7 +21,10 @@ const controller = {
 let unsubscribe: () => void;
 beforeEach(() => {
   vi.mocked(window.matchMedia).mockImplementation((query) => ({
-    matches: query.includes('max-width: 767px'),
+    // jsdom has no Web Animations API; motion is checked in the browser.
+    matches:
+      query.includes('max-width: 767px') ||
+      query.includes('prefers-reduced-motion'),
     media: query,
     onchange: null,
     addEventListener: vi.fn(),
@@ -116,7 +119,15 @@ it('docks automatically, collapses, and adapts to rotation without reloading aud
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
   };
-  vi.mocked(window.matchMedia).mockImplementation(() => media);
+  vi.mocked(window.matchMedia).mockImplementation((query) =>
+    query.includes('min-width: 1000px')
+      ? media
+      : {
+          ...media,
+          matches: query.includes('prefers-reduced-motion'),
+          addEventListener: vi.fn(),
+        },
+  );
   nowPlaying.set(false);
   const view = render(Player);
   await waitFor(() =>
