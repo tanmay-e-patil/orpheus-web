@@ -43,7 +43,7 @@
   --border: #e2e1dc;
   --input: #deddd7;
   --radius: 8px;
-  --player-height: 100px;
+  --player-height: 88px;
   --mobile-nav-height: 64px;
   --app-safe-top: env(safe-area-inset-top, 0px);
   font-family: var(--font-sans);
@@ -2914,14 +2914,16 @@ button.inline-video-loading {
 .player-bar input {
   pointer-events: auto;
 }
+/* Give buttons priority where the seek input's invisible touch area overlaps. */
+.player-bar > .mini-song:not(.mini-progress),
+.player-bar > .mobile-playback:not(.mini-progress),
+.player-bar .transport {
+  position: relative;
+  z-index: 3;
+}
 @media (orientation: portrait), (max-width: 767px) {
-  :root {
-    --player-height: 88px;
-  }
   .player-bar {
-    height: var(--player-height);
-    min-height: var(--player-height);
-    padding-top: 34px;
+    padding-block: 10px;
   }
   .player-bar .mini-progress {
     display: block;
@@ -3008,6 +3010,15 @@ button.inline-video-loading {
   background: transparent;
   touch-action: none;
   transition: opacity 220ms ease;
+}
+/* Expand the hit area without making the compact player's layout taller. */
+.desktop-playback .seek-control {
+  height: 16px;
+}
+.desktop-playback .seek-control input {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .seek-control input::-webkit-slider-runnable-track {
   height: 3px;
