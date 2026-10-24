@@ -2,7 +2,6 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import Player from '../src/lib/components/Player.svelte';
-import type { Song } from '../src/lib/types';
 import {
   nowPlaying,
   playback,
@@ -25,9 +24,6 @@ const controller = {
   stop: vi.fn(),
   seekTo: vi.fn(),
   setVolume: vi.fn(),
-  getCurrentTime: () => 90,
-  getVolume: () => 80,
-  isMuted: () => false,
 };
 let unsubscribe: () => void;
 beforeEach(() => {
@@ -228,39 +224,3 @@ it.each([true, false])(
     await waitFor(() => expect(sliders[0]).toBeEnabled());
   },
 );
-
-it('keeps Video inactive on focus and expands on the completed click', async () => {
-  const originalShow = HTMLElement.prototype.showPopover;
-  const originalHide = HTMLElement.prototype.hidePopover;
-  HTMLElement.prototype.showPopover = vi.fn();
-  HTMLElement.prototype.hidePopover = vi.fn();
-  setQueue(
-    [{ ...(getPlayerState().queue[0] as Song), youtubeVideoId: 'Z4qVfCi_lUI' }],
-    0,
-  );
-  try {
-    const view = render(Player);
-    const video = await view.findByRole('tab', { name: 'Video' });
-    await fireEvent.focus(video);
-    expect(video).toHaveAttribute('aria-selected', 'false');
-    expect(view.getByRole('tab', { name: 'Song' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    await fireEvent.click(video);
-    await waitFor(() =>
-      expect(document.querySelector('.inline-video-expanded')).not.toBeNull(),
-    );
-    expect(HTMLElement.prototype.showPopover).toHaveBeenCalledOnce();
-    await fireEvent.keyDown(document, { key: 'Escape' });
-    await fireEvent.keyDown(video, { key: 'Enter' });
-    await waitFor(() =>
-      expect(document.querySelector('.inline-video-expanded')).not.toBeNull(),
-    );
-    view.unmount();
-  } finally {
-    cleanup();
-    HTMLElement.prototype.showPopover = originalShow;
-    HTMLElement.prototype.hidePopover = originalHide;
-  }
-});

@@ -39,7 +39,7 @@
   } from '$lib/core/player-store.js';
   import { clock } from '$lib/music';
   import { playerDismiss } from '$lib/player-dismiss';
-  let videoComponent: { activate(expand?: boolean): void } | undefined =
+  let videoComponent: { activate(fullscreen?: boolean): void } | undefined =
     $state();
   const visible = $derived($dockedPlayer || $nowPlaying);
   let playerSheet = $state<HTMLElement | null>(null);
@@ -53,12 +53,6 @@
     volume = $state(80);
   let largeArtwork: HTMLDivElement | undefined = $state();
   let smallArtwork: HTMLDivElement | undefined = $state();
-  function activateVideo() {
-    panel = null;
-    videoDockedLayout.set($dockedPlayer);
-    tab = 'video';
-    videoComponent?.activate(true);
-  }
   const compactArtwork = $derived(!!panel || tab === 'video');
   const song = $derived($playback.song);
   const canPlay = $derived(
@@ -290,7 +284,6 @@
       target={compactArtwork ? smallArtwork : largeArtwork}
     />
     <Tabs.Root
-      activationMode="manual"
       bind:value={tab}
       class={`now-playing-body${compactArtwork ? '' : ' artwork-view'}`}
       ><div class="now-playing-header" data-player-drag-region>
@@ -311,12 +304,11 @@
             >Song</Tabs.Trigger
           ><Tabs.Trigger
             value="video"
-            onclick={activateVideo}
-            onkeydown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                activateVideo();
-              }
+            onclick={() => {
+              panel = null;
+              videoDockedLayout.set($dockedPlayer);
+              tab = 'video';
+              videoComponent?.activate(true);
             }}
             disabled={!song.youtubeVideoId}>Video</Tabs.Trigger
           ></Tabs.List
