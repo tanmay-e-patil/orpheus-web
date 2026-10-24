@@ -390,8 +390,40 @@ it('recognizes an iPad using the desktop user agent and never seeks hidden video
   await vi.advanceTimersByTimeAsync(10000);
   expect(fixture.player.seekTo).not.toHaveBeenCalled();
   expect(fixture.player.playVideo).not.toHaveBeenCalled();
-  expect(fixture.options.playerVars.playsinline).toBe(1);
+  expect(fixture.options.playerVars.playsinline).toBe(0);
+  expect(fixture.options.playerVars.fs).toBe(1);
 });
+
+it.each([
+  'Mozilla/5.0 (iPad; CPU OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1',
+  'Mozilla/5.0 (iPad; CPU OS 26_0 like Mac OS X) AppleWebKit/605.1.15 CriOS/154.0.0.0 Mobile/15E148 Safari/604.1',
+])(
+  'uses native iPad fullscreen without requesting div fullscreen (%s)',
+  async (userAgent) => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent);
+    const view = await prepared();
+    const request = vi
+      .fn()
+      .mockRejectedValue(new Error('Fullscreen unavailable'));
+    Object.defineProperty(
+      view.container.querySelector('.inline-video')!,
+      'requestFullscreen',
+      {
+        value: request,
+      },
+    );
+    view.component.activate(true);
+    await view.rerender({ active: true });
+    expect(request).not.toHaveBeenCalled();
+    expect(fixture.options.playerVars.playsinline).toBe(0);
+    expect(fixture.options.playerVars.fs).toBe(1);
+    expect(view.queryByRole('button', { name: 'Enter fullscreen' })).toBeNull();
+    expect(fixture.player.playVideo).toHaveBeenCalledOnce();
+    expect(audio.pause).not.toHaveBeenCalled();
+    fixture.options.events.onStateChange({ data: 1 });
+    expect(audio.pause).toHaveBeenCalledOnce();
+  },
+);
 
 it('reports a specific YouTube error once, keeps audio, and creates a fresh player on retry', async () => {
   const onerror = vi.fn();
