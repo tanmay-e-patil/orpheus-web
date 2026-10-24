@@ -51,5 +51,11 @@
   style:width={`${bounds.width}px`}
   style:height={`${bounds.height}px`}
 >
-  <Artwork {src} size={bounds.width > 100 ? 'large' : 'normal'} />
+  {#if bounds.width > 0}
+    <Artwork
+      {src}
+      size={bounds.width > 100 ? 'large' : 'normal'}
+      displayWidth={bounds.width}
+    />
+  {/if}
 </div>
