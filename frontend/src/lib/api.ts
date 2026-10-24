@@ -14,6 +14,10 @@ export const api = API as unknown as {
   session(): Promise<Session>;
   login(email: string, password: string): Promise<unknown>;
   logout(): Promise<unknown>;
+  nativeAuthDetails(
+    requestID: string,
+  ): Promise<{ action: string; userId?: string; name?: string }>;
+  nativeAuthAuthorize(requestID: string): Promise<{ callbackURL: string }>;
   passkeyStatus(): Promise<{ hasPasskey: boolean }>;
   passkeyLoginBegin(): Promise<unknown>;
   passkeyLoginFinish(credential: unknown): Promise<unknown>;

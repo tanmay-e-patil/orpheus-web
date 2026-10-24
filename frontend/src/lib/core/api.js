@@ -27,7 +27,14 @@ async function request(path, options = {}) {
   }
   if (!response.ok) {
     const error = payload?.error || {};
-    if (response.status === 401 && path !== '/api/auth/session') {
+    if (
+      response.status === 401 &&
+      ![
+        '/api/auth/session',
+        '/api/auth/login',
+        '/api/auth/passkey/login-finish',
+      ].includes(path)
+    ) {
       window.dispatchEvent(new CustomEvent('orpheus:unauthorized'));
     }
     throw new APIError(
@@ -64,6 +71,15 @@ export const API = {
     }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
   session: () => request('/api/auth/session'),
+  nativeAuthDetails: (requestID) =>
+    request(
+      `/api/auth/native/details?request=${encodeURIComponent(requestID)}`,
+    ),
+  nativeAuthAuthorize: (requestID) =>
+    request('/api/auth/native/authorize', {
+      method: 'POST',
+      body: JSON.stringify({ request: requestID }),
+    }),
   passkeyStatus: () => request('/api/auth/passkey/status'),
   passkeyRegisterBegin: () =>
     request('/api/auth/passkey/register-begin', { method: 'POST' }),

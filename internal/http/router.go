@@ -57,6 +57,13 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("POST /api/auth/logout", method(http.MethodPost, handlers.Logout(s.Auth)))
 	mux.Handle("GET /api/auth/session", method(http.MethodGet, handlers.Session(s.Auth)))
 
+	// Native browser authentication: fixed callback, PKCE, one-use database grants.
+	native := newNativeAuth(s.Config, s.Auth, s.Store)
+	mux.HandleFunc("POST /api/auth/native/begin", native.begin)
+	mux.HandleFunc("GET /api/auth/native/details", native.details)
+	mux.HandleFunc("POST /api/auth/native/authorize", native.authorize)
+	mux.HandleFunc("POST /api/auth/native/exchange", native.exchange)
+
 	// Passkey — public (login ceremony)
 	mux.Handle("POST /api/auth/passkey/login-begin", method(http.MethodPost, handlers.PasskeyLoginBegin(s.Passkey)))
 	mux.Handle("POST /api/auth/passkey/login-finish", method(http.MethodPost, handlers.PasskeyLoginFinish(s.Auth, s.Passkey, s.Store)))
@@ -113,7 +120,7 @@ func (s *Server) staticOrShell(w http.ResponseWriter, r *http.Request) {
 		handlers.Error(w, http.StatusNotFound, "not_found", "Not found")
 		return
 	}
-	if r.URL.Path != "/" {
+	if r.URL.Path != "/" && r.URL.Path != "/auth/native" {
 		if _, err := s.Auth.SessionFromRequest(r); err != nil {
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
@@ -124,7 +131,7 @@ func (s *Server) staticOrShell(w http.ResponseWriter, r *http.Request) {
 
 func knownAppPath(path string) bool {
 	switch path {
-	case "/", "/home", "/settings", "/discover", "/discover/youtube", "/discover/spotify", "/discover/lyrics", "/discover/review", "/discover/commit":
+	case "/", "/auth/native", "/home", "/settings", "/discover", "/discover/youtube", "/discover/spotify", "/discover/lyrics", "/discover/review", "/discover/commit":
 		return true
 	default:
 		return isSongEditPath(path)

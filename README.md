@@ -88,6 +88,21 @@ Song tab separately from embedded YouTube video playback.
 
 Open `http://localhost:8080`.
 
+## Native iOS passkey sign-in
+
+The iOS client uses the system authentication browser and the existing web passkeys. It does not require Apple's Associated Domains capability or paid Apple membership.
+
+`/auth/native` hosts the browser flow. The native client starts it with `POST /api/auth/native/begin` using a random state and S256 PKCE challenge. Browser authorization requires an authenticated account, exact Origin, and explicit confirmation; registration is bound to the account already signed in on iOS. The fixed `orpheus://auth/callback` returns a short-lived authorization code, never a session token. `POST /api/auth/native/exchange` requires the verifier and atomically consumes the code before issuing the normal session cookie.
+
+Deploy the frontend and Go server together. Startup migration `0010_native_login` creates the database-backed, one-use grant store so the flow works across replicas. Consumed request records expire after five minutes; authorization codes expire after one minute. No new environment variables or secrets are required. `AUTH_RP_ORIGIN` must match the public browser origin, as it already must for web passkeys.
+
+Grant tests run with:
+
+```sh
+go test ./internal/http -run Native
+go test -tags=integration ./internal/store -run '^TestNativeLoginGrantSingleUse$' -count=1
+```
+
 ## Verify
 
 ```sh

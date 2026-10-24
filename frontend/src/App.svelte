@@ -23,6 +23,7 @@
   import { initAudioPlayer } from '$lib/core/audio-player.js';
   import LibraryPage from './pages/Library.svelte';
   import Login from './pages/Login.svelte';
+  import NativeAuth from './pages/NativeAuth.svelte';
   import Settings from './pages/Settings.svelte';
   import Discovery from './pages/Discovery.svelte';
   import SongEditor from './pages/SongEditor.svelte';
@@ -82,7 +83,7 @@
     }
   }
   $effect(() => {
-    if (!ready) return;
+    if (!ready || $route.path === '/auth/native') return;
     if (!$session?.authenticated && $route.path !== '/') navigate('/', true);
     if ($session?.authenticated && $route.path === '/') navigate('/home', true);
   });
@@ -99,7 +100,7 @@
       clearPlayer();
       session.set(null);
       setSession(null);
-      navigate('/', true);
+      if ($route.path !== '/auth/native') navigate('/', true);
     };
     const notice = (event: Event) => {
       const { message, tone } = (event as CustomEvent).detail;
@@ -119,7 +120,9 @@
 
 <svelte:document onclick={followLink} onkeydown={shortcut} />
 <a href="#main" class="skip-link">Skip to content</a>
-{#if !ready}
+{#if $route.path === '/auth/native'}
+  <NativeAuth />
+{:else if !ready}
   <div class="boot">
     <AudioLines size={32} />
     <p>Opening your library…</p>
