@@ -23,18 +23,18 @@
     active?: boolean;
     onerror: (message: string) => void;
   } = $props();
-  const iPad =
-    /iPad/.test(navigator.userAgent) ||
-    (/Mac/.test(navigator.platform) && navigator.maxTouchPoints > 1);
-  // iPad Home Screen apps can reject fullscreening the surrounding div.
-  // Let YouTube own native video fullscreen on all iOS/iPadOS devices.
-  const nativeVideoFullscreen = iPad || /iPhone|iPod/.test(navigator.userAgent);
+  // iPhone supports native video fullscreen, not fullscreening our div.
+  // YouTube owns the cross-origin video and selects that path via playsinline.
+  const nativeVideoFullscreen = /iPhone|iPod/.test(navigator.userAgent);
   let cleanupFullscreenDiagnostics: (() => void) | undefined;
   let container: HTMLDivElement;
   let target: HTMLDivElement;
   let fullscreen = $state(false);
   let fullscreenRequest = 0;
   let cancelFullscreen = false;
+  const iPad =
+    /iPad/.test(navigator.userAgent) ||
+    (/Mac/.test(navigator.platform) && navigator.maxTouchPoints > 1);
   const mobile = iPad || /iPhone|iPod|Android/.test(navigator.userAgent);
   const landscape = createLandscapeLock((stage, detail) =>
     recordFullscreen(stage, container, { detail }),
@@ -152,9 +152,9 @@
   }
 
   function prepare() {
-    // A hidden seek can start native video fullscreen on iOS/iPadOS. Preparing
+    // A hidden seek can start native video fullscreen on iPhone. Preparing
     // the iframe is safe; media seeks must wait for explicit activation.
-    if (nativeVideoFullscreen || !ready || !player || playback) return;
+    if (nativeVideoFullscreen || iPad || !ready || !player || playback) return;
     // seekTo requests media, unlike merely cueing a thumbnail. Keep the
     // prepared player paused; buffering while paused is controlled by YouTube.
     player.seekTo(getPlayerState().currentTime, true);
@@ -253,9 +253,8 @@
     retryPlayer = mountPlayer;
     mountPlayer();
     const timer = setInterval(() => playback?.sync(), 250);
-    const preparationTimer = nativeVideoFullscreen
-      ? undefined
-      : setInterval(prepare, 5000);
+    const preparationTimer =
+      nativeVideoFullscreen || iPad ? undefined : setInterval(prepare, 5000);
     return () => {
       destroyed = true;
       retryPlayer = undefined;
