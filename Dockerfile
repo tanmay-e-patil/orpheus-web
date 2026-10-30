@@ -1,15 +1,17 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-alpine AS frontend
+FROM node:24.22.1-alpine3.24 AS frontend
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM golang:1.25-alpine AS build
+FROM golang:1.27.3-alpine3.24 AS build
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache --upgrade "ca-certificates>=20261020-r0" \
+    && update-ca-certificates \
+    && test -s /etc/ssl/certs/ca-certificates.crt
 WORKDIR /src
 
 COPY go.mod go.sum ./

@@ -1,6 +1,6 @@
 module orpheus-web
 
-go 1.25.0
+go 1.27.3
 
 require (
 	github.com/exaring/otelpgx v0.11.1
