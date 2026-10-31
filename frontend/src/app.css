@@ -2167,9 +2167,13 @@ summary {
 .now-playing-lyrics .lyrics-content {
   height: 100%;
   overflow-y: auto;
+  scrollbar-width: none;
   overscroll-behavior: contain;
   padding: 12px 4px 35%;
   position: relative;
+}
+.now-playing-lyrics .lyrics-content::-webkit-scrollbar {
+  display: none;
 }
 .now-playing-queue {
   overflow-y: auto;
