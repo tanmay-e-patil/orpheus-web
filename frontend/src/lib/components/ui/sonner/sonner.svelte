@@ -14,7 +14,16 @@
 <Sonner
   class="toaster group"
   style="--normal-bg: var(--color-popover); --normal-text: var(--color-popover-foreground); --normal-border: var(--color-border);"
-  toastOptions={{ classes: { toast: 'cn-toast', error: '!text-destructive' } }}
+  toastOptions={{
+    classes: {
+      toast: 'cn-toast',
+      error: '!text-destructive',
+      description: '!text-muted-foreground',
+      actionButton: '!bg-primary !text-primary-foreground',
+      cancelButton: '!bg-secondary !text-secondary-foreground',
+      closeButton: '!bg-popover !text-popover-foreground !border-border',
+    },
+  }}
   {...restProps}
 >
   {#snippet loadingIcon()}<Loader2 class="size-4 animate-spin" />{/snippet}

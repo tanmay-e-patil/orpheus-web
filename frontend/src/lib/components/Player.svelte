@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { notify } from '$lib/notifications';
   import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
@@ -27,7 +28,6 @@
     dockedPlayer,
     playerPaneCollapsed,
     videoDockedLayout,
-    notify,
   } from '$lib/state';
   import {
     play,

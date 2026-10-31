@@ -19,7 +19,7 @@
   import VideoPreview from '$lib/components/VideoPreview.svelte';
   import { api } from '$lib/api';
   import { navigate } from '$lib/navigation';
-  import { notify, errorMessage, session, libraryVersion } from '$lib/state';
+  import { errorMessage, session, libraryVersion } from '$lib/state';
   import {
     createInitialWorkflowState,
     loadWorkflowState,

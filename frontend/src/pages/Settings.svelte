@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { notify } from '$lib/notifications';
   import { onMount } from 'svelte';
   import {
     Fingerprint,
@@ -15,7 +16,7 @@
   import { api } from '$lib/api';
   import { Passkey } from '$lib/core/passkey.js';
   import { clearPlayer } from '$lib/core/player-store.js';
-  import { session, notify, errorMessage } from '$lib/state';
+  import { session, errorMessage } from '$lib/state';
   import { navigate } from '$lib/navigation';
   let keys = $state<{ id: string; name: string; createdAt: string }[]>([]),
     loading = $state(true),
@@ -54,7 +55,7 @@
       await api.passkeyRegisterFinish(await Passkey.register(options), keyName);
       addOpen = false;
       await load();
-      notify('Passkey added.');
+      notify('Passkey added.', 'success');
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -68,7 +69,7 @@
       await api.passkeyDelete(deleting.id);
       deleting = null;
       await load();
-      notify('Passkey deleted.');
+      notify('Passkey deleted.', 'success');
     } catch (e) {
       error = errorMessage(e);
     } finally {

@@ -7,7 +7,7 @@ Local changes:
 
 - State/orientation selectors use Bits UI 2's `data-state` and `data-orientation` attributes.
 - False `data-inset` flags are omitted so optional indentation remains optional.
-- Sonner uses the application’s CSS theme tokens instead of adding `mode-watcher`; notification offsets keep it above the player and mobile navigation.
+- Sonner uses application CSS theme tokens, including descriptions and buttons, instead of adding `mode-watcher`. `AppToaster.svelte` reserves space for visible navigation and the fixed player bar.
 - The application's design tokens and responsive touch-target sizing live in `src/app.css`.
 
 Review these adaptations before overwriting components with a future CLI update.

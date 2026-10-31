@@ -11,9 +11,9 @@
   import { route, navigate, syncRoute } from '$lib/navigation';
   import {
     session,
-    notify,
     playback,
     dockedPlayer,
+    nowPlaying,
     errorMessage,
   } from '$lib/state';
   import { setSession } from '$lib/core/store.js';
@@ -27,7 +27,7 @@
   import Discovery from './pages/Discovery.svelte';
   import SongEditor from './pages/SongEditor.svelte';
   import Player from '$lib/components/Player.svelte';
-  import { Toaster } from '$lib/components/ui/sonner';
+  import AppToaster from '$lib/components/AppToaster.svelte';
   let ready = $state(false);
   const accountName = $derived(
     $session?.user?.username || $session?.user?.email || 'Account',
@@ -103,19 +103,13 @@
       setSession(null);
       if ($route.path !== '/auth/native') navigate('/', true);
     };
-    const notice = (event: Event) => {
-      const { message, tone } = (event as CustomEvent).detail;
-      notify(message, tone);
-    };
     window.addEventListener('popstate', syncRoute);
     window.addEventListener('orpheus:unauthorized', unauthorized);
-    window.addEventListener('orpheus:notice', notice);
     return () => {
       stopDeletions();
       media.removeEventListener('change', syncAppearance);
       window.removeEventListener('popstate', syncRoute);
       window.removeEventListener('orpheus:unauthorized', unauthorized);
-      window.removeEventListener('orpheus:notice', notice);
     };
   });
 </script>
@@ -203,16 +197,14 @@
     <Player />
   </div>
 {/if}
-<Toaster
-  position="bottom-right"
-  duration={6000}
-  visibleToasts={3}
-  closeButton
-  closeButtonAriaLabel="Dismiss notification"
-  offset={{ bottom: 'var(--toast-bottom-offset)', right: '24px' }}
-  mobileOffset={{
-    bottom: 'var(--toast-bottom-offset)',
-    left: '16px',
-    right: '16px',
-  }}
+<AppToaster
+  navigation={ready &&
+    !!$session?.authenticated &&
+    $route.path !== '/auth/native'}
+  fixedPlayer={ready &&
+    !!$session?.authenticated &&
+    $route.path !== '/auth/native' &&
+    !!$playback.song &&
+    !$dockedPlayer &&
+    !$nowPlaying}
 />

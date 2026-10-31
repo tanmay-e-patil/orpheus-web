@@ -9,16 +9,6 @@ export function setSession(session) {
   appState.dispatchEvent(new CustomEvent('sessionchange', { detail: session }));
 }
 
-export function showDialog(message) {
-  toast(message, 'error');
-}
-
-export function toast(message, tone = 'info') {
-  window.dispatchEvent(
-    new CustomEvent('orpheus:notice', { detail: { message, tone } }),
-  );
-}
-
 export function generateWorkflowId() {
   return `workflow_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }

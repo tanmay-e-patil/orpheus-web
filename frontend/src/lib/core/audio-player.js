@@ -8,7 +8,7 @@ import {
   getPlayerState,
   updateSongPlayCount,
 } from './player-store.js';
-import { toast } from './store.js';
+import { notify } from '../notifications';
 import { configureAudioSession, initMediaSession } from './media-session.js';
 const withViewTransition = (update) => update();
 
@@ -73,7 +73,9 @@ export function initAudioPlayer() {
       code: audio.error?.code,
       message: audio.error?.message,
     });
-    toast('Audio playback error. Skipping...', 'error');
+    notify('Audio playback error. Skipping...', 'error', {
+      id: 'audio-playback-error',
+    });
     withViewTransition(() => next(), {
       scope: 'song',
       songKind: 'auto',

@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { notify } from '$lib/notifications';
   import { tick } from 'svelte';
   import { centerLyric } from '$lib/lyric-scroll';
   import { api } from '$lib/api';
-  import { playback, notify, errorMessage } from '$lib/state';
+  import { playback, errorMessage } from '$lib/state';
   import { parseLRC, findActiveIndex } from '$lib/core/lrc.js';
   import { updateSongLyrics, seek } from '$lib/core/player-store.js';
   import { Button } from '$lib/components/ui/button';
@@ -92,7 +93,7 @@
         fetched.syncedLyrics || '',
       );
       fetched = null;
-      notify('Lyrics saved to your library.');
+      notify('Lyrics saved to your library.', 'success');
     } catch (e) {
       notify(errorMessage(e), 'error');
     } finally {

@@ -19,13 +19,7 @@
   import { onSongDeleted } from '$lib/song-deletion';
   import Artwork from '$lib/components/Artwork.svelte';
   import { api } from '$lib/api';
-  import {
-    session,
-    playback,
-    libraryVersion,
-    notify,
-    errorMessage,
-  } from '$lib/state';
+  import { session, playback, libraryVersion, errorMessage } from '$lib/state';
   import { navigate } from '$lib/navigation';
   import { setQueue, updateSongAlbumArt } from '$lib/core/player-store.js';
   import {

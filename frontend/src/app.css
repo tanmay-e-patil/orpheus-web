@@ -45,7 +45,6 @@
   --radius: 8px;
   --player-height: 88px;
   --mobile-nav-height: 64px;
-  --toast-bottom-offset: calc(var(--player-height) + 20px);
   --app-safe-top: env(safe-area-inset-top, 0px);
   font-family: var(--font-sans);
 }
@@ -1971,12 +1970,6 @@ summary {
   }
   .candidate-row {
     flex-wrap: wrap;
-  }
-  :root {
-    --toast-bottom-offset: calc(
-      var(--mobile-nav-height) + var(--player-height) +
-        env(safe-area-inset-bottom) + 12px
-    );
   }
   .empty {
     min-height: 280px;

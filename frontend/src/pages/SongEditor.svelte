@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { notify } from '$lib/notifications';
   import { onMount } from 'svelte';
   import {
     ArrowLeft,
@@ -15,7 +16,7 @@
   import Artwork from '$lib/components/Artwork.svelte';
   import VideoPreview from '$lib/components/VideoPreview.svelte';
   import { api } from '$lib/api';
-  import { notify, errorMessage, session, libraryVersion } from '$lib/state';
+  import { errorMessage, session, libraryVersion } from '$lib/state';
   import {
     setQueue,
     updateQueueSong,
@@ -108,7 +109,7 @@
           song = data.song;
           source = data.audioSource;
           updateQueueSong(id, song);
-          notify('Your audio is ready.');
+          notify('Your audio is ready.', 'success');
         }
       } catch {
         /* A later interval retries transient polling failures. */
@@ -147,6 +148,7 @@
         data.fileUpdateQueued
           ? `${message} Library file update queued.`
           : message,
+        'success',
       );
     });
   }
@@ -206,7 +208,7 @@
       if (song) song = { ...song, lyrics: plain, syncedLyrics: synced };
       updateSongLyrics(id, plain, synced);
       await invalidate();
-      notify('Lyrics saved.');
+      notify('Lyrics saved.', 'success');
     });
   }
   function testLyrics(lyrics: string) {

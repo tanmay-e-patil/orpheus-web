@@ -2,7 +2,8 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { api } from '$lib/api';
-  import { errorMessage, notify } from '$lib/state';
+  import { errorMessage } from '$lib/state';
+  import { notify } from '$lib/notifications';
   import { songDeleted } from '$lib/song-deletion';
   import type { Song } from '$lib/types';
 
@@ -24,7 +25,7 @@
       await api.deleteSong(trackId);
       await songDeleted(trackId);
       onclose();
-      notify('Song deleted.');
+      notify('Song deleted.', 'success');
     } catch (e) {
       error = errorMessage(e);
     } finally {
