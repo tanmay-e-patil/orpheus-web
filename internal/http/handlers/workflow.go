@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -34,6 +35,10 @@ func CommitWorkflow(db *store.Store) http.HandlerFunc {
 			if err := db.UpsertSongAndVideo(r.Context(), upsert, item.Video); err != nil {
 				slog.ErrorContext(r.Context(), "commit store failed", "component", "workflow", "track_id", upsert.TrackID, "error", err)
 				result.Error = retryableCommitError
+				if errors.Is(err, store.ErrSongDeleted) {
+					result.Error = "This song was deleted from the shared library and cannot be re-imported."
+					result.Code = "song_deleted"
+				}
 				results = append(results, result)
 				continue
 			}

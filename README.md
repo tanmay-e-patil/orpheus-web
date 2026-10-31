@@ -267,3 +267,94 @@ The consumer changes are in the sibling `../orpheus-consumer` repository. Old
 consumers can decode the extra JSON field, but do not record completion, so deploy
 the matching consumer before enabling dispatch. Reverting to direct-publishing
 web versions would remove the atomic scheduling guarantee.
+
+## Deleting a Library Song
+
+Choose **Delete song** immediately after **Edit song** in a Library song's actions
+menu. Confirmation names the song and explains that deletion affects everyone in
+the shared library. Any authenticated user can delete, following the existing edit
+permissions. The song disappears after the server accepts deletion; local playback
+stops if it was the current song. Other queue entries keep playing unchanged.
+Other tabs on the same origin invalidate their queues and caches through a browser
+storage event. Other devices update on their next library refresh. Already-open
+audio streams and previously downloaded bytes cannot be revoked.
+
+`DELETE /api/songs/{trackId}` returns `202` with `deletionQueued:true` after one
+transaction marks `songs.deleted_at`, makes the song unavailable, removes its play
+counts and stored lyrics, persists cleanup targets, and inserts `delete-song-files`
+in `song_job_outbox`. Repeated deletion returns an empty `204`; an unknown ID
+returns `404`. A worker holding the song row can delay acceptance: the endpoint
+bounds its lock wait to three seconds and returns retryable `503 song_busy` if
+necessary. Broker outages and paused dispatch do not prevent accepting deletion.
+
+The matching consumer removes the stored audio path, metadata-derived path,
+obsolete paths, and their LRC sidecars, plus attributable song-specific partials.
+It uses the existing song/path locks, preserves files referenced by active songs,
+and confines deletion to the library root. Missing files are harmless. Failed
+cleanup retains its targets and unfinished receipt for retries or DLQ repair;
+event completion happens only after cleanup succeeds. Artist/album directories,
+shared YouTube metadata, and legacy temporary files that cannot be attributed to
+one song remain untouched.
+
+Deleted rows remain as hidden tombstones so delayed UUID/legacy jobs cannot
+recreate files. This retains identity and metadata, rather than erasing all
+database history. There is no undo or re-import of the same song ID in this
+version. The batch import endpoint preserves its per-item response contract and
+reports `code: "song_deleted"` for that item. Edits, lyrics, new audio requests,
+play recording, redownloads, and album-art refresh exclude tombstones. Existing
+metadata uniqueness constraints still apply to retained rows.
+
+For rollout, apply migration **0011** before starting the updated consumer; it
+adds the deletion column and outbox action. Deploy the matching consumer changes
+(based on `orpheus-consumer` commit `a14a1fa`), drain/replace all older workers and
+backfill processes, then deploy this web/API/UI version to expose deletion.
+With the preceding migrations already applied, pre-apply the additive schema
+without exposing the new web release (normal application startup will record it
+in `schema_migrations` when it rechecks the idempotent up migration):
+
+```sh
+psql "$DATABASE_URL" --single-transaction \
+  --file internal/store/migrations/0011_song_deletion.up.sql
+```
+
+Deploy the consumer next and replace older workers before the web release;
+pausing dispatch alone does not stop already-published jobs on old workers. Do not roll back the consumer's tombstone guards while tombstones or
+cleanup jobs exist. The down migration refuses to remove tombstones.
+
+Inspect unfinished cleanup, including events already published or in the DLQ:
+
+```sql
+SELECT id, song_id, created_at, published_at, attempts, last_error
+FROM song_job_outbox
+WHERE action = 'delete-song-files' AND completed_at IS NULL
+ORDER BY created_at;
+SELECT * FROM song_file_cleanup WHERE song_id = 'TRACK_ID';
+```
+
+After repairing an I/O/path/permission failure, republish the **same event UUID**:
+
+```sql
+UPDATE song_job_outbox
+SET published_at = NULL, available_at = now(), lease_token = NULL,
+    lease_until = NULL, last_error = NULL
+WHERE id = 'EVENT_UUID' AND action = 'delete-song-files'
+  AND completed_at IS NULL;
+```
+
+The trigger wakes the dispatcher. Duplicate deliveries remain safe. Monitor
+`orpheus_deletion_pending` and
+`orpheus_deletion_oldest_created_timestamp_seconds`; they include published jobs
+waiting for completion. These gauges update when the dispatcher wakes, so inspect
+the database directly while dispatch is paused. Consumer logs retain event/song
+IDs for failures after publication.
+
+Database-only integration tests can also use a local PostgreSQL server when Docker
+is unavailable. `ORPHEUS_TEST_POSTGRES_URL` must be a PostgreSQL URI for a test server
+with CREATE DATABASE permission. Each fixture creates/drops an isolated database;
+it does not migrate the supplied base database. RabbitMQ and container end-to-end
+suites still require Docker:
+
+```sh
+ORPHEUS_TEST_POSTGRES_URL='postgres://localhost/postgres?sslmode=disable' \
+  go test -race -tags=integration ./internal/store -count=1
+```

@@ -77,6 +77,7 @@ func (s *Server) Routes() http.Handler {
 
 	// Protected API routes
 	mux.Handle("GET /api/songs", s.requireAuth(method(http.MethodGet, handlers.GetSongs(s.Store, UserIDFromContext))))
+	mux.Handle("DELETE /api/songs/{trackId}", s.requireAuth(method(http.MethodDelete, handlers.DeleteSong(s.Store))))
 	mux.Handle("GET /api/songs/{trackId}", s.requireAuth(method(http.MethodGet, handlers.GetSong(s.Store, UserIDFromContext))))
 	mux.Handle("GET /api/songs/{trackId}/audio", s.requireAuth(method(http.MethodGet, handlers.StreamSongAudio(s.Store, s.Config.MusicLibraryPath))))
 	mux.Handle("POST /api/songs/{trackId}/plays", s.requireAuth(method(http.MethodPost, handlers.RecordSongPlay(s.Store, UserIDFromContext))))

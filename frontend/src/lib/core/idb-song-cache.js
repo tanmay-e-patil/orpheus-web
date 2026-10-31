@@ -153,10 +153,11 @@ export async function readSongsCacheMeta(userId) {
   return meta || null;
 }
 
-export async function writeSongsCacheMeta(userId, meta) {
+export async function writeSongsCacheMeta(userId, meta, options = {}) {
   if (!('indexedDB' in window)) return;
   const db = await openDb();
   const scope = scopeKey(userId);
+  if (options.signal?.aborted) return;
   const tx = db.transaction([META_STORE], 'readwrite');
   tx.objectStore(META_STORE).put({
     ...meta,
@@ -194,6 +195,7 @@ export async function upsertSongsPage(userId, cursorIn, page, options = {}) {
   if (!('indexedDB' in window)) return;
   const db = await openDb();
   const scope = scopeKey(userId);
+  if (options.signal?.aborted) return;
   const tx = db.transaction([SONG_STORE, PAGE_STORE], 'readwrite');
   const songStore = tx.objectStore(SONG_STORE);
   const pageStore = tx.objectStore(PAGE_STORE);

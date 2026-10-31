@@ -8,8 +8,10 @@ import (
 )
 
 var (
-	OutboxPending       = prometheus.NewGauge(prometheus.GaugeOpts{Name: "orpheus_outbox_pending", Help: "Unpublished, unfinished song jobs at the last dispatcher wake-up."})
-	OutboxOldestCreated = prometheus.NewGauge(prometheus.GaugeOpts{Name: "orpheus_outbox_oldest_created_timestamp_seconds", Help: "Creation timestamp of oldest unpublished song job; zero when empty."})
+	DeletionPending       = prometheus.NewGauge(prometheus.GaugeOpts{Name: "orpheus_deletion_pending", Help: "Unfinished deletion jobs, including published jobs awaiting cleanup or DLQ repair."})
+	DeletionOldestCreated = prometheus.NewGauge(prometheus.GaugeOpts{Name: "orpheus_deletion_oldest_created_timestamp_seconds", Help: "Creation timestamp of oldest unfinished deletion job; zero when empty."})
+	OutboxPending         = prometheus.NewGauge(prometheus.GaugeOpts{Name: "orpheus_outbox_pending", Help: "Unpublished, unfinished song jobs at the last dispatcher wake-up."})
+	OutboxOldestCreated   = prometheus.NewGauge(prometheus.GaugeOpts{Name: "orpheus_outbox_oldest_created_timestamp_seconds", Help: "Creation timestamp of oldest unpublished song job; zero when empty."})
 
 	HTTPRequestDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "orpheus_http_request_duration_seconds",
@@ -29,7 +31,7 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(HTTPRequestDuration, HTTPRequestsTotal, QueuePublishTotal, OutboxPending, OutboxOldestCreated)
+	prometheus.MustRegister(HTTPRequestDuration, HTTPRequestsTotal, QueuePublishTotal, OutboxPending, OutboxOldestCreated, DeletionPending, DeletionOldestCreated)
 }
 
 func ObserveHTTPRequest(method, route string, status int, duration time.Duration) {

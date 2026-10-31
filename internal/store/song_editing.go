@@ -47,7 +47,7 @@ func metadataRequiresFileUpdate(current, next SongMetadataUpdate) bool {
 
 func (s *Store) FetchLibrarySong(ctx context.Context, userID, trackID string) (types.LibrarySong, *types.YouTubeVideo, error) {
 	row := s.Pool.QueryRow(ctx, librarySongSelect()+`
-		where songs.id = $1
+		where songs.id = $1 AND songs.deleted_at IS NULL
 	`, trackID, userID)
 	return scanLibrarySongWithSource(row)
 }
@@ -65,7 +65,7 @@ func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, 
 
 	var current SongMetadataUpdate
 	var currentDate time.Time
-	err = tx.QueryRow(ctx, `select name, artist_name, album_name, album_art, release_date from songs where id = $1 for update`, trackID).
+	err = tx.QueryRow(ctx, `select name, artist_name, album_name, album_art, release_date from songs where id = $1 AND deleted_at IS NULL for update`, trackID).
 		Scan(&current.Name, &current.ArtistName, &current.AlbumName, &current.AlbumArt, &currentDate)
 	if err != nil {
 		return SongEditResponse{}, err
@@ -106,7 +106,7 @@ func (s *Store) ReplaceAudioSource(ctx context.Context, userID, trackID string, 
 	defer tx.Rollback(ctx)
 
 	var currentID string
-	if err := tx.QueryRow(ctx, `select yt_video_id from songs where id = $1 for update`, trackID).Scan(&currentID); err != nil {
+	if err := tx.QueryRow(ctx, `select yt_video_id from songs where id = $1 AND deleted_at IS NULL for update`, trackID).Scan(&currentID); err != nil {
 		return SongEditResponse{}, err
 	}
 	if currentID == video.ID {
@@ -150,7 +150,7 @@ func (s *Store) RegenerateSong(ctx context.Context, userID, trackID string) (Son
 	}
 	defer tx.Rollback(ctx)
 	var videoID string
-	if err := tx.QueryRow(ctx, `select yt_video_id from songs where id = $1 for update`, trackID).Scan(&videoID); err != nil {
+	if err := tx.QueryRow(ctx, `select yt_video_id from songs where id = $1 AND deleted_at IS NULL for update`, trackID).Scan(&videoID); err != nil {
 		return SongEditResponse{}, err
 	}
 	if videoID == "" {

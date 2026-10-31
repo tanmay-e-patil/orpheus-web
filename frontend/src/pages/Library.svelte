@@ -6,6 +6,7 @@
     MoreHorizontal,
     Play,
     Pencil,
+    Trash2,
     Disc3,
     ArrowDownUp,
     ChevronDown,
@@ -14,6 +15,8 @@
   import { Input } from '$lib/components/ui/input';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import { Skeleton } from '$lib/components/ui/skeleton';
+  import DeleteSongDialog from '$lib/components/DeleteSongDialog.svelte';
+  import { onSongDeleted } from '$lib/song-deletion';
   import Artwork from '$lib/components/Artwork.svelte';
   import { api } from '$lib/api';
   import {
@@ -32,6 +35,8 @@
   } from '$lib/core/idb-song-cache.js';
   import { duration, searchSongs } from '$lib/music';
   import type { Song } from '$lib/types';
+  let deleting = $state<Song | null>(null);
+  let loadController: AbortController | undefined;
   let songs = $state<Song[]>([]),
     query = $state(new URLSearchParams(location.search).get('q') || '');
   let sort = $state(
@@ -100,6 +105,7 @@
   });
   $effect(() => {
     const controller = new AbortController();
+    loadController = controller;
     const requestedSort = sort;
     $libraryVersion;
     load(requestedSort, controller.signal);
@@ -129,12 +135,18 @@
         loading = false;
         hydrating = page.hasMore;
         if (requestedSort === 'artist') {
-          await upsertSongsPage(userId, cursor, page).catch(() => {});
+          await upsertSongsPage(userId, cursor, page, { signal }).catch(
+            () => {},
+          );
           if (!signal.aborted)
-            await writeSongsCacheMeta(userId, {
-              complete: !page.hasMore,
-              lastCursor: page.nextCursor,
-            }).catch(() => {});
+            await writeSongsCacheMeta(
+              userId,
+              {
+                complete: !page.hasMore,
+                lastCursor: page.nextCursor,
+              },
+              { signal },
+            ).catch(() => {});
         }
         cursor = page.hasMore ? page.nextCursor : null;
       } while (cursor && !signal.aborted);
@@ -170,9 +182,15 @@
       { rootMargin: '400px' },
     );
     observer.observe(boundary);
+    const offDeleted = onSongDeleted((trackId) => {
+      loadController?.abort();
+      songs = songs.filter((song) => song.trackId !== trackId);
+      if (deleting?.trackId === trackId) deleting = null;
+    });
     window.addEventListener('orpheus:song-play-recorded', refreshPlays);
     return () => {
       disposed = true;
+      offDeleted();
       clearTimeout(artTimer);
       observer?.disconnect();
       window.removeEventListener('orpheus:song-play-recorded', refreshPlays);
@@ -328,6 +346,10 @@
                 onclick={() =>
                   navigate(`/songs/${encodeURIComponent(song.trackId)}/edit`)}
                 ><Pencil size={15} />Edit song</DropdownMenu.Item
+              ><DropdownMenu.Item
+                variant="destructive"
+                onclick={() => (deleting = song)}
+                ><Trash2 size={15} />Delete song</DropdownMenu.Item
               >{#if !song.isAvailable}<DropdownMenu.Separator
                 /><DropdownMenu.Label>Audio unavailable</DropdownMenu.Label
                 ><DropdownMenu.Item
@@ -347,3 +369,5 @@
   {/if}
   <div bind:this={boundary} class="scroll-boundary"></div>
 </section>
+
+<DeleteSongDialog song={deleting} onclose={() => (deleting = null)} />

@@ -36,7 +36,7 @@ func (s *Store) UpsertSongAndVideo(ctx context.Context, song types.SongUpsert, v
 		return err
 	}
 
-	_, err = tx.Exec(ctx, `
+	tag, err := tx.Exec(ctx, `
 		insert into songs (
 		  id, name, artist_name, album_name, album_art, lyrics, synced_lyrics,
 		  is_lyrics_available, duration, yt_video_id, is_available, release_date,
@@ -57,9 +57,14 @@ func (s *Store) UpsertSongAndVideo(ctx context.Context, song types.SongUpsert, v
 		  release_date = excluded.release_date,
 		  release_year = excluded.release_year,
 		  updated_at = now()
+		where songs.deleted_at IS NULL
 	`, song.TrackID, song.Name, song.ArtistName, song.AlbumName, song.AlbumArt, song.Lyrics, song.SyncedLyrics, song.IsLyricsAvailable, song.Duration, song.YoutubeVideoID, song.IsAvailable, song.ReleaseDate, song.ReleaseYear)
 	if err != nil {
 		return err
+	}
+
+	if tag.RowsAffected() == 0 {
+		return ErrSongDeleted
 	}
 
 	if _, err := enqueueSongJob(ctx, tx, song.TrackID, ProcessSongAction); err != nil {

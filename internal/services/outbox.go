@@ -97,6 +97,15 @@ func (d *OutboxDispatcher) listenAndDispatch(ctx context.Context) error {
 		if oldest != nil {
 			metrics.OutboxOldestCreated.Set(float64(oldest.Unix()))
 		}
+		deleteCount, deleteOldest, err := d.Store.DeletionBacklog(ctx)
+		if err != nil {
+			return err
+		}
+		metrics.DeletionPending.Set(float64(deleteCount))
+		metrics.DeletionOldestCreated.Set(0)
+		if deleteOldest != nil {
+			metrics.DeletionOldestCreated.Set(float64(deleteOldest.Unix()))
+		}
 		deadline := maintenanceAt
 		if next != nil && next.Before(deadline) {
 			deadline = *next

@@ -21,6 +21,7 @@
   import { setSession } from '$lib/core/store.js';
   import { clearPlayer } from '$lib/core/player-store.js';
   import { initAudioPlayer } from '$lib/core/audio-player.js';
+  import { listenForSongDeletions } from '$lib/song-deletion';
   import LibraryPage from './pages/Library.svelte';
   import Login from './pages/Login.svelte';
   import NativeAuth from './pages/NativeAuth.svelte';
@@ -89,6 +90,7 @@
   });
   onMount(() => {
     initAudioPlayer();
+    const stopDeletions = listenForSongDeletions();
     authenticate();
     const media = matchMedia('(prefers-color-scheme: dark)');
     const syncAppearance = () => {
@@ -110,6 +112,7 @@
     window.addEventListener('orpheus:unauthorized', unauthorized);
     window.addEventListener('orpheus:notice', notice);
     return () => {
+      stopDeletions();
       media.removeEventListener('change', syncAppearance);
       window.removeEventListener('popstate', syncRoute);
       window.removeEventListener('orpheus:unauthorized', unauthorized);

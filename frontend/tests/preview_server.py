@@ -38,6 +38,13 @@ class Preview(SimpleHTTPRequestHandler):
         return next((song for song in songs if song['trackId'] == identifier), songs[0])
     def detail(self):
         song = self.song(); return dict(song=song, audioSource=videos[0])
+    def do_DELETE(self):
+        path = urlparse(self.path).path
+        if path.startswith('/api/songs/'):
+            identifier = unquote(path.split('/')[3])
+            songs[:] = [song for song in songs if song['trackId'] != identifier]
+            return self.respond(dict(trackId=identifier, deletionQueued=True))
+        self.send_error(404)
     def do_GET(self):
         path = urlparse(self.path).path
         if path.startswith('/assets/preview-') and path.endswith('.svg'):

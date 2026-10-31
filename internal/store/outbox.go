@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	DeleteSongFilesAction  = "delete-song-files"
 	ProcessSongAction      = "process-song-data"
 	UpdateSongFilesAction  = "update-song-files"
 	UpdateSongLyricsAction = "update-song-lyrics"
@@ -45,6 +46,10 @@ func (s *Store) ScheduleSong(ctx context.Context, songID, action string) (string
 		return "", err
 	}
 	defer tx.Rollback(ctx)
+	var activeID string
+	if err := tx.QueryRow(ctx, `SELECT id FROM songs WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, songID).Scan(&activeID); err != nil {
+		return "", err
+	}
 	id, err := enqueueSongJob(ctx, tx, songID, action)
 	if err != nil {
 		return "", err
@@ -112,4 +117,11 @@ func (s *Store) PruneSongJobs(ctx context.Context, retention time.Duration) erro
  AND NOT EXISTS (SELECT 1 FROM song_file_cleanup c WHERE c.song_id = song_job_outbox.song_id)
 		ORDER BY completed_at LIMIT 1000 FOR UPDATE SKIP LOCKED)`, retention.Seconds())
 	return err
+}
+
+// DeletionBacklog includes published jobs waiting for the consumer or DLQ repair.
+func (s *Store) DeletionBacklog(ctx context.Context) (count int, oldest *time.Time, err error) {
+	err = s.Pool.QueryRow(ctx, `SELECT count(*), min(created_at) FROM song_job_outbox
+ WHERE action = 'delete-song-files' AND completed_at IS NULL`).Scan(&count, &oldest)
+	return
 }

@@ -39,3 +39,14 @@ it('dispatches unauthorized responses so the app clears playback and returns to 
     window.removeEventListener('orpheus:unauthorized', listener);
   }
 });
+it('deletes encoded song IDs and accepts an empty idempotent response', async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(new Response(null, { status: 204 }));
+  vi.stubGlobal('fetch', fetcher);
+  await expect(api.deleteSong('song /?')).resolves.toBeNull();
+  expect(fetcher).toHaveBeenCalledWith(
+    '/api/songs/song%20%2F%3F',
+    expect.objectContaining({ method: 'DELETE', credentials: 'same-origin' }),
+  );
+});

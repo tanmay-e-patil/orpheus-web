@@ -23,6 +23,7 @@ import (
 
 	"orpheus-web/internal/http/handlers"
 	"orpheus-web/internal/services"
+	"orpheus-web/internal/store"
 	"orpheus-web/internal/testutil"
 )
 
@@ -37,7 +38,7 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = netw.Remove(context.Background()) })
 	db, _, _ := testutil.Postgres(t, network.WithNetwork([]string{"postgres"}, netw))
-	rabbitURL, _ := testutil.RabbitMQ(t, network.WithNetwork([]string{"rabbitmq"}, netw))
+	rabbitURL, broker := testutil.RabbitMQ(t, network.WithNetwork([]string{"rabbitmq"}, netw))
 	source := os.Getenv("ORPHEUS_CONSUMER_DIR")
 	if source == "" {
 		source, err = filepath.Abs("../../orpheus-consumer")
@@ -198,4 +199,38 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 	if got := strings.Fields(run("sha256sum", newAudio))[0]; got != originalHash {
 		t.Fatal("lyrics removal modified audio")
 	}
+	// Deletion commits while the broker is unavailable; the existing retry
+	// timer must deliver it without another HTTP request once RabbitMQ returns.
+	saveLyrics("plain", "[00:03]delete me")
+	waitCompleted(4)
+	if err := broker.Stop(ctx, &stopTimeout); err != nil {
+		t.Fatal(err)
+	}
+	deletionRequest := httptest.NewRequest(http.MethodDelete, "/api/songs/Track", nil)
+	deletionRequest.SetPathValue("trackId", "Track")
+	deletionResponse := httptest.NewRecorder()
+	handlers.DeleteSong(db).ServeHTTP(deletionResponse, deletionRequest)
+	if deletionResponse.Code != http.StatusAccepted {
+		t.Fatalf("delete: %d %s", deletionResponse.Code, deletionResponse.Body.String())
+	}
+	if _, err := db.SongForAudio(ctx, "Track"); err == nil {
+		t.Fatal("deleted song is still readable")
+	}
+	run("test", "-f", newAudio)
+	run("test", "-f", newLyrics)
+	if err := broker.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	waitCompleted(5)
+	run("test", "!", "-e", newAudio)
+	run("test", "!", "-e", newLyrics)
+	// A delayed process request uses the real outbox and consumer, but must be
+	// completed as a no-op rather than recreate the deleted song's audio.
+	if _, err := db.Pool.Exec(ctx, `INSERT INTO song_job_outbox(song_id,action) VALUES('Track',$1)`, store.ProcessSongAction); err != nil {
+		t.Fatal(err)
+	}
+	waitCompleted(6)
+	run("test", "!", "-e", newAudio)
+	run("test", "!", "-e", newLyrics)
+
 }

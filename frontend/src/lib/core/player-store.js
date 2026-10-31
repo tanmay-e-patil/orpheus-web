@@ -1,5 +1,7 @@
 export const playerStore = new EventTarget();
 
+let needsLoad = false;
+
 const state = {
   queue: [],
   currentIndex: 0,
@@ -23,6 +25,7 @@ export function setController(controller) {
 }
 
 export function clearPlayer() {
+  needsLoad = false;
   state.controller?.stop?.();
   state.queue = [];
   state.currentIndex = 0;
@@ -37,6 +40,30 @@ export function setQueue(queue, currentIndex) {
   state.currentIndex = currentIndex;
   state.currentTime = 0;
   loadCurrentSong({ autoplay: true });
+  emit();
+}
+
+// Remove all occurrences without interrupting an unrelated current song.
+export function removeQueueSong(trackId) {
+  const previous = currentSong();
+  if (!state.queue.some((song) => song.trackId === trackId)) return;
+  const before = state.queue
+    .slice(0, state.currentIndex)
+    .filter((song) => song.trackId !== trackId).length;
+  state.queue = state.queue.filter((song) => song.trackId !== trackId);
+  if (!state.queue.length) {
+    clearPlayer();
+    return;
+  }
+  state.currentIndex = Math.min(before, state.queue.length - 1);
+  if (previous?.trackId === trackId) {
+    state.controller?.stop?.();
+    state.currentTime = 0;
+    state.duration = parseISODurationSeconds(currentSong()?.duration);
+    // Defer loading until the user chooses Play: controller.load may autoplay.
+    state.status = 'idle';
+    needsLoad = true;
+  }
   emit();
 }
 
@@ -98,6 +125,11 @@ export function updateSongLyrics(trackId, plainLyrics, syncedLyrics) {
 }
 
 export function play() {
+  if (needsLoad) {
+    loadCurrentSong({ autoplay: true });
+    emit();
+    return;
+  }
   if (!playableSong(currentSong())) {
     state.status = 'unavailable';
     emit();
@@ -162,6 +194,7 @@ export function currentSong() {
 }
 
 function loadCurrentSong({ autoplay = false } = {}) {
+  needsLoad = false;
   const song = currentSong();
   if (!playableSong(song)) {
     state.controller?.pause?.();

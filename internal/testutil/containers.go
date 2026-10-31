@@ -4,6 +4,10 @@ package testutil
 
 import (
 	"context"
+	"fmt"
+	"github.com/jackc/pgx/v5"
+	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -19,6 +23,18 @@ const RabbitMQImage = "rabbitmq:4.1.4-alpine"
 
 func Postgres(t *testing.T, opts ...testcontainers.ContainerCustomizer) (*store.Store, string, *postgres.PostgresContainer) {
 	t.Helper()
+	if baseURL := os.Getenv("ORPHEUS_TEST_POSTGRES_URL"); baseURL != "" {
+		databaseURL := isolatedDatabase(t, baseURL)
+		db, err := store.Open(t.Context(), databaseURL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(db.Close)
+		if err := db.MigrateUp(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		return db, databaseURL, nil
+	}
 	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
 	defer cancel()
 	options := []testcontainers.ContainerCustomizer{postgres.WithDatabase("orpheus"), postgres.WithUsername("test"), postgres.WithPassword("test"), postgres.BasicWaitStrategies()}
@@ -91,4 +107,33 @@ func Eventually(t *testing.T, timeout time.Duration, check func() bool) {
 		case <-ticker.C:
 		}
 	}
+}
+
+// The optional native server must permit CREATE DATABASE. Each test gets an
+// isolated database; this does not reset or migrate the supplied base database.
+func isolatedDatabase(t *testing.T, baseURL string) string {
+	t.Helper()
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin, err := pgx.Connect(t.Context(), baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := fmt.Sprintf("orpheus_test_%d", time.Now().UnixNano())
+	if _, err := admin.Exec(t.Context(), "CREATE DATABASE "+pgx.Identifier{name}.Sanitize()); err != nil {
+		admin.Close(context.Background())
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		defer admin.Close(ctx)
+		if _, err := admin.Exec(ctx, "DROP DATABASE "+pgx.Identifier{name}.Sanitize()+" WITH (FORCE)"); err != nil {
+			t.Error(err)
+		}
+	})
+	parsed.Path = "/" + name
+	return parsed.String()
 }

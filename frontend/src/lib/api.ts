@@ -37,6 +37,9 @@ export const api = API as unknown as {
     nextCursor: Record<string, unknown> | null;
     hasMore: boolean;
   }>;
+  deleteSong(
+    id: string,
+  ): Promise<{ trackId: string; deletionQueued: boolean } | null>;
   song(id: string, signal?: AbortSignal): Promise<SongDetail>;
   updateSongMetadata(
     id: string,

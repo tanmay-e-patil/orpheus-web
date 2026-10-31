@@ -65,17 +65,18 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 		       coalesce(usp.play_count, 0), songs.created_at
 		from songs
 		left join user_song_plays usp on usp.track_id = songs.id and usp.user_id = $2
+		where songs.deleted_at IS NULL
 	`
 	if opts.Cursor != nil {
 		switch opts.Sort {
 		case SongSortMostPlayed:
-			query += ` where coalesce(usp.play_count, 0) < $3 or (coalesce(usp.play_count, 0) = $3 and songs.artist_name > $4) or (coalesce(usp.play_count, 0) = $3 and songs.artist_name = $4 and songs.id > $5)`
+			query += ` AND (coalesce(usp.play_count, 0) < $3 or (coalesce(usp.play_count, 0) = $3 and songs.artist_name > $4) or (coalesce(usp.play_count, 0) = $3 and songs.artist_name = $4 and songs.id > $5))`
 			args = append(args, opts.Cursor.PlayCount, opts.Cursor.ArtistName, opts.Cursor.TrackID)
 		case SongSortRecentlyAdded:
-			query += ` where songs.created_at < $3 or (songs.created_at = $3 and songs.id > $4)`
+			query += ` AND (songs.created_at < $3 or (songs.created_at = $3 and songs.id > $4))`
 			args = append(args, opts.Cursor.CreatedAt, opts.Cursor.TrackID)
 		default:
-			query += ` where songs.artist_name > $3 or (songs.artist_name = $3 and songs.id > $4)`
+			query += ` AND (songs.artist_name > $3 or (songs.artist_name = $3 and songs.id > $4))`
 			args = append(args, opts.Cursor.ArtistName, opts.Cursor.TrackID)
 		}
 	}
@@ -164,8 +165,13 @@ func librarySongAudioURL(trackID, revision string) string {
 }
 
 func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (RecordedSongPlay, error) {
+	tx, err := s.Pool.Begin(ctx)
+	if err != nil {
+		return RecordedSongPlay{}, err
+	}
+	defer tx.Rollback(ctx)
 	var isAvailable bool
-	err := s.Pool.QueryRow(ctx, `select coalesce(is_available, false) from songs where id = $1`, trackID).Scan(&isAvailable)
+	err = tx.QueryRow(ctx, `select coalesce(is_available, false) from songs where id = $1 AND deleted_at IS NULL FOR UPDATE`, trackID).Scan(&isAvailable)
 	if err != nil {
 		return RecordedSongPlay{}, err
 	}
@@ -174,7 +180,7 @@ func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (Rec
 	}
 	var play RecordedSongPlay
 	play.TrackID = trackID
-	err = s.Pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		insert into user_song_plays (user_id, track_id, play_count, last_played_at, created_at, updated_at)
 		values ($1, $2, 1, now(), now(), now())
 		on conflict (user_id, track_id)
@@ -187,7 +193,7 @@ func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (Rec
 	if err != nil {
 		return RecordedSongPlay{}, err
 	}
-	return play, nil
+	return play, tx.Commit(ctx)
 }
 
 func (s *Store) SongForAudio(ctx context.Context, trackID string) (types.AudioSong, error) {
@@ -195,7 +201,7 @@ func (s *Store) SongForAudio(ctx context.Context, trackID string) (types.AudioSo
 	err := s.Pool.QueryRow(ctx, `
 		select id, name, artist_name, album_name, coalesce(is_available, false), updated_at, coalesce(audio_file_path, '')
 		from songs
-		where id = $1
+		where id = $1 AND deleted_at IS NULL
 	`, trackID).Scan(&song.TrackID, &song.Name, &song.ArtistName, &song.AlbumName, &song.IsAvailable, &song.UpdatedAt, &song.AudioFilePath)
 	if err != nil {
 		return types.AudioSong{}, err
@@ -210,7 +216,7 @@ func (s *Store) SongsForAlbumRefresh(ctx context.Context, trackIDs []string) ([]
 	rows, err := s.Pool.Query(ctx, `
 		select id, name, artist_name, album_name, album_art, duration, yt_video_id
 		from songs
-		where id = any($1)
+		where id = any($1) AND deleted_at IS NULL
 	`, trackIDs)
 	if err != nil {
 		return nil, err
@@ -261,7 +267,7 @@ func (s *Store) RedownloadSongs(ctx context.Context, filter RedownloadSongsFilte
 
 func buildRedownloadSongsQuery(filter RedownloadSongsFilter) (string, []any) {
 	var args []any
-	var predicates []string
+	predicates := []string{"deleted_at IS NULL"}
 	if !filter.IncludeAvailable {
 		predicates = append(predicates, "coalesce(is_available, false) = false")
 	}
@@ -296,7 +302,7 @@ func (s *Store) updateSongFileMetadata(ctx context.Context, trackID, query strin
 	}
 	defer tx.Rollback(ctx)
 	var id string
-	if err := tx.QueryRow(ctx, `select id from songs where id = $1 for update`, trackID).Scan(&id); err != nil {
+	if err := tx.QueryRow(ctx, `select id from songs where id = $1 AND deleted_at IS NULL for update`, trackID).Scan(&id); err != nil {
 		return err
 	}
 	tag, err := tx.Exec(ctx, query, args...)

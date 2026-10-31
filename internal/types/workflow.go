@@ -28,6 +28,7 @@ type CommitRequest struct {
 }
 
 type CommitResult struct {
+	Code    string `json:"code,omitempty"`
 	TrackID string `json:"trackId"`
 	Success bool   `json:"success"`
 	Error   string `json:"error,omitempty"`

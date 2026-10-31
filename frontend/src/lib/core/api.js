@@ -119,6 +119,8 @@ export const API = {
   },
   song: (trackId, signal) =>
     request(`/api/songs/${encodeURIComponent(trackId)}`, { signal }),
+  deleteSong: (trackId) =>
+    request(`/api/songs/${encodeURIComponent(trackId)}`, { method: 'DELETE' }),
   recordSongPlay: (trackId) =>
     request(`/api/songs/${encodeURIComponent(trackId)}/plays`, {
       method: 'POST',
