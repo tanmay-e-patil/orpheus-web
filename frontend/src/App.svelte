@@ -6,13 +6,11 @@
     Settings as SettingsIcon,
     AudioLines,
     ChevronRight,
-    X,
   } from '@lucide/svelte';
   import { api } from '$lib/api';
   import { route, navigate, syncRoute } from '$lib/navigation';
   import {
     session,
-    notices,
     notify,
     playback,
     dockedPlayer,
@@ -29,6 +27,7 @@
   import Discovery from './pages/Discovery.svelte';
   import SongEditor from './pages/SongEditor.svelte';
   import Player from '$lib/components/Player.svelte';
+  import { Toaster } from '$lib/components/ui/sonner';
   let ready = $state(false);
   const accountName = $derived(
     $session?.user?.username || $session?.user?.email || 'Account',
@@ -204,17 +203,16 @@
     <Player />
   </div>
 {/if}
-<div class="notice-stack" aria-live="polite">
-  {#each $notices as notice (notice.id)}<div
-      class="notice"
-      class:error={notice.tone === 'error'}
-    >
-      <span>{notice.message}</span><button
-        aria-label="Dismiss notification"
-        onclick={() =>
-          notices.update((items) =>
-            items.filter((item) => item.id !== notice.id),
-          )}><X size={16} /></button
-      >
-    </div>{/each}
-</div>
+<Toaster
+  position="bottom-right"
+  duration={6000}
+  visibleToasts={3}
+  closeButton
+  closeButtonAriaLabel="Dismiss notification"
+  offset={{ bottom: 'var(--toast-bottom-offset)', right: '24px' }}
+  mobileOffset={{
+    bottom: 'var(--toast-bottom-offset)',
+    left: '16px',
+    right: '16px',
+  }}
+/>

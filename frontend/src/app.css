@@ -45,6 +45,7 @@
   --radius: 8px;
   --player-height: 88px;
   --mobile-nav-height: 64px;
+  --toast-bottom-offset: calc(var(--player-height) + 20px);
   --app-safe-top: env(safe-area-inset-top, 0px);
   font-family: var(--font-sans);
 }
@@ -1462,36 +1463,6 @@ summary {
 .sync-preview button.active {
   color: var(--primary);
 }
-.notice-stack {
-  position: fixed;
-  right: 24px;
-  bottom: calc(var(--player-height) + 20px);
-  z-index: 100;
-  display: grid;
-  gap: 8px;
-  max-width: min(400px, calc(100vw - 32px));
-}
-.notice {
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  align-items: center;
-  border: 1px solid var(--border);
-  padding: 14px 16px;
-  background: var(--popover);
-  border-radius: 8px;
-  font-size: 12px;
-  box-shadow: 0 8px 30px #0002;
-}
-.notice.error {
-  color: var(--destructive);
-}
-.notice button {
-  border: 0;
-  padding: 4px;
-  background: none;
-  flex-shrink: 0;
-}
 .skip-link {
   position: fixed;
   left: 20px;
@@ -2001,12 +1972,11 @@ summary {
   .candidate-row {
     flex-wrap: wrap;
   }
-  .notice-stack {
-    bottom: calc(
+  :root {
+    --toast-bottom-offset: calc(
       var(--mobile-nav-height) + var(--player-height) +
         env(safe-area-inset-bottom) + 12px
     );
-    right: 16px;
   }
   .empty {
     min-height: 280px;

@@ -1,4 +1,5 @@
 import { derived, readable, writable } from 'svelte/store';
+import { toast } from 'svelte-sonner';
 import { getPlayerState, playerStore } from './core/player-store.js';
 import type { Session, Song } from './types';
 export const session = writable<Session | null>(null);
@@ -37,17 +38,17 @@ export const dockedPlayer = derived(
     !!$playback.song && ($videoLayout ?? $wide) && !$collapsed,
 );
 export const libraryVersion = writable(0);
-export const notices = writable<
-  { id: number; message: string; tone: string }[]
->([]);
-let nextNotice = 0;
 export function notify(message: string, tone = 'info') {
-  const id = ++nextNotice;
-  notices.update((items) => [...items.slice(-2), { id, message, tone }]);
-  setTimeout(
-    () => notices.update((items) => items.filter((item) => item.id !== id)),
-    6000,
-  );
+  switch (tone) {
+    case 'error':
+      return toast.error(message);
+    case 'success':
+      return toast.success(message);
+    case 'warning':
+      return toast.warning(message);
+    default:
+      return toast.info(message);
+  }
 }
 export const errorMessage = (error: unknown) =>
   error instanceof Error
