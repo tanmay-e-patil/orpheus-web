@@ -1,16 +1,20 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 
 	"orpheus-web/internal/types"
 )
+
+var ErrLyricsUnavailable = errors.New("lyrics service temporarily unavailable")
 
 type LRCLibClient struct {
 	HTTP *http.Client
@@ -52,7 +56,7 @@ func (c *LRCLibClient) GetExact(ctx context.Context, trackName, artistName, albu
 func (c *LRCLibClient) FetchLyricsOptions(ctx context.Context, track types.MusicTrack) (types.LyricsSearchResult, error) {
 	result := types.LyricsSearchResult{
 		TrackID: track.ID,
-		Query:   types.LyricsQuery{Track: track.Name, Artist: track.Artist, Album: track.Album},
+		Query:   lyricsQuery(track),
 		Options: []types.LyricsOption{},
 		Status:  "none",
 	}
@@ -62,11 +66,15 @@ func (c *LRCLibClient) FetchLyricsOptions(ctx context.Context, track types.Music
 		{"track_name": {CleanString(track.Name)}, "artist_name": {CleanString(track.Artist)}},
 	}
 	byID := map[int]types.LyricsOption{}
+	var lastErr error
+	succeeded := false
 	for _, params := range searches {
 		options, err := c.search(ctx, params)
 		if err != nil {
+			lastErr = err
 			continue
 		}
+		succeeded = true
 		for _, option := range options {
 			option.Confidence = CalculateLyricsConfidence(option, result.Query)
 			existing, ok := byID[option.ID]
@@ -75,28 +83,20 @@ func (c *LRCLibClient) FetchLyricsOptions(ctx context.Context, track types.Music
 			}
 		}
 	}
+	if !succeeded && lastErr != nil {
+		return result, lastErr
+	}
 	for _, option := range byID {
 		result.Options = append(result.Options, option)
 	}
-	sort.Slice(result.Options, func(i, j int) bool { return result.Options[i].Confidence > result.Options[j].Confidence })
-	if len(result.Options) > 10 {
-		result.Options = result.Options[:10]
-	}
-	if len(result.Options) > 0 {
-		result.SelectedOption = &result.Options[0]
-		if result.Options[0].Confidence >= 60 {
-			result.Status = "found"
-		} else {
-			result.Status = "partial"
-		}
-	}
+	selectLyrics(&result)
 	return result, nil
 }
 
 func (c *LRCLibClient) SearchLyricsWithCustomQuery(ctx context.Context, track types.MusicTrack, query string) (types.LyricsSearchResult, error) {
 	result := types.LyricsSearchResult{
 		TrackID: track.ID,
-		Query:   types.LyricsQuery{Track: track.Name, Artist: track.Artist, Album: track.Album},
+		Query:   lyricsQuery(track),
 		Options: []types.LyricsOption{},
 		Status:  "none",
 	}
@@ -107,29 +107,76 @@ func (c *LRCLibClient) SearchLyricsWithCustomQuery(ctx context.Context, track ty
 	for i := range options {
 		options[i].Confidence = CalculateLyricsConfidence(options[i], result.Query)
 	}
-	sort.Slice(options, func(i, j int) bool { return options[i].Confidence > options[j].Confidence })
-	if len(options) > 10 {
-		options = options[:10]
-	}
 	result.Options = options
-	if len(options) > 0 {
-		result.SelectedOption = &result.Options[0]
-		if options[0].Confidence >= 60 {
-			result.Status = "found"
-		} else {
-			result.Status = "partial"
-		}
-	}
+	selectLyrics(&result)
 	return result, nil
 }
 
-func CalculateLyricsConfidence(option types.LyricsOption, original types.LyricsQuery) int {
-	score := StringSimilarity(option.TrackName, original.Track) * 0.4
-	score += StringSimilarity(option.ArtistName, original.Artist) * 0.3
-	if original.Album != "" && option.AlbumName != "" {
-		score += StringSimilarity(option.AlbumName, original.Album) * 0.15
+func lyricsQuery(track types.MusicTrack) types.LyricsQuery {
+	q := types.LyricsQuery{Track: track.Name, Artist: track.Artist, Album: track.Album}
+	if track.DurationMs != nil && *track.DurationMs > 0 {
+		q.Duration = float64(*track.DurationMs) / 1000
 	}
-	return int(score * 100)
+	return q
+}
+
+func CalculateLyricsConfidence(option types.LyricsOption, original types.LyricsQuery) int {
+	if (option.TrackName != "" && original.Track != "" && tokenSimilarity(recordingTitle(option.TrackName), recordingTitle(original.Track)) < .85) ||
+		(option.ArtistName != "" && original.Artist != "" && tokenSimilarity(option.ArtistName, original.Artist) < .9) {
+		return 0
+	}
+
+	score := tokenSimilarity(option.TrackName, original.Track)*45 + tokenSimilarity(option.ArtistName, original.Artist)*30
+	if original.Album != "" && option.AlbumName != "" {
+		score += tokenSimilarity(option.AlbumName, original.Album) * 5
+	}
+	if original.Duration > 0 && option.Duration > 0 {
+		d, conflict := durationEvidence(original.Duration, option.Duration)
+		score += 20 * d
+		if conflict {
+			score -= 20
+		}
+	}
+	if versionConflict(option.TrackName, original.Track) {
+		score -= 40
+	}
+	return int(math.Round(math.Max(0, score)))
+}
+
+func selectLyrics(result *types.LyricsSearchResult) {
+	sort.Slice(result.Options, func(i, j int) bool {
+		a, b := result.Options[i], result.Options[j]
+		if a.Confidence != b.Confidence {
+			return a.Confidence > b.Confidence
+		}
+		if a.HasSync != b.HasSync {
+			return a.HasSync
+		}
+		return a.ID < b.ID
+	})
+	if len(result.Options) == 0 {
+		return
+	}
+	top := result.Options[0]
+	q := result.Query
+	strong := top.Confidence >= 90 && CleanString(top.TrackName) == CleanString(q.Track) && CleanString(top.ArtistName) == CleanString(q.Artist) &&
+		q.Duration > 0 && top.Duration > 0 && math.Abs(q.Duration-top.Duration) <= 3 && !versionConflict(top.TrackName, q.Track) &&
+		(strings.TrimSpace(top.PlainLyrics) != "" || strings.TrimSpace(top.SyncedLyrics) != "")
+	for _, other := range result.Options[1:] {
+		sameText := strings.TrimSpace(top.PlainLyrics) == strings.TrimSpace(other.PlainLyrics) && strings.TrimSpace(top.SyncedLyrics) == strings.TrimSpace(other.SyncedLyrics)
+		if top.Confidence-other.Confidence < 8 && !sameText {
+			strong = false
+		}
+	}
+	result.Status = "partial"
+	result.AutoAccept = strong
+	if strong {
+		result.SelectedOption = &result.Options[0]
+		result.Status = "found"
+	}
+	if len(result.Options) > 10 {
+		result.Options = result.Options[:10]
+	}
 }
 
 func (c *LRCLibClient) search(ctx context.Context, params url.Values) ([]types.LyricsOption, error) {
@@ -140,13 +187,17 @@ func (c *LRCLibClient) search(ctx context.Context, params url.Values) ([]types.L
 	req.Header.Set("User-Agent", "Orpheus-Web (https://github.com/tanmay-e-patil/orpheus-web)")
 	res, err := c.HTTP.Do(req)
 	if err != nil {
-		return nil, err
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, fmt.Errorf("%w: %v", ErrLyricsUnavailable, err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		buf := new(bytes.Buffer)
-		_, _ = buf.ReadFrom(res.Body)
-		return nil, fmt.Errorf("lrclib search failed: %s %s", res.Status, buf.String())
+		if res.StatusCode == http.StatusTooManyRequests || res.StatusCode >= 500 {
+			return nil, fmt.Errorf("%w: %s", ErrLyricsUnavailable, res.Status)
+		}
+		return nil, fmt.Errorf("lrclib search failed: %s", res.Status)
 	}
 	var raw []struct {
 		ID           int     `json:"id"`
@@ -165,6 +216,9 @@ func (c *LRCLibClient) search(ctx context.Context, params url.Values) ([]types.L
 	}
 	options := make([]types.LyricsOption, 0, len(raw))
 	for _, item := range raw {
+		if strings.TrimSpace(item.PlainLyrics) == "" && strings.TrimSpace(item.SyncedLyrics) == "" {
+			continue
+		}
 		trackName := item.TrackName
 		if trackName == "" {
 			trackName = item.Name

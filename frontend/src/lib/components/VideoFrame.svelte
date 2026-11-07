@@ -1,17 +1,30 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { loadYouTube, type YouTubePlayer } from '$lib/youtube';
+  import LyricsDisplay from './LyricsDisplay.svelte';
+  import * as Alert from '$lib/components/ui/alert';
+  import {
+    loadYouTube,
+    youtubeErrorMessage,
+    type YouTubePlayer,
+  } from '$lib/youtube';
   import { pause } from '$lib/core/player-store.js';
-  import { parseLRC, findActiveIndex } from '$lib/core/lrc.js';
   import { clock } from '$lib/music';
   import { errorMessage } from '$lib/state';
-  let { id, lyrics = '' }: { id: string; lyrics?: string } = $props();
+  let {
+    id,
+    lyrics = '',
+    plainLyrics = '',
+  }: { id: string; lyrics?: string; plainLyrics?: string } = $props();
   let target: HTMLDivElement,
     time = $state(0),
     error = $state('');
   let player: YouTubePlayer | undefined;
-  const lines = $derived(parseLRC(lyrics));
-  const active = $derived(findActiveIndex(lines, time * 1000));
+  function seekTo(seconds: number) {
+    if (!player?.seekTo) return;
+    player.seekTo(seconds, true);
+    time = seconds;
+    player.playVideo?.();
+  }
   onMount(() => {
     let destroyed = false;
     pause();
@@ -23,6 +36,11 @@
           width: '100%',
           height: '100%',
           playerVars: { playsinline: 1, rel: 0, controls: 1 },
+          events: {
+            onError: (event: { data: number }) => {
+              error = youtubeErrorMessage(event.data);
+            },
+          },
         });
       })
       .catch((e) => {
@@ -41,19 +59,23 @@
 </script>
 
 <div class="video-frame"><div bind:this={target}></div></div>
-{#if error}<p class="error-message">
-    {error}
-    <a
-      href={`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`}
-      target="_blank"
-      rel="noreferrer">Open on YouTube</a
-    >
-  </p>{/if}
-{#if lines.length}<p class="small muted">Sync preview · {clock(time)}</p>
-  <div class="sync-preview">
-    {#each lines as line, index}<button
-        class:active={index === active}
-        onclick={() => player?.seekTo(line.timeMs / 1000, true)}
-        >{line.text || '♪'}</button
-      >{/each}
-  </div>{/if}
+{#if error}<Alert.Root variant="destructive" class="mt-3"
+    ><Alert.Description
+      >{error}
+      <a
+        href={`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`}
+        target="_blank"
+        rel="noreferrer">Open on YouTube</a
+      >
+    </Alert.Description></Alert.Root
+  >{/if}
+{#if lyrics || plainLyrics}<p class="small muted">Playback · {clock(time)}</p>
+  <LyricsDisplay
+    syncedLyrics={lyrics}
+    {plainLyrics}
+    currentTime={time}
+    resetKey={id}
+    onseek={seekTo}
+    class="preview-lyrics"
+  />
+{/if}

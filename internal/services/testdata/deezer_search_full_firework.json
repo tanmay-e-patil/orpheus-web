@@ -1,0 +1,97 @@
+{
+  "data": {
+    "instantSearch": {
+      "bestResult": {
+        "__typename": "InstantSearchTrackBestResult",
+        "track": {
+          "id": "17135111",
+          "title": "Firework",
+          "duration": 228,
+          "album": {
+            "id": "1603030",
+            "displayTitle": "Teenage Dream: The Complete Confection",
+            "releaseDate": "2012-03-23",
+            "cover": {
+              "urls": [
+                "https://cdn-images.dzcdn.net/images/cover/99578b0bb8c838383c414a5b62b5e15d/500x500-000000-80-0-0.jpg"
+              ]
+            }
+          },
+          "contributors": {
+            "edges": [
+              {
+                "node": {
+                  "id": "144227",
+                  "name": "Katy Perry"
+                }
+              }
+            ]
+          },
+          "popularity": 7.68987
+        }
+      },
+      "results": {
+        "tracks": {
+          "edges": [
+            {
+              "node": {
+                "id": "17135111",
+                "title": "Firework",
+                "duration": 228,
+                "album": {
+                  "id": "1603030",
+                  "displayTitle": "Teenage Dream: The Complete Confection",
+                  "releaseDate": "2012-03-23",
+                  "cover": {
+                    "urls": [
+                      "https://cdn-images.dzcdn.net/images/cover/99578b0bb8c838383c414a5b62b5e15d/500x500-000000-80-0-0.jpg"
+                    ]
+                  }
+                },
+                "contributors": {
+                  "edges": [
+                    {
+                      "node": {
+                        "id": "144227",
+                        "name": "Katy Perry"
+                      }
+                    }
+                  ]
+                },
+                "popularity": 7.68987
+              }
+            },
+            {
+              "node": {
+                "id": "6812361",
+                "title": "Firework",
+                "duration": 228,
+                "album": {
+                  "id": "629078",
+                  "displayTitle": "Teenage Dream",
+                  "releaseDate": "2010-08-27",
+                  "cover": {
+                    "urls": [
+                      "https://cdn-images.dzcdn.net/images/cover/c7283218e496f35f1d804d3617eecb73/500x500-000000-80-0-0.jpg"
+                    ]
+                  }
+                },
+                "contributors": {
+                  "edges": [
+                    {
+                      "node": {
+                        "id": "144227",
+                        "name": "Katy Perry"
+                      }
+                    }
+                  ]
+                },
+                "popularity": 8.17808
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

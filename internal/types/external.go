@@ -11,14 +11,28 @@ type YouTubeVideo struct {
 }
 
 type MusicTrack struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Artist        string `json:"artist"`
-	Album         string `json:"album"`
-	AlbumImageURL string `json:"albumImageUrl"`
-	ReleaseDate   string `json:"releaseDate"`
-	DurationMs    *int   `json:"durationMs,omitempty"`
-	MatchScore    int    `json:"matchScore,omitempty"`
+	ID            string         `json:"id"`
+	Name          string         `json:"name"`
+	Artist        string         `json:"artist"`
+	Album         string         `json:"album"`
+	AlbumImageURL string         `json:"albumImageUrl"`
+	ReleaseDate   string         `json:"releaseDate"`
+	DurationMs    *int           `json:"durationMs,omitempty"`
+	MatchScore    int            `json:"matchScore,omitempty"`
+	Popularity    *float64       `json:"popularity,omitempty"`
+	MatchEvidence *MatchEvidence `json:"matchEvidence,omitempty"`
+}
+
+type MatchEvidence struct {
+	TitleConflict    bool     `json:"titleConflict"`
+	ArtistConflict   bool     `json:"artistConflict"`
+	TitleExact       bool     `json:"titleExact"`
+	TitleScore       int      `json:"titleScore"`
+	ArtistScore      int      `json:"artistScore"`
+	DurationScore    *int     `json:"durationScore,omitempty"`
+	VersionConflict  bool     `json:"versionConflict"`
+	DurationConflict bool     `json:"durationConflict"`
+	Reasons          []string `json:"reasons"`
 }
 
 type YouTubeDiscoveryResult struct {
@@ -33,6 +47,8 @@ type TrackMatchResult struct {
 	TrackMatches  []MusicTrack `json:"trackMatches"`
 	SelectedMatch *MusicTrack  `json:"selectedMatch,omitempty"`
 	Confidence    string       `json:"confidence"`
+	AutoAccept    bool         `json:"autoAccept"`
+	Reasons       []string     `json:"reasons"`
 }
 
 type LyricsOption struct {
@@ -61,6 +77,7 @@ type LyricsSearchResult struct {
 	Options        []LyricsOption `json:"options"`
 	SelectedOption *LyricsOption  `json:"selectedOption,omitempty"`
 	Status         string         `json:"status"`
+	AutoAccept     bool           `json:"autoAccept"`
 }
 
 type LRCLibExactRequest struct {

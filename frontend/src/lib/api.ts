@@ -60,7 +60,11 @@ export const api = API as unknown as {
   ): Promise<Match[]>;
   customDeezerMatch(video: Video, query: string): Promise<Match>;
   lyricsOptions(track: Track, signal?: AbortSignal): Promise<LyricsResult>;
-  customLyricsSearch(track: Track, query: string): Promise<LyricsResult>;
+  customLyricsSearch(
+    track: Track,
+    query: string,
+    signal?: AbortSignal,
+  ): Promise<LyricsResult>;
   commit(items: unknown[]): Promise<{ results: SaveResult[] }>;
   refreshAlbumArt(ids: string[]): Promise<{ updated: Record<string, string> }>;
 };

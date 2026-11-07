@@ -14,6 +14,11 @@ type deezerTestTransport struct{ handler http.Handler }
 
 func (t deezerTestTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	w := httptest.NewRecorder()
+	// Existing REST fixtures exercise fallback when the website API is unavailable.
+	if r.URL.Host == "auth.deezer.com" {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return w.Result(), nil
+	}
 	t.handler.ServeHTTP(w, r)
 	return w.Result(), nil
 }
@@ -29,7 +34,7 @@ func TestDiscoverQueryMatchesNoisyAudioSource(t *testing.T) {
 					return
 				}
 				searches++
-				if got := r.URL.Query().Get("q"); got != query {
+				if got := r.URL.Query().Get("q"); searches == 1 && got != query {
 					t.Errorf("query = %q, want %q", got, query)
 				}
 				fmt.Fprint(w, `{"data":[{"id":1,"title":"Dil Diyan Gallan","duration":260,"artist":{"name":"Atif Aslam"}}]}`)
@@ -39,8 +44,8 @@ func TestDiscoverQueryMatchesNoisyAudioSource(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if searches != 1 {
-				t.Errorf("searches = %d, want 1", searches)
+			if searches < 2 || searches > 4 {
+				t.Errorf("searches = %d, want bounded fallback searches", searches)
 			}
 			if len(results) != 1 || len(results[0].TrackMatches) != 1 {
 				t.Fatalf("correct candidate missing: %+v", results)
@@ -78,9 +83,10 @@ func TestHighConfidenceMatchIsSelected(t *testing.T) {
 			fmt.Fprint(w, `{}`)
 			return
 		}
-		fmt.Fprint(w, `{"data":[{"id":1,"title":"Dil Diyan Gallan","artist":{"name":"Atif Aslam"}}]}`)
+		fmt.Fprint(w, `{"data":[{"id":1,"title":"Dil Diyan Gallan","duration":260,"artist":{"name":"Atif Aslam"}}]}`)
 	})}})
-	result, err := client.SearchTrackWithCustomQuery(context.Background(), types.YouTubeVideo{Title: "Dil Diyan Gallan Atif Aslam"}, "Dil Diyan Gallan")
+	duration := "PT4M20S"
+	result, err := client.SearchTrackWithCustomQuery(context.Background(), types.YouTubeVideo{Title: "Dil Diyan Gallan Atif Aslam", Duration: &duration}, "Dil Diyan Gallan")
 	if err != nil {
 		t.Fatal(err)
 	}

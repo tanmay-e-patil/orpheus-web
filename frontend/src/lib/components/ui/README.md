@@ -11,3 +11,7 @@ Local changes:
 - The application's design tokens and responsive touch-target sizing live in `src/app.css`.
 
 Review these adaptations before overwriting components with a future CLI update.
+
+Discovery review uses Card, Accordion, Alert, Field, Badge, Skeleton, Scroll Area,
+and Tooltip from this component set. `ReviewAccordion.svelte` composes the multiple-open Accordion for correction controls. The YouTube player, lyric timing,
+and responsive page layout remain application components.

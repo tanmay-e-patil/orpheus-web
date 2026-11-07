@@ -25,15 +25,15 @@ func CleanString(input string) string {
 func StringSimilarity(a, b string) float64 {
 	longer := a
 	shorter := b
-	if len(b) > len(a) {
+	if len([]rune(b)) > len([]rune(a)) {
 		longer = b
 		shorter = a
 	}
-	if len(longer) == 0 {
+	if len([]rune(longer)) == 0 {
 		return 1
 	}
 	distance := LevenshteinDistance(longer, shorter)
-	return float64(len(longer)-distance) / float64(len(longer))
+	return float64(len([]rune(longer))-distance) / float64(len([]rune(longer)))
 }
 
 func LevenshteinDistance(a, b string) int {
@@ -60,7 +60,7 @@ func LevenshteinDistance(a, b string) int {
 }
 
 func ParseISODurationSeconds(duration string) int {
-	match := regexp.MustCompile(`PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?`).FindStringSubmatch(duration)
+	match := regexp.MustCompile(`^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$`).FindStringSubmatch(duration)
 	if match == nil {
 		return 0
 	}

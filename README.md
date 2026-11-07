@@ -88,6 +88,8 @@ Song tab separately from embedded YouTube video playback.
 
 Open `http://localhost:8080`.
 
+See [the local discovery testing guide](docs/discovery-testing.md) for automatic matching, manual mode, confidence rules, and regression cases.
+
 ## Native iOS passkey sign-in
 
 The iOS client uses the system authentication browser and the existing web passkeys. It does not require Apple's Associated Domains capability or paid Apple membership.
