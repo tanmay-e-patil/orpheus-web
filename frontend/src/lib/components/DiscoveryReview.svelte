@@ -14,6 +14,7 @@
   import DiscoveryLyrics from './DiscoveryLyrics.svelte';
   import DiscoveryAudio from './DiscoveryAudio.svelte';
   import { api } from '$lib/api';
+  import { navigate } from '$lib/navigation';
   import { seconds, adjustLrc } from '$lib/music';
   import {
     rankAudioSources,
@@ -439,6 +440,9 @@
         () => {},
       );
       libraryVersion.update((value) => value + 1);
+      if (!disposed && buildCommitItems(draft, draft.saveResults).length === 0) {
+        navigate('/home?sort=recentlyAdded');
+      }
     }).finally(() => {
       saving = false;
     });
@@ -552,7 +556,7 @@
           <p class="small muted">Audio may still be processing.</p>
         </div>
       </div>
-      <Button href="/home" variant="outline" class="review-save-button"
+      <Button href="/home?sort=recentlyAdded" variant="outline" class="review-save-button"
         >Go to your library<ArrowRight size={16} /></Button
       >
     {:else}

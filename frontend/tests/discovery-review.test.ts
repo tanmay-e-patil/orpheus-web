@@ -158,6 +158,9 @@ it('chooses audio, metadata, and lyrics automatically, then waits for explicit s
     }),
   ]);
   expect(loadWorkflowState()).toBeNull();
+  await waitFor(() =>
+    expect(location.pathname + location.search).toBe('/home?sort=recentlyAdded'),
+  );
 });
 
 it('keeps the review usable when lyrics are unavailable', async () => {

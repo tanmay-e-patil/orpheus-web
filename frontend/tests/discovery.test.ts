@@ -35,6 +35,7 @@ function fixture() {
 }
 it('saves on Review and retries only the failed song, preserving values', async () => {
   fixture();
+  history.replaceState({}, '', '/discover/review');
   const commit = vi
     .spyOn(api, 'commit')
     .mockResolvedValueOnce({
@@ -50,6 +51,7 @@ it('saves on Review and retries only the failed song, preserving values', async 
   );
   await screen.findByRole('button', { name: /Retry unsaved songs/ });
   expect(loadWorkflowState()!.saveResults![0].success).toBe(true);
+  expect(location.pathname).toBe('/discover/review');
   expect(screen.getByDisplayValue('Song a')).toBeDisabled();
   await fireEvent.click(
     screen.getByRole('button', { name: /Retry unsaved songs/ }),
@@ -59,6 +61,9 @@ it('saves on Review and retries only the failed song, preserving values', async 
     expect.objectContaining({ song: expect.objectContaining({ id: 'b' }) }),
   ]);
   expect(loadWorkflowState()).toBeNull();
+  await waitFor(() =>
+    expect(location.pathname + location.search).toBe('/home?sort=recentlyAdded'),
+  );
 });
 it('shows a network error without losing editable values', async () => {
   fixture();

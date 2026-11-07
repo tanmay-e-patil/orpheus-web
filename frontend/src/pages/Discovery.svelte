@@ -337,6 +337,9 @@
         () => {},
       );
       libraryVersion.update((n) => n + 1);
+      if (!disposed && buildCommitItems(draft, saveResults).length === 0) {
+        navigate('/home?sort=recentlyAdded');
+      }
     });
   }
   function reloadDrafts() {
@@ -901,7 +904,7 @@
               disabled={locked}
               onclick={() => advance(automaticMatching ? 'youtube' : 'lyrics')}
               ><ArrowLeft size={16} />Back</Button
-            >{#if allSaved}<Button href="/home"
+            >{#if allSaved}<Button href="/home?sort=recentlyAdded"
                 >Go to your library<ArrowRight size={16} /></Button
               >{:else}<Button type="submit" disabled={busy || !matches.length}
                 >{busy
