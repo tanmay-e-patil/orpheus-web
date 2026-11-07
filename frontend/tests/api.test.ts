@@ -1,6 +1,51 @@
 import { afterEach, it, expect, vi } from 'vitest';
 import { api } from '../src/lib/api';
 afterEach(() => vi.unstubAllGlobals());
+it('saves a discovery selection without sending discovery-only video fields', async () => {
+  const fetcher = vi.fn().mockResolvedValue(
+    new Response('{"results":[]}', {
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
+  vi.stubGlobal('fetch', fetcher);
+  const song = { id: 'track', name: 'Song', artist: 'Artist' };
+  const edits = { trackName: 'Edited song', syncedLyrics: '' };
+  await api.commit([
+    {
+      song,
+      video: {
+        id: 'video',
+        title: 'Artist - Song',
+        thumbnail: 'https://example.test/art.jpg',
+        channelTitle: 'Artist',
+        publishedAt: '2026-01-01',
+        duration: 'PT3M',
+        viewCount: '123',
+        selected: true,
+        confidence: 97,
+        musicProbability: 0.99,
+      },
+      edits,
+    },
+  ]);
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
+    items: [
+      {
+        song,
+        edits,
+        video: {
+          id: 'video',
+          title: 'Artist - Song',
+          thumbnail: 'https://example.test/art.jpg',
+          channelTitle: 'Artist',
+          publishedAt: '2026-01-01',
+          duration: 'PT3M',
+          viewCount: '123',
+        },
+      },
+    ],
+  });
+});
 it('preserves the matching API contract and omits UI-only video fields', async () => {
   const fetcher = vi
     .fn()
