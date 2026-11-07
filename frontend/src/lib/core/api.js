@@ -193,6 +193,11 @@ export const API = {
   commit: (items) =>
     request('/api/discover/commit', {
       method: 'POST',
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({
+        items: items.map((item) => ({
+          ...item,
+          video: toYouTubeVideoPayload(item.video),
+        })),
+      }),
     }),
 };
