@@ -21,7 +21,11 @@
   import { api } from '$lib/api';
   import { session, playback, libraryVersion, errorMessage } from '$lib/state';
   import { navigate } from '$lib/navigation';
-  import { setQueue, updateSongAlbumArt } from '$lib/core/player-store.js';
+  import {
+    setQueue,
+    updateQueueSong,
+    updateSongAlbumArt,
+  } from '$lib/core/player-store.js';
   import {
     readAllCachedSongs,
     upsertSongsPage,
@@ -169,6 +173,39 @@
     );
   }
   onMount(() => {
+    const availabilityController = new AbortController();
+    const pendingAvailability = new Set<string>();
+    const availabilityAttempts = new Map<string, number>();
+    const maxAvailabilityAttempts = 30;
+    const availabilityTimer = setInterval(() => {
+      for (const song of songs) {
+        const attempts = availabilityAttempts.get(song.trackId) || 0;
+        if (
+          song.isAvailable ||
+          pendingAvailability.has(song.trackId) ||
+          attempts >= maxAvailabilityAttempts
+        )
+          continue;
+        availabilityAttempts.set(song.trackId, attempts + 1);
+        pendingAvailability.add(song.trackId);
+        void api
+          .song(song.trackId, availabilityController.signal)
+          .then(
+            (data) => {
+              if (disposed || !data.song.isAvailable || !songs.includes(song))
+                return;
+              songs = songs.map((current) =>
+                current === song ? data.song : current,
+              );
+              updateQueueSong(song.trackId, data.song);
+            },
+            () => {
+              /* Retry transient failures on the next polling interval. */
+            },
+          )
+          .finally(() => pendingAvailability.delete(song.trackId));
+      }
+    }, 2000);
     observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) limit += 100;
@@ -184,6 +221,8 @@
     window.addEventListener('orpheus:song-play-recorded', refreshPlays);
     return () => {
       disposed = true;
+      clearInterval(availabilityTimer);
+      availabilityController.abort();
       offDeleted();
       clearTimeout(artTimer);
       observer?.disconnect();
