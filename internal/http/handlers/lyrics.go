@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"orpheus-web/internal/services"
@@ -42,7 +43,7 @@ func LyricsOptions(lrclib *services.LRCLibClient) http.HandlerFunc {
 		}
 		result, err := lrclib.FetchLyricsOptions(r.Context(), body.Track)
 		if err != nil {
-			Error(w, http.StatusBadGateway, "lyrics_options_failed", "Could not fetch lyrics options")
+			lyricsSearchError(w, err, "lyrics_options_failed", "Could not fetch lyrics options")
 			return
 		}
 		JSON(w, http.StatusOK, result)
@@ -62,9 +63,17 @@ func CustomLyricsSearch(lrclib *services.LRCLibClient) http.HandlerFunc {
 		}
 		result, err := lrclib.SearchLyricsWithCustomQuery(r.Context(), body.Track, body.CustomQuery)
 		if err != nil {
-			Error(w, http.StatusBadGateway, "lyrics_search_failed", "Could not search lyrics")
+			lyricsSearchError(w, err, "lyrics_search_failed", "Could not search lyrics")
 			return
 		}
 		JSON(w, http.StatusOK, result)
 	}
+}
+
+func lyricsSearchError(w http.ResponseWriter, err error, code, message string) {
+	if errors.Is(err, services.ErrLyricsUnavailable) {
+		Error(w, http.StatusServiceUnavailable, "lyrics_unavailable", "Lyrics service is temporarily unavailable. Try again or continue without lyrics.")
+		return
+	}
+	Error(w, http.StatusBadGateway, code, message)
 }

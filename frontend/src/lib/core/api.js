@@ -184,8 +184,9 @@ export const API = {
       body: JSON.stringify({ track }),
       signal,
     }),
-  customLyricsSearch: (track, customQuery) =>
+  customLyricsSearch: (track, customQuery, signal) =>
     request('/api/discover/lyrics/custom-search', {
+      signal,
       method: 'POST',
       body: JSON.stringify({ track, customQuery }),
     }),

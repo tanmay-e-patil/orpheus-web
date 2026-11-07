@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"orpheus-web/internal/store"
@@ -17,7 +17,11 @@ import (
 )
 
 type DeezerClient struct {
-	HTTP *http.Client
+	HTTP               *http.Client
+	authMu             sync.Mutex
+	anonymousJWT       string
+	anonymousJWTExpiry time.Time
+	graphQLRetryAfter  time.Time
 }
 
 func NewDeezerClient(httpClient *http.Client) *DeezerClient {
@@ -47,8 +51,7 @@ func (c *DeezerClient) FindTrackMatches(ctx context.Context, videos []types.YouT
 	for _, video := range videos {
 		result, err := c.findTrackMatchesForVideo(ctx, video, searchQuery)
 		if err != nil {
-			results = append(results, types.TrackMatchResult{YouTubeVideo: video, TrackMatches: []types.MusicTrack{}, Confidence: "none"})
-			continue
+			return nil, err
 		}
 		results = append(results, result)
 	}
@@ -56,7 +59,7 @@ func (c *DeezerClient) FindTrackMatches(ctx context.Context, videos []types.YouT
 }
 
 func (c *DeezerClient) SearchTrackWithCustomQuery(ctx context.Context, video types.YouTubeVideo, query string) (types.TrackMatchResult, error) {
-	return c.findTrackMatchesForVideo(ctx, video, query)
+	return c.searchTrackMatches(ctx, video, []string{query})
 }
 
 func (c *DeezerClient) RefreshAlbumArt(ctx context.Context, db *store.Store, trackIDs []string) (map[string]string, error) {
@@ -92,30 +95,27 @@ func (c *DeezerClient) RefreshAlbumArt(ctx context.Context, db *store.Store, tra
 }
 
 func (c *DeezerClient) findTrackMatchesForVideo(ctx context.Context, video types.YouTubeVideo, customQuery string) (types.TrackMatchResult, error) {
-	searchQueries := []string{customQuery}
-	if strings.TrimSpace(customQuery) == "" {
-		title := CleanString(video.Title)
-		searchQueries = []string{
-			title,
-			strings.TrimSpace(regexp.MustCompile(`official|video|audio|lyrics|hd|4k`).ReplaceAllString(title, "")),
-			strings.TrimSpace(strings.Split(title, "-")[0]),
-			strings.TrimSpace(strings.Split(title, "|")[0]),
-		}
-	}
+	return c.searchTrackMatches(ctx, video, trackSearchQueries(video, customQuery))
+}
 
+func (c *DeezerClient) searchTrackMatches(ctx context.Context, video types.YouTubeVideo, searchQueries []string) (types.TrackMatchResult, error) {
 	bestByID := map[string]types.MusicTrack{}
 	var candidateIDs []string
+	var lastErr error
+	succeeded := false
 	for _, searchQuery := range searchQueries {
 		if strings.TrimSpace(searchQuery) == "" {
 			continue
 		}
-		var response deezerSearchResponse
-		if err := c.getJSON(ctx, "https://api.deezer.com/search?q="+url.QueryEscape(searchQuery)+"&limit=10", &response); err != nil {
-			return types.TrackMatchResult{}, err
+		tracks, err := c.searchTracks(ctx, searchQuery)
+		if err != nil {
+			lastErr = err
+			continue
 		}
-		for _, track := range response.Data {
+		succeeded = true
+		for _, track := range tracks {
 			match := track.toMusicTrack()
-			match.MatchScore = scoreTrackMatch(video, track)
+			match.MatchScore, match.MatchEvidence = scoreTrackMatch(video, track)
 			existing, ok := bestByID[match.ID]
 			if !ok {
 				candidateIDs = append(candidateIDs, match.ID)
@@ -124,35 +124,41 @@ func (c *DeezerClient) findTrackMatchesForVideo(ctx context.Context, video types
 				bestByID[match.ID] = match
 			}
 		}
-		select {
-		case <-ctx.Done():
-			return types.TrackMatchResult{}, ctx.Err()
-		case <-time.After(120 * time.Millisecond):
+		ranked := rankedTracks(bestByID, candidateIDs)
+		if accepted, _ := trackDecision(ranked); accepted {
+			break
+		}
+		if err := ctx.Err(); err != nil {
+			return types.TrackMatchResult{}, err
 		}
 	}
 
-	matches := make([]types.MusicTrack, 0, len(bestByID))
-	for _, id := range candidateIDs {
-		matches = append(matches, bestByID[id])
+	if !succeeded && lastErr != nil {
+		return types.TrackMatchResult{}, lastErr
 	}
-	// Preserve Deezer's relevance order when supporting evidence scores tie.
-	sort.SliceStable(matches, func(i, j int) bool { return matches[i].MatchScore > matches[j].MatchScore })
+	matches := rankedTracks(bestByID, candidateIDs)
+	autoAccept, reasons := trackDecision(matches)
 	if len(matches) > 10 {
 		matches = matches[:10]
 	}
 	for i := range matches {
+		if matches[i].ReleaseDate != "" {
+			continue
+		}
 		date, _ := c.fetchTrackDate(ctx, matches[i].ID)
 		if date != "" {
 			matches[i].ReleaseDate = date
 		}
-		time.Sleep(80 * time.Millisecond)
 	}
 	var selected *types.MusicTrack
 	confidence := "none"
 	if len(matches) > 0 {
 		confidence = ConfidenceFromScore(matches[0].MatchScore)
-		if confidence == "high" {
+		if autoAccept {
 			selected = &matches[0]
+			confidence = "high"
+		} else if confidence == "high" {
+			confidence = "medium"
 		}
 	}
 	return types.TrackMatchResult{
@@ -160,21 +166,31 @@ func (c *DeezerClient) findTrackMatchesForVideo(ctx context.Context, video types
 		TrackMatches:  matches,
 		SelectedMatch: selected,
 		Confidence:    confidence,
+		AutoAccept:    autoAccept,
+		Reasons:       reasons,
 	}, nil
 }
 
-func scoreTrackMatch(video types.YouTubeVideo, track deezerTrack) int {
-	score := StringSimilarity(CleanString(video.Title), CleanString(track.Title+" "+track.Artist.Name)) * 0.7
-	if strings.Contains(CleanString(video.Title), CleanString(track.Artist.Name)) {
-		score += 0.2
+func rankedTracks(byID map[string]types.MusicTrack, ids []string) []types.MusicTrack {
+	matches := make([]types.MusicTrack, 0, len(ids))
+	for _, id := range ids {
+		matches = append(matches, byID[id])
 	}
-	if video.Duration != nil && track.Duration > 0 {
-		videoDurationMs := ParseISODurationSeconds(*video.Duration) * 1000
-		trackDurationMs := track.Duration * 1000
-		diff := math.Abs(float64(videoDurationMs - trackDurationMs))
-		score += math.Max(0, 1-diff/30000) * 0.1
-	}
-	return int(math.Round(score * 100))
+	sort.SliceStable(matches, func(i, j int) bool {
+		a, b := matches[i], matches[j]
+		if a.MatchScore != b.MatchScore {
+			return a.MatchScore > b.MatchScore
+		}
+		// Popularity selects between equally supported matches, without changing confidence.
+		if a.Popularity == nil {
+			return false
+		}
+		if b.Popularity == nil {
+			return true
+		}
+		return *a.Popularity > *b.Popularity
+	})
+	return matches
 }
 
 func (c *DeezerClient) fetchTrackDate(ctx context.Context, trackID string) (string, error) {
@@ -226,10 +242,11 @@ type deezerSearchResponse struct {
 }
 
 type deezerTrack struct {
-	ID          int    `json:"id"`
-	Title       string `json:"title"`
-	Duration    int    `json:"duration"`
-	ReleaseDate string `json:"release_date"`
+	ID          int      `json:"id"`
+	Title       string   `json:"title"`
+	Duration    int      `json:"duration"`
+	Popularity  *float64 `json:"popularity,omitempty"`
+	ReleaseDate string   `json:"release_date"`
 	Artist      struct {
 		Name string `json:"name"`
 	} `json:"artist"`
@@ -272,5 +289,6 @@ func (t deezerTrack) toMusicTrack() types.MusicTrack {
 		AlbumImageURL: t.Album.bestCover(),
 		ReleaseDate:   SanitizeDeezerDate(t.ReleaseDate),
 		DurationMs:    durationPtr,
+		Popularity:    t.Popularity,
 	}
 }

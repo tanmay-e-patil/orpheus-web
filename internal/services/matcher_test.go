@@ -8,6 +8,9 @@ func TestParseISODurationSeconds(t *testing.T) {
 		"PT1H2M3S": 3723,
 		"PT42S":    42,
 		"bad":      0,
+		"badPT3M":  0,
+		"PT3Mbad":  0,
+		"PT":       0,
 	}
 	for input, want := range tests {
 		if got := ParseISODurationSeconds(input); got != want {

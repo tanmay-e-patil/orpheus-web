@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, render, waitFor } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 import Lyrics from '../src/lib/components/Lyrics.svelte';
 import {
   clearPlayer,
+  getPlayerState,
   next,
   setQueue,
   setTime,
@@ -73,4 +74,18 @@ it('resets scrolling when seeking back before the first lyric', async () => {
       behavior: 'instant',
     });
   });
+});
+
+it('seeks the library player from the shared lyric display', async () => {
+  setQueue(songs, 0);
+  setTime(10);
+  const view = render(Lyrics);
+  await fireEvent.click(view.getByRole('button', { name: 'Last line' }));
+  expect(getPlayerState().currentTime).toBe(150);
+  await waitFor(() =>
+    expect(view.getByRole('button', { name: 'Last line' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    ),
+  );
 });

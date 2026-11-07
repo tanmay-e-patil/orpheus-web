@@ -33,12 +33,26 @@ export interface Track {
   releaseDate?: string;
   durationMs?: number;
   matchScore?: number;
+  popularity?: number;
+  matchEvidence?: {
+    titleScore: number;
+    titleExact: boolean;
+    titleConflict: boolean;
+    artistConflict: boolean;
+    artistScore: number;
+    durationScore?: number;
+    versionConflict: boolean;
+    durationConflict: boolean;
+    reasons: string[];
+  };
 }
 export interface Match {
   youtubeVideo: Video;
   trackMatches: Track[];
   selectedMatch?: Track;
   confidence?: string;
+  autoAccept?: boolean;
+  reasons?: string[];
 }
 export interface LyricsOption {
   id: string | number;
@@ -57,6 +71,7 @@ export interface LyricsResult {
   selectedOption?: LyricsOption;
   query?: { track: string; artist: string; album?: string };
   status?: string;
+  autoAccept?: boolean;
 }
 export interface SongEdits {
   trackName: string;
@@ -85,6 +100,11 @@ export interface Workflow {
   lyricsSearchResults: LyricsResult[];
   editedTracks: SongEdits[];
   saveResults?: SaveResult[];
+  automaticMatching?: boolean;
+  reviewFirst?: boolean;
+  reviewPrepared?: boolean;
+  lyricsManuallyEdited?: boolean;
+  reviewNotices?: { audio?: string; metadata?: string; lyrics?: string };
 }
 export interface Session {
   authenticated: boolean;

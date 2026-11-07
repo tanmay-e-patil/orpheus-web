@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 
 	"orpheus-web/internal/types"
@@ -37,9 +36,8 @@ func (c *YouTubeClient) DiscoverVideos(ctx context.Context, query string) ([]typ
 			MusicProbability: probability,
 		})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Confidence > results[j].Confidence
-	})
+	// Preserve provider relevance: a remembered lyric may identify a song whose
+	// title does not repeat the query. Music likelihood is only an annotation.
 	return results, nil
 }
 
@@ -48,7 +46,7 @@ func (c *YouTubeClient) SearchVideo(ctx context.Context, trackName, artistName s
 		return nil, errors.New("YouTube API key is not configured")
 	}
 	query := strings.TrimSpace(trackName + " " + artistName)
-	searchURL := "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&type=video&key=" + url.QueryEscape(c.APIKey) + "&q=" + url.QueryEscape(query)
+	searchURL := "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&type=video&videoEmbeddable=true&key=" + url.QueryEscape(c.APIKey) + "&q=" + url.QueryEscape(query)
 	var search youtubeSearchResponse
 	if err := c.getJSON(ctx, searchURL, &search); err != nil {
 		return nil, err
