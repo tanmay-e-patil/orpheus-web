@@ -109,3 +109,21 @@ it.each(['unavailable', 'failed'])(
     expect(detail).toHaveBeenCalledTimes(31);
   },
 );
+
+it('defaults to recently added when no sort is requested', async () => {
+  history.replaceState({}, '', '/home');
+  const songs = vi.spyOn(api, 'songs').mockResolvedValue({
+    songs: [],
+    nextCursor: null,
+    hasMore: false,
+  });
+  render(Library);
+  await tick();
+  expect(songs).toHaveBeenCalledWith(
+    null,
+    100,
+    expect.any(AbortSignal),
+    'recentlyAdded',
+  );
+  expect(location.pathname + location.search).toBe('/home');
+});

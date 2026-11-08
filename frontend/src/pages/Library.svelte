@@ -38,7 +38,7 @@
   let songs = $state<Song[]>([]),
     query = $state(new URLSearchParams(location.search).get('q') || '');
   let sort = $state(
-    new URLSearchParams(location.search).get('sort') || 'artist',
+    new URLSearchParams(location.search).get('sort') || 'recentlyAdded',
   );
   let loading = $state(true),
     hydrating = $state(false),
@@ -78,8 +78,8 @@
     ? '⌘ K'
     : 'Ctrl K';
   const sortOptions = [
-    { value: 'artist', label: 'Artist A–Z' },
     { value: 'recentlyAdded', label: 'Recently added' },
+    { value: 'artist', label: 'Artist A–Z' },
     { value: 'mostPlayed', label: 'Most played' },
   ];
   const sorted = $derived(
@@ -96,7 +96,7 @@
     query.trim()
       ? url.searchParams.set('q', query.trim())
       : url.searchParams.delete('q');
-    sort === 'artist'
+    sort === 'recentlyAdded'
       ? url.searchParams.delete('sort')
       : url.searchParams.set('sort', sort);
     history.replaceState({}, '', url.pathname + url.search);
