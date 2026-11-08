@@ -45,8 +45,8 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 async function start() {
-  const store = await import('../src/lib/core/player-store.js');
-  const { initAudioPlayer } = await import('../src/lib/core/audio-player.js');
+  const store = await import('../src/lib/core/player-store.svelte');
+  const { initAudioPlayer } = await import('../src/lib/core/audio-player');
   initAudioPlayer();
   store.setQueue(
     ['one', 'two'].map((trackId) => ({

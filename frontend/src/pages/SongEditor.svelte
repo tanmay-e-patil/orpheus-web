@@ -16,13 +16,13 @@
   import Artwork from '$lib/components/Artwork.svelte';
   import VideoPreview from '$lib/components/VideoPreview.svelte';
   import { api } from '$lib/api';
-  import { errorMessage, session, libraryVersion } from '$lib/state';
+  import { errorMessage, cacheUserId, library } from '$lib/state.svelte';
   import {
     setQueue,
     updateQueueSong,
     updateSongLyrics,
-  } from '$lib/core/player-store.js';
-  import { clearSongsCache } from '$lib/core/idb-song-cache.js';
+  } from '$lib/core/player-store.svelte';
+  import { clearSongsCache } from '$lib/core/idb-song-cache';
   import {
     duration,
     syntheticVideo,
@@ -133,8 +133,8 @@
     }
   }
   async function invalidate() {
-    await clearSongsCache($session?.user?.id || 'single-user').catch(() => {});
-    libraryVersion.update((n) => n + 1);
+    await clearSongsCache(cacheUserId()).catch(() => {});
+    library.version++;
   }
   async function mutate(action: () => Promise<SongDetail>, message: string) {
     await run(async () => {

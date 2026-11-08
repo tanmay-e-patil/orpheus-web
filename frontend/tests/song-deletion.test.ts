@@ -7,13 +7,12 @@ import {
   clearPlayer,
   getPlayerState,
   play,
-  playerStore,
   removeQueueSong,
   setController,
   setPlaybackStatus,
   setQueue,
   setTime,
-} from '../src/lib/core/player-store.js';
+} from '../src/lib/core/player-store.svelte';
 import {
   listenForSongDeletions,
   onSongDeleted,
@@ -63,8 +62,6 @@ it('removes earlier and duplicate entries while preserving unrelated playback', 
 it('stops a deleted current song and defers loading the next until Play', () => {
   setQueue([one, two, one, three], 0);
   vi.clearAllMocks();
-  const changed = vi.fn();
-  playerStore.addEventListener('change', changed);
   removeQueueSong('one');
   expect(getPlayerState()).toMatchObject({
     queue: [two, three],
@@ -75,8 +72,6 @@ it('stops a deleted current song and defers loading the next until Play', () => 
   expect(controller.stop).toHaveBeenCalledOnce();
   expect(controller.load).not.toHaveBeenCalled();
   expect(controller.play).not.toHaveBeenCalled();
-  expect(changed).toHaveBeenCalledOnce();
-  playerStore.removeEventListener('change', changed);
   play();
   expect(controller.load).toHaveBeenCalledWith(two);
   expect(controller.play).toHaveBeenCalledOnce();
@@ -199,8 +194,8 @@ it('places Delete immediately after Edit and fences older pending loads', async 
       resolve = done;
     }),
   );
-  const { libraryVersion } = await import('../src/lib/state');
-  libraryVersion.update((n) => n + 1);
+  const { library } = await import('../src/lib/state.svelte');
+  library.version++;
   await waitFor(() => expect(api.songs).toHaveBeenCalledTimes(2));
   vi.mocked(api.songs).mockResolvedValue({
     songs: [two],

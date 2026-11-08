@@ -7,7 +7,7 @@ import {
   getPlayerState,
   setController,
   setQueue,
-} from '../src/lib/core/player-store.js';
+} from '../src/lib/core/player-store.svelte';
 import type { PlaybackController } from '../src/lib/video-playback';
 
 const fixture = vi.hoisted(() => ({

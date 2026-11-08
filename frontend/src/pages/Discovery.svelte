@@ -19,23 +19,23 @@
   import VideoPreview from '$lib/components/VideoPreview.svelte';
   import DiscoveryReview from '$lib/components/DiscoveryReview.svelte';
   import { api } from '$lib/api';
-  import { navigate } from '$lib/navigation';
-  import { errorMessage, session, libraryVersion } from '$lib/state';
+  import { navigate } from '$lib/navigation.svelte';
+  import { errorMessage, cacheUserId, library } from '$lib/state.svelte';
   import {
+    workflows,
     createInitialWorkflowState,
     loadWorkflowState,
     saveWorkflowState,
     clearWorkflowState,
-    getAllDrafts,
     saveNamedDraft,
     deleteNamedDraft,
     stageRoutes,
-  } from '$lib/core/store.js';
-  import { clearSongsCache } from '$lib/core/idb-song-cache.js';
+  } from '$lib/core/workflow-store.svelte';
+  import { clearSongsCache } from '$lib/core/idb-song-cache';
   import {
     buildCommitItems,
     mergeCommitResults,
-  } from '$lib/core/workflow-save.js';
+  } from '$lib/core/workflow-save';
   import {
     clock,
     duration,
@@ -52,8 +52,7 @@
     SaveResult,
   } from '$lib/types';
   let { stage }: { stage: string } = $props();
-  const initialDraft = (loadWorkflowState() ||
-    createInitialWorkflowState('')) as Workflow;
+  const initialDraft = loadWorkflowState() || createInitialWorkflowState('');
   let draft = $state<Workflow>(initialDraft);
   let query = $state(''),
     customQuery = $state(initialDraft.searchQuery);
@@ -61,8 +60,8 @@
     error = $state(''),
     preview = $state<Video | null>(null),
     previewLyrics = $state('');
-  let drafts = $state(Object.entries(getAllDrafts()) as [string, Workflow][]);
-  let activeSession = $state(loadWorkflowState() as Workflow | null);
+  const drafts = $derived(Object.entries(workflows.drafts));
+  const activeSession = $derived(workflows.active);
   let undo = $state<{ message: string; restore: () => void } | null>(null);
   let saveResults = $state<SaveResult[]>(initialDraft.saveResults || []);
   let controller = new AbortController(),
@@ -139,7 +138,7 @@
     event.preventDefault();
     if (!query.trim()) return;
     preserveCurrent();
-    draft = createInitialWorkflowState(query.trim()) as Workflow;
+    draft = createInitialWorkflowState(query.trim());
     saveWorkflowState(draft);
     draft.reviewFirst = true;
     draft.currentStage = 'review';
@@ -333,18 +332,12 @@
           deleteNamedDraft(draft.id);
         } else saveWorkflowState($state.snapshot(draft));
       }
-      await clearSongsCache($session?.user?.id || 'single-user').catch(
-        () => {},
-      );
-      libraryVersion.update((n) => n + 1);
+      await clearSongsCache(cacheUserId()).catch(() => {});
+      library.version++;
       if (!disposed && buildCommitItems(draft, saveResults).length === 0) {
         navigate('/home?sort=recentlyAdded');
       }
     });
-  }
-  function reloadDrafts() {
-    drafts = Object.entries(getAllDrafts()) as [string, Workflow][];
-    activeSession = loadWorkflowState();
   }
   function discard() {
     const previous = activeSession;
@@ -355,10 +348,8 @@
       restore: () => {
         preserveCurrent();
         saveWorkflowState(previous);
-        reloadDrafts();
       },
     };
-    reloadDrafts();
   }
   function deleteDraft(name: string, draft: Workflow) {
     deleteNamedDraft(name);
@@ -366,10 +357,8 @@
       message: 'Draft deleted.',
       restore: () => {
         saveNamedDraft(name, draft);
-        reloadDrafts();
       },
     };
-    reloadDrafts();
   }
   onMount(() => {
     query = stage === 'search' ? '' : initialDraft.searchQuery;

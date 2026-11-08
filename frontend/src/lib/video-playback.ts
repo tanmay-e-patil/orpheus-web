@@ -6,30 +6,17 @@ import {
   setDuration,
   setPlaybackStatus,
   setTime,
-} from './core/player-store.js';
-import type { Song } from './types';
+} from './core/player-store.svelte';
+import type { PlaybackController } from './types';
 import type { YouTubePlayer } from './youtube';
 
-export interface PlaybackController {
-  canPlay?(song: Song): boolean;
-  usesAudio?(controller: PlaybackController): boolean;
-  load(song: Song): void;
-  play(): void;
-  pause(): void;
-  stop(): void;
-  seekTo(seconds: number): void;
-  getCurrentTime(): number;
-  getDuration(): number;
-  setVolume(volume: number): void;
-  getVolume(): number;
-  isMuted(): boolean;
-}
+export type { PlaybackController };
 
 // The iframe and native audio share one transport, timeline, and queue. Native
 // audio stays loaded while paused so returning to it doesn't restart the song.
 export function createVideoPlayback() {
   const initial = getPlayerState();
-  const audio = initial.controller as PlaybackController | null;
+  const audio = initial.controller;
   const songId = currentSong()?.trackId;
   const audioDuration = initial.duration;
   const wasPlaying =

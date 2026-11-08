@@ -1,5 +1,6 @@
 import { afterEach, it, expect, vi } from 'vitest';
-import { api } from '../src/lib/api';
+import { api, onUnauthorized } from '../src/lib/api';
+import type { CommitItem } from '../src/lib/core/workflow-save';
 afterEach(() => vi.unstubAllGlobals());
 it('saves a discovery selection without sending discovery-only video fields', async () => {
   const fetcher = vi.fn().mockResolvedValue(
@@ -27,7 +28,7 @@ it('saves a discovery selection without sending discovery-only video fields', as
       },
       edits,
     },
-  ]);
+  ] as unknown as CommitItem[]);
   expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
     items: [
       {
@@ -65,9 +66,9 @@ it('preserves the matching API contract and omits UI-only video fields', async (
   });
   expect(options.credentials).toBe('same-origin');
 });
-it('dispatches unauthorized responses so the app clears playback and returns to login', async () => {
+it('notifies unauthorized responses so the app clears playback and returns to login', async () => {
   const listener = vi.fn();
-  window.addEventListener('orpheus:unauthorized', listener);
+  const stop = onUnauthorized(listener);
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue(
@@ -81,7 +82,7 @@ it('dispatches unauthorized responses so the app clears playback and returns to 
     await expect(api.song('song')).rejects.toThrow('Sign in again');
     expect(listener).toHaveBeenCalledOnce();
   } finally {
-    window.removeEventListener('orpheus:unauthorized', listener);
+    stop();
   }
 });
 it('deletes encoded song IDs and accepts an empty idempotent response', async () => {

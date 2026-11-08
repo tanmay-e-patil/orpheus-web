@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick, type Snippet } from 'svelte';
   import { centerLyric } from '$lib/lyric-scroll';
-  import { parseLRC, findActiveIndex } from '$lib/core/lrc.js';
+  import { parseLRC, findActiveIndex } from '$lib/core/lrc';
   let {
     syncedLyrics = '',
     plainLyrics = '',

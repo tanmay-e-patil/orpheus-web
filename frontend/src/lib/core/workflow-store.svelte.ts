@@ -1,20 +1,29 @@
+import type { Workflow } from '../types';
+
 const WORKFLOW_STORAGE_KEY = 'orpheus-workflow-draft';
 const DRAFTS_STORAGE_KEY = 'orpheus-workflow-drafts';
 
-export const appState = new EventTarget();
-appState.session = null;
+// localStorage is the source of truth. Bumping this after each write makes the
+// reactive `workflows` getters below re-read it.
+let revision = $state(0);
 
-export function setSession(session) {
-  appState.session = session;
-  appState.dispatchEvent(new CustomEvent('sessionchange', { detail: session }));
-}
+/** Reactive view of the active workflow and named drafts. */
+export const workflows = {
+  get active() {
+    void revision;
+    return loadWorkflowState();
+  },
+  get drafts() {
+    void revision;
+    return getAllDrafts();
+  },
+};
 
 export function generateWorkflowId() {
   return `workflow_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
-/** @returns {import('../types').Workflow} */
-export function createInitialWorkflowState(searchQuery) {
+export function createInitialWorkflowState(searchQuery: string): Workflow {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   return {
@@ -30,16 +39,13 @@ export function createInitialWorkflowState(searchQuery) {
   };
 }
 
-export function saveWorkflowState(state) {
+export function saveWorkflowState(state: Workflow) {
   const next = { ...state, timestamp: new Date().toISOString() };
   localStorage.setItem(WORKFLOW_STORAGE_KEY, JSON.stringify(next));
-  window.dispatchEvent(
-    new CustomEvent('orpheus:workflowchange', { detail: next }),
-  );
+  revision++;
 }
 
-/** @returns {import('../types').Workflow | null} */
-export function loadWorkflowState() {
+export function loadWorkflowState(): Workflow | null {
   try {
     const raw = localStorage.getItem(WORKFLOW_STORAGE_KEY);
     if (!raw) return null;
@@ -60,22 +66,22 @@ export function loadWorkflowState() {
 
 export function clearWorkflowState() {
   localStorage.removeItem(WORKFLOW_STORAGE_KEY);
-  window.dispatchEvent(new CustomEvent('orpheus:workflowchange'));
+  revision++;
 }
 
-export function saveNamedDraft(name, state) {
+export function saveNamedDraft(name: string, state: Workflow) {
   const drafts = getAllDrafts();
   drafts[name] = { ...state, timestamp: new Date().toISOString() };
   localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
+  revision++;
 }
 
-/** @returns {Record<string, import('../types').Workflow>} */
-export function getAllDrafts() {
+export function getAllDrafts(): Record<string, Workflow> {
   try {
     const raw = localStorage.getItem(DRAFTS_STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    const valid = {};
+    const valid: Record<string, Workflow> = {};
     for (const [name, draft] of Object.entries(parsed)) {
       if (
         isValidWorkflowState(draft) &&
@@ -92,34 +98,26 @@ export function getAllDrafts() {
   }
 }
 
-export function deleteNamedDraft(name) {
+export function deleteNamedDraft(name: string) {
   const drafts = getAllDrafts();
   delete drafts[name];
   localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
+  revision++;
 }
 
-export function updateWorkflowStage(state, currentStage) {
-  const updated = {
-    ...state,
-    currentStage,
-    timestamp: new Date().toISOString(),
-  };
-  saveWorkflowState(updated);
-  return updated;
-}
-
-export function isValidWorkflowState(state) {
+export function isValidWorkflowState(state: unknown): state is Workflow {
+  if (!state || typeof state !== 'object') return false;
+  const candidate = state as Record<string, unknown>;
   return (
-    state &&
-    typeof state.id === 'string' &&
-    typeof state.currentStage === 'string' &&
-    typeof state.searchQuery === 'string' &&
-    Array.isArray(state.selectedVideos) &&
-    Array.isArray(state.trackMatches) &&
-    Array.isArray(state.lyricsSearchResults) &&
-    Array.isArray(state.editedTracks) &&
-    typeof state.timestamp === 'string' &&
-    typeof state.expiresAt === 'string'
+    typeof candidate.id === 'string' &&
+    typeof candidate.currentStage === 'string' &&
+    typeof candidate.searchQuery === 'string' &&
+    Array.isArray(candidate.selectedVideos) &&
+    Array.isArray(candidate.trackMatches) &&
+    Array.isArray(candidate.lyricsSearchResults) &&
+    Array.isArray(candidate.editedTracks) &&
+    typeof candidate.timestamp === 'string' &&
+    typeof candidate.expiresAt === 'string'
   );
 }
 
@@ -130,15 +128,4 @@ export const stageRoutes = {
   lyrics: '/discover/lyrics',
   review: '/discover/review',
   commit: '/discover/review',
-};
-
-export const stageOrder = ['search', 'youtube', 'spotify', 'lyrics', 'review'];
-
-export const stageLabels = {
-  search: 'Search',
-  youtube: 'Find video',
-  spotify: 'Choose song info',
-  lyrics: 'Add lyrics',
-  review: 'Review & save',
-  commit: 'Save',
 };

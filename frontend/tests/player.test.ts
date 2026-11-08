@@ -1,13 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
-import { get } from 'svelte/store';
 import Player from '../src/lib/components/Player.svelte';
-import {
-  nowPlaying,
-  playback,
-  playerPaneCollapsed,
-  videoDockedLayout,
-} from '../src/lib/state';
+import { ui } from '../src/lib/state.svelte';
 import {
   clearPlayer,
   getPlayerState,
@@ -15,7 +9,7 @@ import {
   setQueue,
   setTime,
   setPlaybackStatus,
-} from '../src/lib/core/player-store.js';
+} from '../src/lib/core/player-store.svelte';
 
 const controller = {
   load: vi.fn(),
@@ -25,7 +19,6 @@ const controller = {
   seekTo: vi.fn(),
   setVolume: vi.fn(),
 };
-let unsubscribe: () => void;
 beforeEach(() => {
   vi.mocked(window.matchMedia).mockImplementation((query) => ({
     // jsdom has no Web Animations API; motion is checked in the browser.
@@ -40,7 +33,6 @@ beforeEach(() => {
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
   }));
-  unsubscribe = playback.subscribe(() => {});
   setController(controller);
   setQueue(
     [
@@ -59,16 +51,15 @@ beforeEach(() => {
   );
   setTime(90);
   setPlaybackStatus('playing');
-  nowPlaying.set(true);
+  ui.nowPlaying = true;
   vi.clearAllMocks();
 });
 afterEach(() => {
   cleanup();
-  playerPaneCollapsed.set(false);
-  nowPlaying.set(false);
+  ui.playerPaneCollapsed = false;
+  ui.nowPlaying = false;
   clearPlayer();
   setController(null);
-  unsubscribe();
 });
 it('closes by swipe without interrupting audio and supports reopening and tapping the chevron', async () => {
   const view = render(Player);
@@ -95,7 +86,7 @@ it('closes by swipe without interrupting audio and supports reopening and tappin
     });
     artwork.dispatchEvent(event);
   }
-  await waitFor(() => expect(get(nowPlaying)).toBe(false));
+  await waitFor(() => expect(ui.nowPlaying).toBe(false));
   expect(getPlayerState().currentTime).toBe(90);
   expect(controller.pause).not.toHaveBeenCalled();
   expect(controller.stop).not.toHaveBeenCalled();
@@ -103,13 +94,13 @@ it('closes by swipe without interrupting audio and supports reopening and tappin
   await fireEvent.click(
     view.getByRole('button', { name: 'Open Now Playing: Somebody' }),
   );
-  await waitFor(() => expect(get(nowPlaying)).toBe(true));
+  await waitFor(() => expect(ui.nowPlaying).toBe(true));
   const close = view.getByRole('button', { name: 'Close player' });
   expect(
     close.closest('.now-playing-header')?.querySelector('[role="tablist"]'),
   ).not.toBeNull();
   await fireEvent.click(close);
-  await waitFor(() => expect(get(nowPlaying)).toBe(false));
+  await waitFor(() => expect(ui.nowPlaying).toBe(false));
   expect(controller.pause).not.toHaveBeenCalled();
 });
 
@@ -136,7 +127,7 @@ it('docks automatically, collapses, and adapts to rotation without reloading aud
           addEventListener: vi.fn(),
         },
   );
-  nowPlaying.set(false);
+  ui.nowPlaying = false;
   const view = render(Player);
   await waitFor(() =>
     expect(
@@ -162,11 +153,11 @@ it('docks automatically, collapses, and adapts to rotation without reloading aud
   media.matches = true;
   change?.();
   await waitFor(() => expect(view.getByRole('complementary')).toBeVisible());
-  videoDockedLayout.set(true);
+  ui.videoDockedLayout = true;
   media.matches = false;
   change?.();
   await waitFor(() => expect(view.getByRole('complementary')).toBeVisible());
-  videoDockedLayout.set(null);
+  ui.videoDockedLayout = null;
   await waitFor(() => expect(view.getByRole('contentinfo')).toBeVisible());
   expect(getPlayerState().currentTime).toBe(90);
   expect(controller.load).not.toHaveBeenCalled();
@@ -175,24 +166,24 @@ it('docks automatically, collapses, and adapts to rotation without reloading aud
 });
 
 it('opens Now Playing from the player-bar background and seeks without expanding it', async () => {
-  nowPlaying.set(false);
+  ui.nowPlaying = false;
   const view = render(Player);
   const seek = view.getByRole('slider', {
     name: 'Seek playback in mini-player',
   });
   await fireEvent.input(seek, { target: { value: '45' } });
   expect(getPlayerState().currentTime).toBe(45);
-  expect(get(nowPlaying)).toBe(false);
+  expect(ui.nowPlaying).toBe(false);
   await fireEvent.click(
     view.getByRole('button', { name: 'Expand Now Playing' }),
   );
-  expect(get(nowPlaying)).toBe(true);
+  expect(ui.nowPlaying).toBe(true);
 });
 
 it.each([true, false])(
   'shows loading in seek tracks and restores seeking when ready (expanded: %s)',
   async (expanded) => {
-    nowPlaying.set(expanded);
+    ui.nowPlaying = expanded;
     setPlaybackStatus('loading');
     const view = render(Player);
     const labels = expanded

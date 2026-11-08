@@ -3,6 +3,7 @@ import { cleanup, render } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import Library from '../src/pages/Library.svelte';
 import { api } from '../src/lib/api';
+import { syncRoute } from '../src/lib/navigation.svelte';
 import type { SongDetail } from '../src/lib/types';
 
 const song = {
@@ -15,6 +16,7 @@ const song = {
 
 async function openLibrary() {
   history.replaceState({}, '', '/library?sort=recentlyAdded');
+  syncRoute();
   vi.spyOn(api, 'songs').mockResolvedValue({
     songs: [song, { ...song, trackId: 'ready', isAvailable: true }],
     nextCursor: null,
@@ -112,6 +114,7 @@ it.each(['unavailable', 'failed'])(
 
 it('defaults to recently added when no sort is requested', async () => {
   history.replaceState({}, '', '/home');
+  syncRoute();
   const songs = vi.spyOn(api, 'songs').mockResolvedValue({
     songs: [],
     nextCursor: null,

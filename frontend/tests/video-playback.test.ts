@@ -14,7 +14,7 @@ import {
   setController,
   setQueue,
   setTime,
-} from '../src/lib/core/player-store.js';
+} from '../src/lib/core/player-store.svelte';
 import type { YouTubePlayer } from '../src/lib/youtube';
 import type { Song } from '../src/lib/types';
 const songs: Song[] = ['one', 'two'].map((trackId) => ({

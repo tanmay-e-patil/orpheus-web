@@ -14,7 +14,7 @@
   import DiscoveryLyrics from './DiscoveryLyrics.svelte';
   import DiscoveryAudio from './DiscoveryAudio.svelte';
   import { api } from '$lib/api';
-  import { navigate } from '$lib/navigation';
+  import { navigate } from '$lib/navigation.svelte';
   import { seconds, adjustLrc } from '$lib/music';
   import {
     rankAudioSources,
@@ -27,13 +27,13 @@
     saveWorkflowState,
     clearWorkflowState,
     deleteNamedDraft,
-  } from '$lib/core/store.js';
+  } from '$lib/core/workflow-store.svelte';
   import {
     buildCommitItems,
     mergeCommitResults,
-  } from '$lib/core/workflow-save.js';
-  import { clearSongsCache } from '$lib/core/idb-song-cache.js';
-  import { errorMessage, libraryVersion, session } from '$lib/state';
+  } from '$lib/core/workflow-save';
+  import { clearSongsCache } from '$lib/core/idb-song-cache';
+  import { errorMessage, cacheUserId, library } from '$lib/state.svelte';
   import type {
     Workflow,
     Video,
@@ -430,10 +430,8 @@
           deleteNamedDraft(draft.id);
         } else persist();
       }
-      await clearSongsCache($session?.user?.id || 'single-user').catch(
-        () => {},
-      );
-      libraryVersion.update((value) => value + 1);
+      await clearSongsCache(cacheUserId()).catch(() => {});
+      library.version++;
       if (
         !disposed &&
         buildCommitItems(draft, draft.saveResults).length === 0

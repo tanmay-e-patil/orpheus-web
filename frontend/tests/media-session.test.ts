@@ -88,11 +88,16 @@ async function setup({ supported = true, rejectOptional = false } = {}) {
     vi.fn(() => 1),
   );
   vi.stubGlobal('cancelAnimationFrame', vi.fn());
-  const store = await import('../src/lib/core/player-store.js');
-  const { initAudioPlayer } = await import('../src/lib/core/audio-player.js');
+  const store = await import('../src/lib/core/player-store.svelte');
+  const { initAudioPlayer } = await import('../src/lib/core/audio-player');
+  // The media session follows player state through effects; flush them so
+  // assertions observe the synchronized lock-screen state.
+  const { flushSync: flush } = await import('svelte');
   initAudioPlayer();
   store.setQueue(songs, 0);
+  flush();
   return {
+    flush,
     store,
     audio: AudioFixture.instance,
     session,
@@ -104,7 +109,8 @@ async function setup({ supported = true, rejectOptional = false } = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 it('declares music playback and exposes metadata, progress, and lock-screen controls', async () => {
-  const { store, audio, session, audioSession, handlers } = await setup();
+  const { flush, store, audio, session, audioSession, handlers } =
+    await setup();
   expect(audioSession.type).toBe('playback');
   expect(session.metadata).toMatchObject({
     title: 'one',
@@ -115,12 +121,14 @@ it('declares music playback and exposes metadata, progress, and lock-screen cont
   expect(session.playbackState).toBe('playing');
   audio.currentTime = 42;
   audio.dispatchEvent(new Event('timeupdate'));
+  flush();
   expect(session.setPositionState).toHaveBeenLastCalledWith({
     duration: 180,
     position: 42,
     playbackRate: 1,
   });
   handlers.get('pause')!({ action: 'pause' });
+  flush();
   expect(audio.paused).toBe(true);
   expect(session.playbackState).toBe('paused');
   handlers.get('play')!({ action: 'play' });
@@ -132,19 +140,23 @@ it('declares music playback and exposes metadata, progress, and lock-screen cont
   handlers.get('seekbackward')!({ action: 'seekbackward', seekOffset: 500 });
   expect(audio.currentTime).toBe(0);
   handlers.get('nexttrack')!({ action: 'nexttrack' });
+  flush();
   expect(session.metadata?.title).toBe('two');
   handlers.get('previoustrack')!({ action: 'previoustrack' });
+  flush();
   expect(session.metadata?.title).toBe('one');
   store.clearPlayer();
+  flush();
   expect(session.metadata).toBeNull();
   expect(session.playbackState).toBe('none');
   expect(session.setPositionState).toHaveBeenLastCalledWith();
 });
 
 it('advances the queue with the same audio element while animation frames are suspended', async () => {
-  const { store, audio, session } = await setup();
+  const { flush, store, audio, session } = await setup();
   audio.ended = true;
   audio.dispatchEvent(new Event('ended'));
+  flush();
   expect(store.currentSong()?.trackId).toBe('two');
   expect(AudioFixture.instance).toBe(audio);
   expect(audio.src).toBe('/api/songs/two/audio');
@@ -152,6 +164,7 @@ it('advances the queue with the same audio element while animation frames are su
   expect(session.metadata?.title).toBe('two');
   audio.ended = true;
   audio.dispatchEvent(new Event('ended'));
+  flush();
   expect(store.getPlayerState().status).toBe('ended');
   expect(session.playbackState).toBe('none');
 });

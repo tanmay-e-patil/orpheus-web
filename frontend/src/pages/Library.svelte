@@ -19,27 +19,29 @@
   import { onSongDeleted } from '$lib/song-deletion';
   import Artwork from '$lib/components/Artwork.svelte';
   import { api } from '$lib/api';
-  import { session, playback, libraryVersion, errorMessage } from '$lib/state';
-  import { navigate } from '$lib/navigation';
+  import type { SongsCursor } from '$lib/api';
+  import { cacheUserId, library, ui, errorMessage } from '$lib/state.svelte';
+  import { navigate, route } from '$lib/navigation.svelte';
   import {
+    player,
     setQueue,
     updateQueueSong,
     updateSongAlbumArt,
-  } from '$lib/core/player-store.js';
+  } from '$lib/core/player-store.svelte';
   import {
     readAllCachedSongs,
     upsertSongsPage,
     writeSongsCacheMeta,
-  } from '$lib/core/idb-song-cache.js';
+  } from '$lib/core/idb-song-cache';
   import { duration, searchSongs } from '$lib/music';
   import type { Song } from '$lib/types';
   let deleting = $state<Song | null>(null);
   let loadController: AbortController | undefined;
+  const params = new URLSearchParams(route.search);
   let songs = $state<Song[]>([]),
-    query = $state(new URLSearchParams(location.search).get('q') || '');
-  let sort = $state(
-    new URLSearchParams(location.search).get('sort') || 'recentlyAdded',
-  );
+    query = $state(params.get('q') || '');
+  let sort = $state(params.get('sort') || 'recentlyAdded');
+  let searchInput = $state<HTMLInputElement | null>(null);
   let loading = $state(true),
     hydrating = $state(false),
     error = $state(''),
@@ -82,11 +84,27 @@
     { value: 'artist', label: 'Artist A–Z' },
     { value: 'mostPlayed', label: 'Most played' },
   ];
-  const sorted = $derived(
-    sort === 'mostPlayed'
-      ? [...songs].sort((a, b) => (b.playCount || 0) - (a.playCount || 0))
+  // Apply plays recorded while this page was open without refetching.
+  const counted = $derived(
+    library.playCounts.size
+      ? songs.map((song) => {
+          const playCount = library.playCounts.get(song.trackId);
+          return playCount === undefined || playCount === song.playCount
+            ? song
+            : { ...song, playCount };
+        })
       : songs,
   );
+  const sorted = $derived(
+    sort === 'mostPlayed'
+      ? [...counted].sort((a, b) => (b.playCount || 0) - (a.playCount || 0))
+      : counted,
+  );
+  $effect(() => {
+    if (!ui.focusLibrarySearch || !searchInput) return;
+    searchInput.focus();
+    ui.focusLibrarySearch = false;
+  });
   const results = $derived(searchSongs(sorted, query));
   const visible = $derived(results.slice(0, limit));
   $effect(() => {
@@ -99,13 +117,13 @@
     sort === 'recentlyAdded'
       ? url.searchParams.delete('sort')
       : url.searchParams.set('sort', sort);
-    history.replaceState({}, '', url.pathname + url.search);
+    navigate(url.pathname + url.search, true);
   });
   $effect(() => {
     const controller = new AbortController();
     loadController = controller;
     const requestedSort = sort;
-    $libraryVersion;
+    void library.version;
     load(requestedSort, controller.signal);
     return () => controller.abort();
   });
@@ -114,7 +132,7 @@
     error = '';
     limit = 100;
     songs = [];
-    const userId = $session?.user?.id || 'single-user';
+    const userId = cacheUserId();
     if (requestedSort === 'artist') {
       const cached = await readAllCachedSongs(userId).catch(() => []);
       if (!signal.aborted && cached.length) {
@@ -122,7 +140,7 @@
         loading = false;
       }
     }
-    let cursor: Record<string, unknown> | null = null;
+    let cursor: SongsCursor | null = null;
     const collected = new Map<string, Song>();
     try {
       do {
@@ -158,19 +176,11 @@
     }
   }
   function select(song: Song) {
-    if ($playback.song?.trackId !== song.trackId)
+    if (player.song?.trackId !== song.trackId)
       setQueue(
         results,
         results.findIndex((item) => item.trackId === song.trackId),
       );
-  }
-  function refreshPlays(event: Event) {
-    const data = (event as CustomEvent).detail;
-    songs = songs.map((song) =>
-      song.trackId === data.trackId
-        ? { ...song, playCount: data.playCount }
-        : song,
-    );
   }
   onMount(() => {
     const availabilityController = new AbortController();
@@ -218,7 +228,6 @@
       songs = songs.filter((song) => song.trackId !== trackId);
       if (deleting?.trackId === trackId) deleting = null;
     });
-    window.addEventListener('orpheus:song-play-recorded', refreshPlays);
     return () => {
       disposed = true;
       clearInterval(availabilityTimer);
@@ -226,7 +235,6 @@
       offDeleted();
       clearTimeout(artTimer);
       observer?.disconnect();
-      window.removeEventListener('orpheus:song-play-recorded', refreshPlays);
     };
   });
 </script>
@@ -247,6 +255,7 @@
       <div class="search-field">
         <Search size={18} /><Input
           id="library-search"
+          bind:ref={searchInput}
           type="search"
           aria-label="Search your library"
           placeholder="Search songs, artists, albums, or lyrics"
@@ -285,9 +294,8 @@
   </div>
   {#if error}<div class="inline-error" role="alert">
       <p>{error}</p>
-      <Button
-        variant="outline"
-        onclick={() => libraryVersion.update((n) => n + 1)}>Try again</Button
+      <Button variant="outline" onclick={() => library.version++}
+        >Try again</Button
       >
     </div>{/if}
   {#if loading}<div class="song-skeletons" aria-label="Loading songs">
@@ -326,15 +334,15 @@
       {#each visible as song, index (song.trackId)}
         <div
           class="song-row"
-          class:current={$playback.song?.trackId === song.trackId}
+          class:current={player.song?.trackId === song.trackId}
           role="listitem"
         >
           <span class="song-number"
-            >{#if $playback.song?.trackId === song.trackId}<span
+            >{#if player.song?.trackId === song.trackId}<span
                 class="playing-equalizer"
-                class:active={$playback.status === 'playing'}
+                class:active={player.status === 'playing'}
                 role="img"
-                aria-label={$playback.status === 'playing'
+                aria-label={player.status === 'playing'
                   ? 'Playing'
                   : 'Selected song'}
                 ><span></span><span></span><span></span><span></span></span

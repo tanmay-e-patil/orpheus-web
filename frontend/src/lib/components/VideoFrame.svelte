@@ -7,9 +7,9 @@
     youtubeErrorMessage,
     type YouTubePlayer,
   } from '$lib/youtube';
-  import { pause } from '$lib/core/player-store.js';
+  import { pause } from '$lib/core/player-store.svelte';
   import { clock } from '$lib/music';
-  import { errorMessage } from '$lib/state';
+  import { errorMessage } from '$lib/state.svelte';
   let {
     id,
     lyrics = '',

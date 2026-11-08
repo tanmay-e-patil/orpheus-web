@@ -4,9 +4,10 @@
   import { Button } from '$lib/components/ui/button';
   import Login from './Login.svelte';
   import { api } from '$lib/api';
-  import { Passkey } from '$lib/core/passkey.js';
+  import { Passkey } from '$lib/core/passkey';
+  import { route } from '$lib/navigation.svelte';
   import type { Session } from '$lib/types';
-  const request = new URLSearchParams(location.search).get('request') || '';
+  const request = new URLSearchParams(route.search).get('request') || '';
   let details = $state<{
     action: string;
     userId?: string;

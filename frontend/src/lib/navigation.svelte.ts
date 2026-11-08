@@ -1,6 +1,5 @@
 import { tick } from 'svelte';
-import { writable } from 'svelte/store';
-export const route = writable({
+export const route = $state({
   path: location.pathname,
   search: location.search,
 });
@@ -16,7 +15,8 @@ export function navigate(url: string, replace = false) {
     '',
     next.pathname + next.search,
   );
-  route.set({ path: next.pathname, search: next.search });
+  route.path = next.pathname;
+  route.search = next.search;
   if (changedPage)
     tick().then(() => {
       window.scrollTo({ top: 0, behavior: 'instant' });
@@ -24,5 +24,6 @@ export function navigate(url: string, replace = false) {
     });
 }
 export function syncRoute() {
-  route.set({ path: location.pathname, search: location.search });
+  route.path = location.pathname;
+  route.search = location.search;
 }

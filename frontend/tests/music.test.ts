@@ -9,14 +9,14 @@ import {
 import {
   buildCommitItems,
   mergeCommitResults,
-} from '../src/lib/core/workflow-save.js';
+} from '../src/lib/core/workflow-save';
 import {
   createInitialWorkflowState,
   saveWorkflowState,
   loadWorkflowState,
   saveNamedDraft,
   getAllDrafts,
-} from '../src/lib/core/store.js';
+} from '../src/lib/core/workflow-store.svelte';
 import type { Song, Workflow } from '../src/lib/types';
 function fixture(): Workflow {
   return {

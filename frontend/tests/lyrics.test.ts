@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 import Lyrics from '../src/lib/components/Lyrics.svelte';
 import {
@@ -7,8 +7,7 @@ import {
   next,
   setQueue,
   setTime,
-} from '../src/lib/core/player-store.js';
-import { playback } from '../src/lib/state';
+} from '../src/lib/core/player-store.svelte';
 import type { Song } from '../src/lib/types';
 
 const songs: Song[] = ['one', 'two'].map((trackId) => ({
@@ -22,15 +21,9 @@ const songs: Song[] = ['one', 'two'].map((trackId) => ({
   syncedLyrics: '[00:10.00]First line\n[02:30.00]Last line',
 }));
 
-let unsubscribe: () => void;
-beforeEach(() => {
-  unsubscribe = playback.subscribe(() => {});
-});
-
 afterEach(() => {
   cleanup();
   clearPlayer();
-  unsubscribe();
 });
 
 it('resets the previous song scroll during the next song intro', async () => {
