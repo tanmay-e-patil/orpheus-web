@@ -36,23 +36,15 @@
       ><AudioLines size={28} />orpheus<span class="brand-dot">.</span></a
     >
     <div>
-      <p class="eyebrow">YOUR MUSIC, COLLECTED</p>
       <h1>A home for<br />every song.</h1>
-      <p>
-        The songs you find. The words you know.<br />A collection that sounds
-        like you.
-      </p>
       <div class="record-art">
         <div class="record-center"><AudioLines size={40} /></div>
       </div>
     </div>
-    <small>Made for the way you listen.</small>
   </section>
   <section class="login-form">
     <form onsubmit={login}>
-      <p class="eyebrow">WELCOME BACK</p>
-      <h2>Good to hear from you.</h2>
-      <p class="muted">Sign in to your personal music library.</p>
+      <h2>Sign in</h2>
       <Label for="email">Email</Label><Input
         id="email"
         type="email"
@@ -78,7 +70,6 @@
           onclick={() => login(undefined, true)}
           ><Fingerprint size={18} />Sign in with a passkey</Button
         >{/if}
-      <p class="small muted">Your library. Your listening space.</p>
     </form>
   </section>
 </div>

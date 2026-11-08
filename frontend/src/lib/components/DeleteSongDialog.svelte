@@ -57,8 +57,7 @@
       <Dialog.Title>Delete this song?</Dialog.Title>
       <Dialog.Description>
         “{song?.name}” by {song?.artistName} will be removed from the shared library
-        for everyone. Audio and lyrics files will be cleaned up in the background.
-        This cannot be undone.
+        for everyone. This cannot be undone.
       </Dialog.Description>
     </Dialog.Header>
     {#if error}<p role="alert" class="error-message">{error}</p>{/if}

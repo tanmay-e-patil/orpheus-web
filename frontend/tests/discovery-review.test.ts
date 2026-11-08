@@ -162,7 +162,9 @@ it('chooses audio, metadata, and lyrics automatically, then waits for explicit s
   ]);
   expect(loadWorkflowState()).toBeNull();
   await waitFor(() =>
-    expect(location.pathname + location.search).toBe('/home?sort=recentlyAdded'),
+    expect(location.pathname + location.search).toBe(
+      '/home?sort=recentlyAdded',
+    ),
   );
 });
 
@@ -336,7 +338,7 @@ it('enables review and save while optional lyrics are still loading', async () =
   );
   render(Discovery, { stage: 'review' });
   await ready();
-  expect(screen.getByText(/You can save without waiting/)).toBeVisible();
+  expect(screen.getByText('Finding lyrics…')).toBeVisible();
   expect(screen.getByRole('button', { name: /Save to library/ })).toBeEnabled();
   await fireEvent.submit(document.getElementById('song-review-form')!);
   await screen.findByRole('link', { name: /Go to your library/ });
@@ -365,9 +367,7 @@ it('does not restore lyrics that were removed during a pending lookup', async ()
   await fireEvent.click(screen.getByRole('button', { name: 'Remove lyrics' }));
   resolve(lyrics);
   await waitFor(() =>
-    expect(
-      screen.queryByText(/You can save without waiting/),
-    ).not.toBeInTheDocument(),
+    expect(screen.queryByText('Finding lyrics…')).not.toBeInTheDocument(),
   );
   expect(loadWorkflowState()!.editedTracks[0].lyrics).toBe('');
 });

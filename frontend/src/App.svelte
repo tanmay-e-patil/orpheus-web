@@ -137,7 +137,6 @@
           class="brand-name">orpheus</span
         ><span class="brand-dot">.</span></a
       >
-      <div class="sidebar-label">YOUR SPACE</div>
       <nav aria-label="Primary">
         {#each nav as item}<a
             class:active={active(item.href)}

@@ -94,16 +94,13 @@
 <section class="page settings-page">
   <header class="page-heading">
     <div>
-      <p class="eyebrow">MAKE YOURSELF AT HOME</p>
       <h1>Settings<span class="title-dot">.</span></h1>
-      <p class="muted">A few things to make this space yours.</p>
     </div>
   </header>
   {#if error}<p class="error-message" role="alert">{error}</p>{/if}
   <section class="settings-section">
     <div>
       <h2>Appearance</h2>
-      <p class="muted">Choose the light you listen in.</p>
     </div>
     <div class="appearance-options">
       {#each [{ value: 'dark', label: 'Dark', icon: Moon }, { value: 'light', label: 'Light', icon: Sun }, { value: 'system', label: 'System', icon: Monitor }] as option}<button
@@ -151,9 +148,7 @@
       <div>
         <h2>Your account</h2>
         <p class="muted">
-          {$session?.user?.email ||
-            $session?.user?.username ||
-            'Your personal listening space'}
+          {$session?.user?.email || $session?.user?.username || ''}
         </p>
       </div>
       <Button variant="outline" disabled={busy} onclick={logout}

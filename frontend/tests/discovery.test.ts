@@ -62,7 +62,9 @@ it('saves on Review and retries only the failed song, preserving values', async 
   ]);
   expect(loadWorkflowState()).toBeNull();
   await waitFor(() =>
-    expect(location.pathname + location.search).toBe('/home?sort=recentlyAdded'),
+    expect(location.pathname + location.search).toBe(
+      '/home?sort=recentlyAdded',
+    ),
   );
 });
 it('shows a network error without losing editable values', async () => {
@@ -372,7 +374,7 @@ it('updates review lyrics after a custom lookup while preserving metadata edits'
   );
 });
 
-it('shows a zero score and explicit artist conflict for a different recording', () => {
+it('shows an explicit artist conflict for a different recording', () => {
   const match = strongMatch();
   const draft = loadWorkflowState()!;
   draft.selectedVideos[0].selected = true;
@@ -404,7 +406,6 @@ it('shows a zero score and explicit artist conflict for a different recording', 
   ];
   saveWorkflowState(draft);
   render(Discovery, { stage: 'spotify' });
-  expect(screen.getByText(/Match score 0\/100/)).toBeVisible();
   expect(
     screen.getByText('Different artist', { selector: 'small' }),
   ).toBeVisible();

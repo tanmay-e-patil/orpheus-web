@@ -419,11 +419,7 @@
     {#if stage === 'search'}
       <header class="page-heading">
         <div>
-          <p class="eyebrow">MAKE A NEW DISCOVERY</p>
           <h1>Add a song<span class="title-dot">.</span></h1>
-          <p class="muted">
-            Search once. Preview and edit before adding it to your library.
-          </p>
         </div>
       </header>
       <form class="discovery-search" onsubmit={start}>
@@ -440,7 +436,7 @@
         </div>
       </form>
       <p class="small muted">
-        We’ll pick the audio, song info, and lyrics. Preview and change anything
+        We’ll pick the audio, song info, and lyrics. You can change anything
         before saving.
       </p>
       {#if undo}<div class="undo-banner" role="status">
@@ -535,25 +531,15 @@
       </ol>
       <header class="page-heading compact">
         <div>
-          <p class="eyebrow">STEP {stepIndex + 1} OF {steps.length}</p>
           <h1>
             {stage === 'youtube'
-              ? 'Start with the sound.'
+              ? 'Choose an audio source'
               : stage === 'spotify'
-                ? 'Give it a name.'
+                ? 'Choose song info'
                 : stage === 'lyrics'
-                  ? 'Find the words.'
-                  : 'Make it part of your collection.'}
+                  ? 'Choose lyrics'
+                  : 'Review and save'}
           </h1>
-          <p class="muted">
-            {stage === 'youtube'
-              ? 'Choose the audio source that sounds right to you.'
-              : stage === 'spotify'
-                ? 'Pick the song information that fits your selection.'
-                : stage === 'lyrics'
-                  ? 'Choose lyrics, or continue without them.'
-                  : 'One last look before you save.'}
-          </p>
         </div>
       </header>
       {#if error}<div class="inline-error" role="alert">
@@ -633,10 +619,6 @@
         <div class="workflow-footer">
           <Button variant="ghost" href="/discover"
             ><ArrowLeft size={16} />Back</Button
-          ><span class="small muted"
-            >{selected
-              ? '1 audio source selected'
-              : 'Choose an audio source to continue'}</span
           ><Button disabled={!selected || busy} onclick={continueSource}
             >{automaticMatching
               ? 'Continue to review'
@@ -685,9 +667,6 @@
                         ? `Duration: ${clock(track.durationMs / 1000)}`
                         : 'Duration unavailable',
                       track.releaseDate,
-                      track.matchScore !== undefined
-                        ? `Match score ${track.matchScore}/100`
-                        : '',
                     ]
                       .filter(Boolean)
                       .join(' · ')}</small
@@ -812,11 +791,6 @@
               <span class="muted"
                 >{duration(matches[0].youtubeVideo.duration)}</span
               >
-              <span class="small muted"
-                >{draft.lyricsSearchResults.some((row) => row.selectedOption)
-                  ? 'Lyrics selected. Review or change them below.'
-                  : 'No lyrics selected. You can add them now or later.'}</span
-              >
             </div>
           </div>{/if}
         <div class="inline-search">
@@ -890,7 +864,7 @@
                 class:error-message={!result.success}
               >
                 {result.success
-                  ? 'Saved to your library. Audio may still be processing.'
+                  ? 'Saved. Audio may still be processing.'
                   : result.error || 'Could not save this song. Please retry.'}
               </p>{/each}
           </div>

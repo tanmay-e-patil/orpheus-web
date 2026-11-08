@@ -52,9 +52,7 @@
       >{/if}
   </Card.Header>
   <Card.Content>
-    {#if lyricsBusy}<p class="small muted" role="status">
-        Finding lyrics… You can save without waiting.
-      </p>
+    {#if lyricsBusy}<p class="small muted" role="status">Finding lyrics…</p>
       {#if !edit?.lyrics && !edit?.syncedLyrics}<div
           class="space-y-2 mb-4"
           aria-hidden="true"
@@ -73,10 +71,7 @@
           .join('\n')}</pre>{:else}<p class="muted">
         {busy
           ? 'We’ll look for lyrics once the song is matched.'
-          : 'No lyrics selected. You can add them now or save without them.'}
-      </p>{/if}
-    {#if edit?.syncedLyrics}<p class="small muted">
-        Play the song preview to check lyric timing.
+          : 'No lyrics selected.'}
       </p>{/if}
     <div class="review-actions">
       <Button
@@ -139,14 +134,11 @@
             >Synced lyrics (LRC)</Field.Label
           ><Textarea
             id="review-synced-lyrics"
-            aria-describedby="review-synced-lyrics-help"
             value={edit.syncedLyrics}
             disabled={locked}
             oninput={(event) =>
               onedit('syncedLyrics', event.currentTarget.value)}
-          /><Field.Description id="review-synced-lyrics-help"
-            >LRC timestamps control when each line appears in the song preview.</Field.Description
-          ></Field.Field
+          /></Field.Field
         >
         <Button variant="ghost" disabled={locked} onclick={() => onselect()}
           >Remove lyrics</Button

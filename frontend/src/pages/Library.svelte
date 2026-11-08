@@ -278,7 +278,7 @@
       <span
         >{query
           ? `${results.length} ${results.length === 1 ? 'result' : 'results'}`
-          : 'ALL SONGS'}</span
+          : ''}</span
       >
       {#if hydrating}<span>Loading the rest of your library…</span>{/if}
     </div>
@@ -383,13 +383,7 @@
                 variant="destructive"
                 onclick={() => (deleting = song)}
                 ><Trash2 size={15} />Delete song</DropdownMenu.Item
-              >{#if !song.isAvailable}<DropdownMenu.Separator
-                /><DropdownMenu.Label>Audio unavailable</DropdownMenu.Label
-                ><DropdownMenu.Item
-                  onclick={() =>
-                    navigate(`/songs/${encodeURIComponent(song.trackId)}/edit`)}
-                  >Manage audio source</DropdownMenu.Item
-                >{/if}</DropdownMenu.Content
+              ></DropdownMenu.Content
             ></DropdownMenu.Root
           >
         </div>

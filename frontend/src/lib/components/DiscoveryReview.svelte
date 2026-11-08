@@ -156,7 +156,7 @@
         ? 'Song info wasn’t found. Enter the title and artist below, or search for another match.'
         : result?.autoAccept
           ? ''
-          : 'Suggested song info. Check the title, artist, and recording before saving.',
+          : 'Possible match. Check the title, artist, and recording.',
     );
     persist();
   }
@@ -218,17 +218,14 @@
       notice(
         'lyrics',
         !result.options.length
-          ? 'No lyrics found. You can save without them or add your own.'
+          ? 'No lyrics found.'
           : !result.autoAccept
-            ? 'Check these lyrics against your audio, especially the timing.'
+            ? 'Possible match. Check the lyrics and their timing.'
             : '',
       );
     } catch (e) {
       if (!active() || requestController.signal.aborted) return;
-      notice(
-        'lyrics',
-        'Lyrics couldn’t be loaded. Retry here, add your own, or save without lyrics.',
-      );
+      notice('lyrics', 'Lyrics couldn’t be loaded. Retry, or add your own.');
     } finally {
       if (lyricsController === requestController) lyricsBusy = false;
     }
@@ -296,10 +293,7 @@
           'Song info is temporarily unavailable. Fill it in below or retry the lookup.',
         );
       if (!chosenMatch?.autoAccept)
-        notice(
-          'audio',
-          'Suggested audio source. Play it to check this is the recording you want.',
-        );
+        notice('audio', 'Possible match. Play it to check the recording.');
     }
     if (!active()) return;
     if (active()) {
@@ -440,7 +434,10 @@
         () => {},
       );
       libraryVersion.update((value) => value + 1);
-      if (!disposed && buildCommitItems(draft, draft.saveResults).length === 0) {
+      if (
+        !disposed &&
+        buildCommitItems(draft, draft.saveResults).length === 0
+      ) {
         navigate('/home?sort=recentlyAdded');
       }
     }).finally(() => {
@@ -460,21 +457,12 @@
 <section class="page discovery-review">
   <div class="workflow-top">
     <a class="back-link" href="/discover"><ArrowLeft size={15} />New search</a
-    ><span class="small muted"
-      >{saved ? 'Saved to your library' : 'Draft saved automatically'}</span
-    >
+    >{#if !saved}<span class="small muted">Draft saved automatically</span>{/if}
   </div>
   <header class="page-heading compact">
     <div>
-      <p class="eyebrow">
-        {saved ? 'ADDED TO YOUR COLLECTION' : 'ONE LAST LOOK'}
-      </p>
-      <h1>{saved ? 'Your song is on its way.' : 'Review your song.'}</h1>
-      <p class="muted">
-        {saved
-          ? 'Audio may still be processing.'
-          : `Picked for “${draft.searchQuery}”. Preview it, change anything, then save.`}
-      </p>
+      <h1>{saved ? 'Song added' : 'Review your song'}</h1>
+      {#if !saved}<p class="muted">Picked for “{draft.searchQuery}”</p>{/if}
     </div>
   </header>
   {#if busy}<div class="review-progress" role="status">
@@ -556,20 +544,19 @@
           <p class="small muted">Audio may still be processing.</p>
         </div>
       </div>
-      <Button href="/home?sort=recentlyAdded" variant="outline" class="review-save-button"
+      <Button
+        href="/home?sort=recentlyAdded"
+        variant="outline"
+        class="review-save-button"
         >Go to your library<ArrowRight size={16} /></Button
       >
     {:else}
-      <p id="review-save-help" class="small muted">
-        Nothing is added until you save.
-      </p>
       <Button
         type="submit"
         form="song-review-form"
         class="review-save-button"
         disabled={locked || !track || !selected}
         aria-busy={saving}
-        aria-describedby="review-save-help"
       >
         {#if saving}<LoaderCircle
             size={17}

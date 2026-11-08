@@ -5,7 +5,6 @@
   import { Badge } from '$lib/components/ui/badge';
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import ReviewAccordion from './ReviewAccordion.svelte';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -83,30 +82,19 @@
                 {plainLyrics}
               />{/key}
             {#if syncedLyrics}<p class="small muted">
-                Play the video. Select a lyric line to jump there. If every line
-                is early or late, shift the timing below.
+                Select a lyric line to jump there. If every line is off, shift
+                the timing.
               </p>
-              <Tooltip.Provider
-                ><div class="review-actions">
-                  {#each [{ offset: -0.5, label: 'Earlier 0.5 s', description: 'Show every lyric half a second earlier.' }, { offset: 0.5, label: 'Later 0.5 s', description: 'Show every lyric half a second later.' }] as shift}
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        {#snippet child({ props })}
-                          <Button
-                            {...props}
-                            type="button"
-                            variant="outline"
-                            disabled={locked}
-                            onclick={() => onshift(shift.offset)}
-                            >{shift.label}</Button
-                          >
-                        {/snippet}
-                      </Tooltip.Trigger>
-                      <Tooltip.Content>{shift.description}</Tooltip.Content>
-                    </Tooltip.Root>
-                  {/each}
-                </div></Tooltip.Provider
-              >{/if}
+              <div class="review-actions">
+                {#each [{ offset: -0.5, label: 'Earlier 0.5 s' }, { offset: 0.5, label: 'Later 0.5 s' }] as shift}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={locked}
+                    onclick={() => onshift(shift.offset)}>{shift.label}</Button
+                  >
+                {/each}
+              </div>{/if}
             <Button
               variant="ghost"
               onclick={() => {

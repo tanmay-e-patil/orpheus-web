@@ -60,7 +60,7 @@
         fetched.syncedLyrics || '',
       );
       fetched = null;
-      notify('Lyrics saved to your library.', 'success');
+      notify('Lyrics saved.', 'success');
     } catch (e) {
       notify(errorMessage(e), 'error');
     } finally {

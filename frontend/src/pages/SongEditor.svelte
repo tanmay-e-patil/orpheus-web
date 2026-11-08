@@ -144,12 +144,7 @@
       source = data.audioSource;
       updateQueueSong(id, data.song);
       await invalidate();
-      notify(
-        data.fileUpdateQueued
-          ? `${message} Library file update queued.`
-          : message,
-        'success',
-      );
+      notify(message, 'success');
     });
   }
   async function findMetadata() {
@@ -236,7 +231,6 @@
     <header class="editor-heading">
       <Artwork src={song.albumArt} size="large" />
       <div>
-        <p class="eyebrow">IN YOUR COLLECTION</p>
         <h1>{song.name}</h1>
         <p class="muted">{song.artistName} · {song.albumName}</p>
         <div class="actions">
@@ -257,17 +251,12 @@
       class="editor-section"
       onsubmit={(e) => {
         e.preventDefault();
-        mutate(
-          () => api.updateSongMetadata(id, metadata),
-          'Song information saved.',
-        );
+        mutate(() => api.updateSongMetadata(id, metadata), 'Song info saved.');
       }}
     >
       <div class="section-heading">
         <div>
-          <p class="eyebrow">01 / THE DETAILS</p>
-          <h2>Song metadata</h2>
-          <p class="muted">Give your song the right name, artist, and home.</p>
+          <h2>Song info</h2>
         </div>
       </div>
       <div class="form-grid">
@@ -307,7 +296,6 @@
                     releaseDate: candidate.releaseDate || '',
                   };
                   candidates = [];
-                  notify('Song information applied. Save when you’re ready.');
                 }}>Use info</Button
               >
             </div>{/each}
@@ -316,8 +304,7 @@
     <details class="editor-section">
       <summary
         ><span
-          ><span class="eyebrow">02 / THE SOUND</span>
-          <h2>Audio source</h2>
+          ><h2>Audio source</h2>
           <span class="muted"
             >{source?.title || 'Find a source for this song'}</span
           ></span
@@ -369,14 +356,13 @@
     <details class="editor-section">
       <summary
         ><span
-          ><span class="eyebrow">03 / THE WORDS</span>
-          <h2>Lyrics</h2>
+          ><h2>Lyrics</h2>
           <span class="muted"
             >{synced
               ? 'Synced lyrics available'
               : plain
                 ? 'Lyrics available'
-                : 'Add the words that make the song'}</span
+                : 'No lyrics'}</span
           ></span
         ></summary
       >
@@ -412,7 +398,7 @@
               {#if option.syncedLyrics}<Button
                   variant="ghost"
                   onclick={() => testLyrics(option.syncedLyrics || '')}
-                  >Test timing</Button
+                  >Test lyrics timing</Button
                 >{/if}<Button
                 variant="outline"
                 disabled={busy}
@@ -466,7 +452,7 @@
               <Button
                 variant="ghost"
                 onclick={() => testLyrics(adjustLrc(synced, offset))}
-                >Preview adjusted timing</Button
+                >Test adjusted timing</Button
               ><Button
                 disabled={busy || !offset}
                 onclick={() => saveLyrics(plain, adjustLrc(synced, offset))}
@@ -485,8 +471,7 @@
       >
       <div class="details-body">
         <p class="muted">
-          Rebuild the audio file from the current audio source. The song will be
-          unavailable until processing finishes.
+          Rebuild the audio file from the current audio source.
         </p>
         <Button
           variant="outline"
