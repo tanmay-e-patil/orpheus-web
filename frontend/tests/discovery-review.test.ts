@@ -131,7 +131,10 @@ it('goes straight from search to review without asking for an audio source', asy
   await fireEvent.input(screen.getByRole('searchbox'), {
     target: { value: 'Artist Song' },
   });
-  await fireEvent.click(screen.getByRole('button', { name: /Find my song/ }));
+  expect(
+    screen.queryByRole('button', { name: /Find my song/ }),
+  ).not.toBeInTheDocument();
+  await fireEvent.submit(screen.getByRole('searchbox').closest('form')!);
   expect(location.pathname).toBe('/discover/review');
   expect(loadWorkflowState()?.reviewFirst).toBe(true);
 });

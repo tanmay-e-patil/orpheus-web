@@ -433,11 +433,11 @@
             id="discovery-query"
             type="search"
             placeholder="Song title and artist, e.g. Firework Katy Perry"
+            enterkeyhint="search"
             bind:value={query}
             required
           />
         </div>
-        <Button type="submit">Find my song<ArrowRight size={17} /></Button>
       </form>
       <p class="small muted">
         We’ll pick the audio, song info, and lyrics. Preview and change anything
