@@ -7,18 +7,12 @@
     AudioLines,
     ChevronRight,
   } from '@lucide/svelte';
-  import { api } from '$lib/api';
-  import { route, navigate, syncRoute } from '$lib/navigation';
-  import {
-    session,
-    playback,
-    dockedPlayer,
-    nowPlaying,
-    errorMessage,
-  } from '$lib/state';
-  import { setSession } from '$lib/core/store.js';
-  import { clearPlayer } from '$lib/core/player-store.js';
-  import { initAudioPlayer } from '$lib/core/audio-player.js';
+  import { api, onUnauthorized } from '$lib/api';
+  import { route, navigate, syncRoute } from '$lib/navigation.svelte';
+  import { auth, ui, layout } from '$lib/state.svelte';
+  import { applyAppearance } from '$lib/appearance.svelte';
+  import { clearPlayer, player } from '$lib/core/player-store.svelte';
+  import { initAudioPlayer } from '$lib/core/audio-player';
   import { listenForSongDeletions } from '$lib/song-deletion';
   import LibraryPage from './pages/Library.svelte';
   import Login from './pages/Login.svelte';
@@ -30,7 +24,7 @@
   import AppToaster from '$lib/components/AppToaster.svelte';
   let ready = $state(false);
   const accountName = $derived(
-    $session?.user?.username || $session?.user?.email || 'Account',
+    auth.session?.user?.username || auth.session?.user?.email || 'Account',
   );
   const nav = [
     { href: '/home', label: 'Library', icon: Library },
@@ -39,16 +33,13 @@
   ];
   const active = (href: string) =>
     href === '/discover'
-      ? $route.path.startsWith('/discover')
-      : $route.path === href;
+      ? route.path.startsWith('/discover')
+      : route.path === href;
   async function authenticate() {
     try {
-      const value = await api.session();
-      session.set(value);
-      setSession(value);
+      auth.session = await api.session();
     } catch {
-      session.set(null);
-      setSession(null);
+      auth.session = null;
     } finally {
       ready = true;
     }
@@ -78,57 +69,49 @@
   function shortcut(event: KeyboardEvent) {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
-      if ($route.path !== '/home') navigate('/home');
-      setTimeout(() => document.getElementById('library-search')?.focus(), 0);
+      ui.focusLibrarySearch = true;
+      if (route.path !== '/home') navigate('/home');
     }
   }
   $effect(() => {
-    if (!ready || $route.path === '/auth/native') return;
-    if (!$session?.authenticated && $route.path !== '/') navigate('/', true);
-    if ($session?.authenticated && $route.path === '/') navigate('/home', true);
+    if (!ready || route.path === '/auth/native') return;
+    if (!auth.session?.authenticated && route.path !== '/') navigate('/', true);
+    if (auth.session?.authenticated && route.path === '/')
+      navigate('/home', true);
   });
+  $effect(applyAppearance);
   onMount(() => {
     initAudioPlayer();
     const stopDeletions = listenForSongDeletions();
     authenticate();
-    const media = matchMedia('(prefers-color-scheme: dark)');
-    const syncAppearance = () => {
-      if (localStorage.getItem('orpheus-appearance') === 'system')
-        document.documentElement.classList.toggle('dark', media.matches);
-    };
-    media.addEventListener('change', syncAppearance);
-    const unauthorized = () => {
+    const stopUnauthorized = onUnauthorized(() => {
       clearPlayer();
-      session.set(null);
-      setSession(null);
-      if ($route.path !== '/auth/native') navigate('/', true);
-    };
-    window.addEventListener('popstate', syncRoute);
-    window.addEventListener('orpheus:unauthorized', unauthorized);
+      auth.session = null;
+      if (route.path !== '/auth/native') navigate('/', true);
+    });
     return () => {
       stopDeletions();
-      media.removeEventListener('change', syncAppearance);
-      window.removeEventListener('popstate', syncRoute);
-      window.removeEventListener('orpheus:unauthorized', unauthorized);
+      stopUnauthorized();
     };
   });
 </script>
 
+<svelte:window onpopstate={syncRoute} />
 <svelte:document onclick={followLink} onkeydown={shortcut} />
 <a href="#main" class="skip-link">Skip to content</a>
-{#if $route.path === '/auth/native'}
+{#if route.path === '/auth/native'}
   <NativeAuth />
 {:else if !ready}
   <div class="boot">
     <AudioLines size={32} />
     <p>Opening your library…</p>
   </div>
-{:else if !$session?.authenticated}
+{:else if !auth.session?.authenticated}
   <Login onauthenticated={authenticate} />
 {:else}
   <div
-    class:has-player={!!$playback.song}
-    class:docked-player={$dockedPlayer}
+    class:has-player={!!player.song}
+    class:docked-player={layout.dockedPlayer}
     class="app-layout"
   >
     <aside class="sidebar">
@@ -170,14 +153,14 @@
       >
     </header>
     <main id="main" tabindex="-1">
-      {#key $route.path}
-        {#if $route.path === '/home'}<LibraryPage />
-        {:else if $route.path === '/settings'}<Settings />
-        {:else if $route.path.startsWith('/discover')}<Discovery
-            stage={$route.path.split('/')[2] || 'search'}
+      {#key route.path}
+        {#if route.path === '/home'}<LibraryPage />
+        {:else if route.path === '/settings'}<Settings />
+        {:else if route.path.startsWith('/discover')}<Discovery
+            stage={route.path.split('/')[2] || 'search'}
           />
-        {:else if /^\/songs\/[^/]+\/edit$/.test($route.path)}<SongEditor
-            id={decodeURIComponent($route.path.split('/')[2])}
+        {:else if /^\/songs\/[^/]+\/edit$/.test(route.path)}<SongEditor
+            id={decodeURIComponent(route.path.split('/')[2])}
           />
         {:else}<section class="page empty">
             <h1>Page not found</h1>
@@ -198,12 +181,12 @@
 {/if}
 <AppToaster
   navigation={ready &&
-    !!$session?.authenticated &&
-    $route.path !== '/auth/native'}
+    !!auth.session?.authenticated &&
+    route.path !== '/auth/native'}
   fixedPlayer={ready &&
-    !!$session?.authenticated &&
-    $route.path !== '/auth/native' &&
-    !!$playback.song &&
-    !$dockedPlayer &&
-    !$nowPlaying}
+    !!auth.session?.authenticated &&
+    route.path !== '/auth/native' &&
+    !!player.song &&
+    !layout.dockedPlayer &&
+    !ui.nowPlaying}
 />

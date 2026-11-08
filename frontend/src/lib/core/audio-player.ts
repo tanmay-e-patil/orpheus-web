@@ -1,4 +1,4 @@
-import { API } from './api.js';
+import { api } from '../api';
 import {
   next,
   setController,
@@ -7,14 +7,27 @@ import {
   setTime,
   getPlayerState,
   updateSongPlayCount,
-} from './player-store.js';
+} from './player-store.svelte';
 import { notify } from '../notifications';
-import { configureAudioSession, initMediaSession } from './media-session.js';
-const withViewTransition = (update) => update();
+import { seconds as parseISODurationSeconds } from '../music';
+import { library } from '../state.svelte';
+import type { PlaybackController, Song } from '../types';
+import {
+  configureAudioSession,
+  initMediaSession,
+} from './media-session.svelte';
 
-let audio = null;
+type PlayTracker = {
+  trackId: string;
+  listenedSeconds: number;
+  recorded: boolean;
+  lastTick: number;
+};
+
+// Assigned once by initAudioPlayer; the other functions run only after that.
+let audio!: HTMLAudioElement;
 let raf = 0;
-let playTracker = null;
+let playTracker: PlayTracker | null = null;
 const PLAY_COUNT_SECONDS = 10;
 
 export function initAudioPlayer() {
@@ -61,10 +74,7 @@ export function initAudioPlayer() {
   audio.addEventListener('ended', () => {
     if (!isActive()) return;
     stopPolling();
-    withViewTransition(() => next(), {
-      scope: 'song',
-      songKind: 'auto',
-    });
+    next();
   });
   audio.addEventListener('error', () => {
     if (!isActive()) return;
@@ -76,10 +86,7 @@ export function initAudioPlayer() {
     notify('Audio playback error. Skipping...', 'error', {
       id: 'audio-playback-error',
     });
-    withViewTransition(() => next(), {
-      scope: 'song',
-      songKind: 'auto',
-    });
+    next();
   });
   audio.addEventListener('timeupdate', () => {
     if (!isActive()) return;
@@ -96,8 +103,8 @@ export function initAudioPlayer() {
     }
   });
 
-  const controller = {
-    load: (song) => {
+  const controller: PlaybackController = {
+    load: (song: Song) => {
       const audioUrl =
         song?.audioUrl ||
         (song?.trackId
@@ -122,7 +129,7 @@ export function initAudioPlayer() {
       configureAudioSession();
       const promise = audio.play();
       if (promise?.catch) {
-        promise.catch((error) => {
+        promise.catch((error: unknown) => {
           if (!isActive()) return;
           console.warn('Audio play failed', error);
           setPlaybackStatus('paused');
@@ -140,13 +147,13 @@ export function initAudioPlayer() {
       stopPolling();
       playTracker = null;
     },
-    seekTo: (seconds) => {
+    seekTo: (seconds: number) => {
       audio.currentTime = Math.max(0, Number(seconds) || 0);
       setTime(audio.currentTime || 0);
     },
     getCurrentTime: () => audio.currentTime || 0,
     getDuration: () => (Number.isFinite(audio.duration) ? audio.duration : 0),
-    setVolume: (volume) => {
+    setVolume: (volume: number) => {
       audio.volume = Math.max(0, Math.min(1, Number(volume) / 100));
     },
     getVolume: () => Math.round((audio.volume ?? 1) * 100),
@@ -171,7 +178,7 @@ function syncDuration() {
   setDuration(duration || 0);
 }
 
-function startPolling(isActive) {
+function startPolling(isActive: () => boolean | undefined) {
   if (raf) return;
   let last = 0;
   const step = () => {
@@ -198,7 +205,7 @@ function stopPolling() {
   if (playTracker) playTracker.lastTick = 0;
 }
 
-function resetPlayTracker(trackId) {
+function resetPlayTracker(trackId: string) {
   playTracker = { trackId, listenedSeconds: 0, recorded: false, lastTick: 0 };
 }
 
@@ -218,30 +225,18 @@ function trackListeningInterval() {
   }
 }
 
-async function recordCurrentPlay(trackId) {
+async function recordCurrentPlay(trackId: string) {
   if (!playTracker || playTracker.recorded || playTracker.trackId !== trackId)
     return;
   playTracker.recorded = true;
   try {
-    const result = await API.recordSongPlay(trackId);
+    const result = await api.recordSongPlay(trackId);
     updateSongPlayCount(result.trackId, result.playCount);
-    window.dispatchEvent(
-      new CustomEvent('orpheus:song-play-recorded', { detail: result }),
-    );
+    library.playCounts.set(result.trackId, result.playCount);
   } catch (error) {
-    if (error?.status !== 404 && error?.status !== 409) {
+    const status = (error as { status?: number } | null)?.status;
+    if (status !== 404 && status !== 409) {
       console.warn('song play tracking failed', error);
     }
   }
-}
-
-function parseISODurationSeconds(duration) {
-  if (!duration) return 0;
-  const match = String(duration).match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return 0;
-  return (
-    Number(match[1] || 0) * 3600 +
-    Number(match[2] || 0) * 60 +
-    Number(match[3] || 0)
-  );
 }

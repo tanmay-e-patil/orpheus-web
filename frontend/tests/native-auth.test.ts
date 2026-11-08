@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import NativeAuth from '../src/pages/NativeAuth.svelte';
+import { route } from '../src/lib/navigation.svelte';
 const mocks = vi.hoisted(() => ({
   session: vi.fn(),
   details: vi.fn(),
@@ -21,7 +22,7 @@ vi.mock('$lib/api', () => ({
     logout: mocks.logout,
   },
 }));
-vi.mock('$lib/core/passkey.js', () => ({
+vi.mock('$lib/core/passkey', () => ({
   Passkey: { isSupported: () => true, register: mocks.register },
 }));
 beforeEach(() => {
@@ -30,6 +31,7 @@ beforeEach(() => {
     search: '?request=signed-request',
     assign: mocks.assign,
   });
+  route.search = location.search;
   mocks.details.mockResolvedValue({ action: 'login' });
   mocks.session.mockResolvedValue({
     authenticated: true,

@@ -12,6 +12,7 @@ export interface Song {
   lyrics?: string;
   syncedLyrics?: string;
   playCount?: number;
+  isLyricsAvailable?: boolean;
 }
 export interface Video {
   id: string;
@@ -114,4 +115,21 @@ export interface SongDetail {
   song: Song;
   audioSource: Video | null;
   fileUpdateQueued?: boolean;
+}
+export type PlaybackStatus =
+  'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'unavailable';
+export interface PlaybackController {
+  canPlay?(song: Song): boolean;
+  usesAudio?(controller: PlaybackController): boolean;
+  load(song: Song): void;
+  play(): void;
+  pause(): void;
+  stop(): void;
+  seekTo(seconds: number): void;
+  getCurrentTime(): number;
+  getDuration(): number;
+  setVolume(volume: number): void;
+  getVolume(): number;
+  isMuted(): boolean;
+  toggleMute?(): void;
 }

@@ -1,3 +1,27 @@
+import type { SongsCursor } from '../api';
+import type { Song } from '../types';
+
+type CachedSong = Song & { scopeKey: string };
+type CachedPage = {
+  key: string;
+  scopeKey: string;
+  cursorKey: string;
+  cursorIn: SongsCursor | null;
+  nextCursor: SongsCursor | null;
+  songIds: string[];
+  hasMore: boolean;
+  pageRevision?: unknown;
+  fetchedAt: number;
+  stale: boolean;
+};
+type SongsPage = {
+  songs: Song[];
+  nextCursor: SongsCursor | null;
+  hasMore: boolean;
+  pageRevision?: unknown;
+};
+type WriteOptions = { signal?: AbortSignal; stale?: boolean };
+
 const DB_NAME = 'orpheus-song-cache';
 const DB_VERSION = 1;
 const SONG_STORE = 'songs';
@@ -5,24 +29,24 @@ const PAGE_STORE = 'pages';
 const META_STORE = 'meta';
 const SONG_CACHE_SCHEMA_VERSION = 'v1';
 
-function scopeKey(userId) {
+function scopeKey(userId: string) {
   return `${SONG_CACHE_SCHEMA_VERSION}:${userId}`;
 }
 
-function cursorKey(cursor) {
+function cursorKey(cursor: SongsCursor | null | undefined) {
   return cursor ? `${cursor.artistName}::${cursor.trackId}` : 'first';
 }
 
-function pageKey(scope, cursor) {
+function pageKey(scope: string, cursor: SongsCursor | null) {
   return `${scope}:${cursorKey(cursor)}`;
 }
 
-function metaKey(scope) {
+function metaKey(scope: string) {
   return `${scope}:meta`;
 }
 
 function openDb() {
-  return new Promise((resolve, reject) => {
+  return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
@@ -45,42 +69,51 @@ function openDb() {
   });
 }
 
-function req(request) {
-  return new Promise((resolve, reject) => {
+function req<T>(request: IDBRequest<T>) {
+  return new Promise<T>((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
 
-function txDone(tx) {
-  return new Promise((resolve, reject) => {
+function txDone(tx: IDBTransaction) {
+  return new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
   });
 }
 
-export async function readSongsCache(userId) {
+export async function readSongsCache(userId: string) {
   if (!('indexedDB' in window)) return null;
   const db = await openDb();
   const scope = scopeKey(userId);
   const tx = db.transaction([SONG_STORE, PAGE_STORE], 'readonly');
   const pages = await req(
-    tx.objectStore(PAGE_STORE).index('byScope').getAll(IDBKeyRange.only(scope)),
+    tx
+      .objectStore(PAGE_STORE)
+      .index('byScope')
+      .getAll(IDBKeyRange.only(scope)) as IDBRequest<CachedPage[]>,
   );
   const songs = await req(
-    tx.objectStore(SONG_STORE).index('byScope').getAll(IDBKeyRange.only(scope)),
+    tx
+      .objectStore(SONG_STORE)
+      .index('byScope')
+      .getAll(IDBKeyRange.only(scope)) as IDBRequest<CachedSong[]>,
   );
   await txDone(tx);
   if (!pages.length) return null;
   const songsById = new Map(
-    songs.map(({ scopeKey: _, ...song }) => [song.trackId, song]),
+    songs.map(({ scopeKey: _, ...song }): [string, Song] => [
+      song.trackId,
+      song,
+    ]),
   );
   const pagesByCursor = new Map(pages.map((page) => [page.cursorKey, page]));
-  const orderedPages = [];
-  const hydratedSongs = [];
-  const seen = new Set();
-  let current = pagesByCursor.get('first');
+  const orderedPages: CachedPage[] = [];
+  const hydratedSongs: Song[] = [];
+  const seen = new Set<string>();
+  let current: CachedPage | undefined = pagesByCursor.get('first');
   while (current) {
     orderedPages.push(current);
     for (const songId of current.songIds) {
@@ -93,7 +126,7 @@ export async function readSongsCache(userId) {
     }
     current = current.nextCursor
       ? pagesByCursor.get(cursorKey(current.nextCursor))
-      : null;
+      : undefined;
   }
   const last = orderedPages[orderedPages.length - 1];
   return {
@@ -104,26 +137,35 @@ export async function readSongsCache(userId) {
   };
 }
 
-export async function readAllCachedSongs(userId) {
+export async function readAllCachedSongs(userId: string): Promise<Song[]> {
   if (!('indexedDB' in window)) return [];
   const db = await openDb();
   const scope = scopeKey(userId);
   const tx = db.transaction([SONG_STORE, PAGE_STORE], 'readonly');
   const pages = await req(
-    tx.objectStore(PAGE_STORE).index('byScope').getAll(IDBKeyRange.only(scope)),
+    tx
+      .objectStore(PAGE_STORE)
+      .index('byScope')
+      .getAll(IDBKeyRange.only(scope)) as IDBRequest<CachedPage[]>,
   );
   const songs = await req(
-    tx.objectStore(SONG_STORE).index('byScope').getAll(IDBKeyRange.only(scope)),
+    tx
+      .objectStore(SONG_STORE)
+      .index('byScope')
+      .getAll(IDBKeyRange.only(scope)) as IDBRequest<CachedSong[]>,
   );
   await txDone(tx);
 
   const songsById = new Map(
-    songs.map(({ scopeKey: _, ...song }) => [song.trackId, song]),
+    songs.map(({ scopeKey: _, ...song }): [string, Song] => [
+      song.trackId,
+      song,
+    ]),
   );
   const pagesByCursor = new Map(pages.map((page) => [page.cursorKey, page]));
-  const ordered = [];
-  const seen = new Set();
-  let current = pagesByCursor.get('first');
+  const ordered: Song[] = [];
+  const seen = new Set<string>();
+  let current: CachedPage | undefined = pagesByCursor.get('first');
   while (current) {
     for (const songId of current.songIds || []) {
       if (seen.has(songId)) continue;
@@ -134,7 +176,7 @@ export async function readAllCachedSongs(userId) {
     }
     current = current.nextCursor
       ? pagesByCursor.get(cursorKey(current.nextCursor))
-      : null;
+      : undefined;
   }
   for (const [trackId, song] of songsById) {
     if (!seen.has(trackId)) ordered.push(song);
@@ -143,7 +185,7 @@ export async function readAllCachedSongs(userId) {
   return [...songsById.values()].sort(compareSongs);
 }
 
-export async function readSongsCacheMeta(userId) {
+export async function readSongsCacheMeta(userId: string) {
   if (!('indexedDB' in window)) return null;
   const db = await openDb();
   const scope = scopeKey(userId);
@@ -153,7 +195,11 @@ export async function readSongsCacheMeta(userId) {
   return meta || null;
 }
 
-export async function writeSongsCacheMeta(userId, meta, options = {}) {
+export async function writeSongsCacheMeta(
+  userId: string,
+  meta: Record<string, unknown>,
+  options: WriteOptions = {},
+) {
   if (!('indexedDB' in window)) return;
   const db = await openDb();
   const scope = scopeKey(userId);
@@ -168,7 +214,7 @@ export async function writeSongsCacheMeta(userId, meta, options = {}) {
   await txDone(tx);
 }
 
-export async function clearSongsCache(userId) {
+export async function clearSongsCache(userId: string) {
   if (!('indexedDB' in window)) return;
   const db = await openDb();
   const scope = scopeKey(userId);
@@ -191,7 +237,12 @@ export async function clearSongsCache(userId) {
   await txDone(tx);
 }
 
-export async function upsertSongsPage(userId, cursorIn, page, options = {}) {
+export async function upsertSongsPage(
+  userId: string,
+  cursorIn: SongsCursor | null,
+  page: SongsPage,
+  options: WriteOptions = {},
+) {
   if (!('indexedDB' in window)) return;
   const db = await openDb();
   const scope = scopeKey(userId);
@@ -217,7 +268,7 @@ export async function upsertSongsPage(userId, cursorIn, page, options = {}) {
   await txDone(tx);
 }
 
-function compareSongs(a, b) {
+function compareSongs(a: Song, b: Song) {
   return (
     String(a.artistName || '').localeCompare(String(b.artistName || '')) ||
     String(a.name || '').localeCompare(String(b.name || '')) ||

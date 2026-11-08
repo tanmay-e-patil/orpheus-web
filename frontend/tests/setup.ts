@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { vi, beforeEach } from 'vitest';
+import { syncRoute } from '../src/lib/navigation.svelte';
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation((query) => ({
@@ -24,4 +25,5 @@ window.scrollTo = vi.fn();
 beforeEach(() => {
   localStorage.clear();
   history.replaceState({}, '', '/home');
+  syncRoute();
 });

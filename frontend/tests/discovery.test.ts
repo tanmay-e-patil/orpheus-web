@@ -7,10 +7,10 @@ import {
   saveWorkflowState,
   loadWorkflowState,
   getAllDrafts,
-} from '../src/lib/core/store.js';
+} from '../src/lib/core/workflow-store.svelte';
 import { makeEdits } from '../src/lib/music';
 import type { Workflow } from '../src/lib/types';
-vi.mock('../src/lib/core/idb-song-cache.js', () => ({
+vi.mock('../src/lib/core/idb-song-cache', () => ({
   clearSongsCache: vi.fn().mockResolvedValue(undefined),
 }));
 afterEach(() => vi.restoreAllMocks());

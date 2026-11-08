@@ -12,13 +12,13 @@ import {
   createInitialWorkflowState,
   loadWorkflowState,
   saveWorkflowState,
-} from '../src/lib/core/store.js';
+} from '../src/lib/core/workflow-store.svelte';
 import {
   clearPlayer,
   getPlayerState,
   setQueue,
   setTime,
-} from '../src/lib/core/player-store.js';
+} from '../src/lib/core/player-store.svelte';
 import { rankAudioSources } from '../src/lib/discovery';
 import type { Video, Match } from '../src/lib/types';
 
@@ -40,7 +40,7 @@ vi.mock('../src/lib/youtube', () => ({
   }),
   youtubeErrorMessage: (code: number) => `Playback failed (${code})`,
 }));
-vi.mock('../src/lib/core/idb-song-cache.js', () => ({
+vi.mock('../src/lib/core/idb-song-cache', () => ({
   clearSongsCache: vi.fn().mockResolvedValue(undefined),
 }));
 afterEach(() => {

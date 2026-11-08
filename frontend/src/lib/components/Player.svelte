@@ -22,31 +22,24 @@
   import PlayerGlow from './PlayerGlow.svelte';
   import Lyrics from './Lyrics.svelte';
   import InlineVideo from './InlineVideo.svelte';
+  import { ui, layout } from '$lib/state.svelte';
   import {
-    playback,
-    nowPlaying,
-    dockedPlayer,
-    playerPaneCollapsed,
-    videoDockedLayout,
-  } from '$lib/state';
-  import {
+    player,
     play,
     pause,
     prev,
     next,
     seek,
     setQueue,
-  } from '$lib/core/player-store.js';
+  } from '$lib/core/player-store.svelte';
   import { clock } from '$lib/music';
   import { playerDismiss } from '$lib/player-dismiss';
   let videoComponent: { activate(fullscreen?: boolean): void } | undefined =
     $state();
-  const visible = $derived($dockedPlayer || $nowPlaying);
-  let playerSheet = $state<HTMLElement | null>(null);
-  $effect(() => {
-    if (playerSheet && $nowPlaying && !$dockedPlayer)
-      return playerDismiss(playerSheet, () => nowPlaying.set(false));
-  });
+  const visible = $derived(layout.dockedPlayer || ui.nowPlaying);
+  const dismissable = $derived(ui.nowPlaying && !layout.dockedPlayer);
+  const dismissOnSwipe = (node: HTMLElement) =>
+    playerDismiss(node, () => (ui.nowPlaying = false));
   let panel = $state<'lyrics' | 'queue' | null>(null);
   let tab = $state('song'),
     videoSongId = $state<string | null>(null),
@@ -54,17 +47,17 @@
   let largeArtwork: HTMLDivElement | undefined = $state();
   let smallArtwork: HTMLDivElement | undefined = $state();
   const compactArtwork = $derived(!!panel || tab === 'video');
-  const song = $derived($playback.song);
+  const song = $derived(player.song);
   const canPlay = $derived(
     !!song && (song.isAvailable || videoSongId === song.trackId),
   );
-  const loading = $derived($playback.status === 'loading');
+  const loading = $derived(player.status === 'loading');
   const playing = $derived(
-    $playback.status === 'playing' || $playback.status === 'loading',
+    player.status === 'playing' || player.status === 'loading',
   );
   const progress = $derived(
-    $playback.duration
-      ? Math.min(100, ($playback.currentTime / $playback.duration) * 100)
+    player.duration
+      ? Math.min(100, (player.currentTime / player.duration) * 100)
       : 0,
   );
   $effect(() => {
@@ -74,9 +67,9 @@
     else if (song?.trackId !== videoSongId) videoSongId = null;
   });
   $effect(() => {
-    if (tab !== 'video' || !visible) videoDockedLayout.set(null);
+    if (tab !== 'video' || !visible) ui.videoDockedLayout = null;
   });
-  onDestroy(() => videoDockedLayout.set(null));
+  onDestroy(() => (ui.videoDockedLayout = null));
   function playerMotion(node: Element, { pane = false } = {}) {
     return fly(node, {
       x: pane ? node.getBoundingClientRect().width : 0,
@@ -96,8 +89,8 @@
   function expand(value = 'song') {
     panel = value === 'lyrics' || value === 'queue' ? value : null;
     if (!panel) tab = 'song';
-    playerPaneCollapsed.set(false);
-    nowPlaying.set(true);
+    ui.playerPaneCollapsed = false;
+    ui.nowPlaying = true;
   }
 </script>
 
@@ -108,9 +101,9 @@
       <input
         type="range"
         min="0"
-        max={$playback.duration || 1}
+        max={player.duration || 1}
         step="0.1"
-        value={$playback.currentTime}
+        value={player.currentTime}
         oninput={(e) => seek(Number(e.currentTarget.value))}
         aria-label={label}
         aria-busy={loading}
@@ -140,8 +133,8 @@
     <div class="expanded-seek">
       {@render seekBar('Seek in Now Playing')}
       <div>
-        <span>{clock($playback.currentTime)}</span><span
-          >{clock($playback.duration)}</span
+        <span>{clock(player.currentTime)}</span><span
+          >{clock(player.duration)}</span
         >
       </div>
     </div>
@@ -181,7 +174,7 @@
         >
       </div>
     </div>
-    {#if $dockedPlayer}
+    {#if layout.dockedPlayer}
       <div class="dock-volume">
         <Volume2 size={16} />
         <input
@@ -192,18 +185,18 @@
           aria-label="Volume"
           style={`--progress:${volume}%`}
           oninput={(e) =>
-            $playback.controller?.setVolume(Number(e.currentTarget.value))}
+            player.controller?.setVolume(Number(e.currentTarget.value))}
         />
       </div>
     {/if}
   {/snippet}
-  {#if !$dockedPlayer && !$nowPlaying}
+  {#if !layout.dockedPlayer && !ui.nowPlaying}
     <footer
       class="player-bar"
       aria-label="Music player"
       transition:playerMotion
-      inert={$dockedPlayer || $nowPlaying}
-      aria-hidden={$dockedPlayer || $nowPlaying}
+      inert={layout.dockedPlayer || ui.nowPlaying}
+      aria-hidden={layout.dockedPlayer || ui.nowPlaying}
     >
       <button
         class="player-bar-open"
@@ -236,9 +229,9 @@
           >
         </div>
         <div class="seek-row">
-          <span>{clock($playback.currentTime)}</span>{@render seekBar(
+          <span>{clock(player.currentTime)}</span>{@render seekBar(
             'Seek playback',
-          )}<span>{clock($playback.duration)}</span>
+          )}<span>{clock(player.duration)}</span>
         </div>
       </div>
       <div class="player-secondary">
@@ -257,7 +250,7 @@
           bind:value={volume}
           aria-label="Volume"
           oninput={(e) =>
-            $playback.controller?.setVolume(Number(e.currentTarget.value))}
+            player.controller?.setVolume(Number(e.currentTarget.value))}
         />
       </div>
       <div class="mobile-playback">
@@ -289,15 +282,17 @@
       ><div class="now-playing-header" data-player-drag-region>
         <button
           class="icon-control now-playing-close"
-          aria-label={$dockedPlayer ? 'Collapse Now Playing' : 'Close player'}
+          aria-label={layout.dockedPlayer
+            ? 'Collapse Now Playing'
+            : 'Close player'}
           onclick={() => {
-            videoDockedLayout.set(null);
-            if ($dockedPlayer) playerPaneCollapsed.set(true);
-            nowPlaying.set(false);
+            ui.videoDockedLayout = null;
+            if (layout.dockedPlayer) ui.playerPaneCollapsed = true;
+            ui.nowPlaying = false;
           }}
-          >{#if $dockedPlayer}<PanelRightClose size={20} />{:else}<ChevronDown
-              size={24}
-            />{/if}</button
+          >{#if layout.dockedPlayer}<PanelRightClose
+              size={20}
+            />{:else}<ChevronDown size={24} />{/if}</button
         >
         <Tabs.List class="now-playing-tabs" aria-label="Now Playing sections"
           ><Tabs.Trigger value="song" onclick={() => (panel = null)}
@@ -306,7 +301,7 @@
             value="video"
             onclick={() => {
               panel = null;
-              videoDockedLayout.set($dockedPlayer);
+              ui.videoDockedLayout = layout.dockedPlayer;
               tab = 'video';
               videoComponent?.activate(true);
             }}
@@ -360,17 +355,17 @@
           hidden={panel !== 'queue'}
         >
           <p class="small muted">
-            {$playback.queue.length} songs in this listening session
+            {player.queue.length} songs in this listening session
           </p>
           <div class="queue-list">
-            {#each $playback.queue as queued, index}<button
-                class:current={index === $playback.currentIndex}
-                onclick={() => setQueue($playback.queue, index)}
+            {#each player.queue as queued, index}<button
+                class:current={index === player.currentIndex}
+                onclick={() => setQueue(player.queue, index)}
                 ><Artwork src={queued.albumArt} size="small" /><span
                   ><strong>{queued.name}</strong><small
                     >{queued.artistName}</small
                   ></span
-                >{#if index === $playback.currentIndex}<Music2
+                >{#if index === player.currentIndex}<Music2
                     size={16}
                   />{/if}</button
               >{/each}
@@ -380,23 +375,23 @@
       <div class="now-playing-controls">{@render songControls()}</div>
     </Tabs.Root>
   {/snippet}
-  {#if $dockedPlayer}
+  {#if layout.dockedPlayer}
     <aside
       class="now-playing-sheet now-playing-dock"
       aria-label="Now Playing"
       transition:playerMotion={{ pane: true }}
-      inert={!$dockedPlayer}
-      aria-hidden={!$dockedPlayer}
+      inert={!layout.dockedPlayer}
+      aria-hidden={!layout.dockedPlayer}
     >
       {@render playerContent()}
     </aside>
   {:else}
-    <Sheet.Root bind:open={$nowPlaying}>
+    <Sheet.Root bind:open={ui.nowPlaying}>
       <Sheet.Content
         forceMount
-        preventScroll={$nowPlaying}
-        style={$nowPlaying ? undefined : 'display: none;'}
-        bind:ref={playerSheet}
+        preventScroll={ui.nowPlaying}
+        style={ui.nowPlaying ? undefined : 'display: none;'}
+        {@attach dismissable && dismissOnSwipe}
         side="bottom"
         class="now-playing-sheet"
         showCloseButton={false}

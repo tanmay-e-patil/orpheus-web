@@ -14,10 +14,11 @@
   import { Input } from '$lib/components/ui/input';
   import * as Dialog from '$lib/components/ui/dialog';
   import { api } from '$lib/api';
-  import { Passkey } from '$lib/core/passkey.js';
-  import { clearPlayer } from '$lib/core/player-store.js';
-  import { session, errorMessage } from '$lib/state';
-  import { navigate } from '$lib/navigation';
+  import { Passkey } from '$lib/core/passkey';
+  import { clearPlayer } from '$lib/core/player-store.svelte';
+  import { auth, errorMessage } from '$lib/state.svelte';
+  import { navigate } from '$lib/navigation.svelte';
+  import { appearance, type Appearance } from '$lib/appearance.svelte';
   let keys = $state<{ id: string; name: string; createdAt: string }[]>([]),
     loading = $state(true),
     busy = $state(false),
@@ -25,16 +26,16 @@
   let addOpen = $state(false),
     keyName = $state('Personal device'),
     deleting = $state<{ id: string; name: string } | null>(null);
-  let appearance = $state(localStorage.getItem('orpheus-appearance') || 'dark');
   const supported = Passkey.isSupported();
-  $effect(() => {
-    localStorage.setItem('orpheus-appearance', appearance);
-    const dark =
-      appearance === 'dark' ||
-      (appearance === 'system' &&
-        matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.classList.toggle('dark', dark);
-  });
+  const appearanceOptions: {
+    value: Appearance;
+    label: string;
+    icon: typeof Moon;
+  }[] = [
+    { value: 'dark', label: 'Dark', icon: Moon },
+    { value: 'light', label: 'Light', icon: Sun },
+    { value: 'system', label: 'System', icon: Monitor },
+  ];
   async function load() {
     try {
       keys = (await api.passkeyList()).passkeys;
@@ -81,7 +82,7 @@
     try {
       await api.logout();
       clearPlayer();
-      session.set(null);
+      auth.session = null;
       navigate('/', true);
     } catch (e) {
       error = errorMessage(e);
@@ -103,10 +104,10 @@
       <h2>Appearance</h2>
     </div>
     <div class="appearance-options">
-      {#each [{ value: 'dark', label: 'Dark', icon: Moon }, { value: 'light', label: 'Light', icon: Sun }, { value: 'system', label: 'System', icon: Monitor }] as option}<button
-          class:selected={appearance === option.value}
-          onclick={() => (appearance = option.value)}
-          aria-pressed={appearance === option.value}
+      {#each appearanceOptions as option}<button
+          class:selected={appearance.preference === option.value}
+          onclick={() => (appearance.preference = option.value)}
+          aria-pressed={appearance.preference === option.value}
           ><option.icon size={21} />{option.label}</button
         >{/each}
     </div>
@@ -148,7 +149,7 @@
       <div>
         <h2>Your account</h2>
         <p class="muted">
-          {$session?.user?.email || $session?.user?.username || ''}
+          {auth.session?.user?.email || auth.session?.user?.username || ''}
         </p>
       </div>
       <Button variant="outline" disabled={busy} onclick={logout}

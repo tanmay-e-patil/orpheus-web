@@ -1,25 +1,24 @@
-import { get } from 'svelte/store';
-import { clearSongsCache } from './core/idb-song-cache.js';
-import { removeQueueSong } from './core/player-store.js';
-import { libraryVersion, session } from './state';
+import { clearSongsCache } from './core/idb-song-cache';
+import { removeQueueSong } from './core/player-store.svelte';
+import { cacheUserId, library } from './state.svelte';
 
-const eventName = 'orpheus:song-deleted';
+// Other tabs learn about deletions through this localStorage key.
 const storageKey = 'orpheus:song-deleted';
+const listeners = new Set<(trackId: string) => void>();
 
 export function onSongDeleted(listener: (trackId: string) => void) {
-  const handler = (event: Event) =>
-    listener((event as CustomEvent<string>).detail);
-  window.addEventListener(eventName, handler);
-  return () => window.removeEventListener(eventName, handler);
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 async function applyDeletion(trackId: string) {
   // Abort page loads synchronously, before waiting for IndexedDB transactions.
-  window.dispatchEvent(new CustomEvent(eventName, { detail: trackId }));
+  listeners.forEach((listener) => listener(trackId));
   removeQueueSong(trackId);
-  const userId = get(session)?.user?.id || 'single-user';
-  await clearSongsCache(userId).catch(() => {});
-  libraryVersion.update((version) => version + 1);
+  await clearSongsCache(cacheUserId()).catch(() => {});
+  library.version++;
 }
 
 export async function songDeleted(trackId: string) {

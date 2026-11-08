@@ -328,7 +328,7 @@ Layout:
 Playback:
 
 - Convert detail tracks to `song` queue array.
-- Call existing `setQueue(queue, index)` from `player-store.js`.
+- Call existing `setQueue(queue, index)` from `frontend/src/lib/core/player-store.svelte.ts`.
 - Existing player auto-advances.
 
 Polling:

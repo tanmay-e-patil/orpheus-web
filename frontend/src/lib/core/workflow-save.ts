@@ -1,15 +1,30 @@
+import type {
+  LyricsResult,
+  SaveResult,
+  SongEdits,
+  Track,
+  Video,
+  Workflow,
+} from '../types';
+
+export type CommitItem = {
+  song: Track;
+  video: Video;
+  lyricsSearchResult?: LyricsResult;
+  edits: SongEdits | Record<string, never>;
+};
+
 // Keep successful songs out of retries after a partially successful batch.
-/**
- * @param {import('../types').Workflow} state
- * @param {import('../types').SaveResult[]} results
- */
-export function buildCommitItems(state, results = []) {
+export function buildCommitItems(
+  state: Workflow,
+  results: SaveResult[] = [],
+): CommitItem[] {
   const saved = new Set(
     results.filter((result) => result.success).map((result) => result.trackId),
   );
   return state.trackMatches
     .filter((result) => result.selectedMatch)
-    .flatMap((result, index) => {
+    .flatMap((result, index): CommitItem[] => {
       const song = result.selectedMatch;
       if (!song) return [];
       if (saved.has(song.id)) return [];
@@ -26,12 +41,11 @@ export function buildCommitItems(state, results = []) {
     });
 }
 
-/**
- * @param {import('../types').SaveResult[]} previous
- * @param {ReturnType<typeof buildCommitItems>} submitted
- * @param {import('../types').SaveResult[]} received
- */
-export function mergeCommitResults(previous, submitted, received) {
+export function mergeCommitResults(
+  previous: SaveResult[],
+  submitted: CommitItem[],
+  received: SaveResult[],
+) {
   const results = new Map(previous.map((result) => [result.trackId, result]));
   for (const item of submitted) {
     const result = received.find(

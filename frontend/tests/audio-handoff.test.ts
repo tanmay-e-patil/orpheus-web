@@ -4,7 +4,7 @@ import {
   getPlayerState,
   currentSong,
   setQueue,
-} from '../src/lib/core/player-store.js';
+} from '../src/lib/core/player-store.svelte';
 import type { Song } from '../src/lib/types';
 it('ignores native audio events while the YouTube transport owns playback', async () => {
   class AudioFixture extends EventTarget {
@@ -40,7 +40,7 @@ it('ignores native audio events while the YouTube transport owns playback', asyn
   vi.stubGlobal('Audio', AudioFixture);
   vi.stubGlobal('requestAnimationFrame', () => 1);
   vi.stubGlobal('cancelAnimationFrame', vi.fn());
-  const { initAudioPlayer } = await import('../src/lib/core/audio-player.js');
+  const { initAudioPlayer } = await import('../src/lib/core/audio-player');
   initAudioPlayer();
   const songs: Song[] = ['one', 'two'].map((trackId) => ({
     trackId,

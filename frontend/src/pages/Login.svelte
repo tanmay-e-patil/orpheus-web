@@ -4,8 +4,8 @@
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { api } from '$lib/api';
-  import { Passkey } from '$lib/core/passkey.js';
-  import { errorMessage } from '$lib/state';
+  import { Passkey } from '$lib/core/passkey';
+  import { errorMessage } from '$lib/state.svelte';
   let { onauthenticated }: { onauthenticated: () => Promise<void> } = $props();
   let email = $state(''),
     password = $state(''),

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { Maximize2, Minimize2 } from '@lucide/svelte';
   import { createLandscapeLock } from '$lib/video-orientation';
   import {
@@ -8,12 +8,12 @@
     type YouTubePlayer,
   } from '$lib/youtube';
   import { createVideoPlayback } from '$lib/video-playback';
-  import { errorMessage } from '$lib/state';
+  import { errorMessage } from '$lib/state.svelte';
   import {
     recordFullscreen,
     requestFullscreenWithDiagnostics,
   } from '$lib/fullscreen-diagnostics';
-  import { getPlayerState } from '$lib/core/player-store.js';
+  import { getPlayerState } from '$lib/core/player-store.svelte';
   let {
     id,
     active = false,
@@ -172,9 +172,11 @@
   }
 
   $effect(() => {
+    // Only `active`, the error, and blocking drive this; activation reads the
+    // player state without subscribing to it.
     if (active) {
-      if (!playback && !preparationError && !blocked) activate();
-    } else deactivate();
+      if (!playback && !preparationError && !blocked) untrack(() => activate());
+    } else untrack(deactivate);
   });
 
   onMount(() => {

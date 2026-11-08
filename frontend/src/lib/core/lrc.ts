@@ -1,8 +1,10 @@
 const timeTag = /\[(\d{1,2}):(\d{1,2})(?:\.(\d{1,3}))?]/;
 
-export function parseLRC(raw) {
+export type LyricLine = { timeMs: number; text: string };
+
+export function parseLRC(raw?: string | null): LyricLine[] {
   if (!raw) return [];
-  const out = [];
+  const out: LyricLine[] = [];
   for (const line of raw.split(/\r?\n/)) {
     const match = line.match(timeTag);
     if (!match) continue;
@@ -23,7 +25,7 @@ export function parseLRC(raw) {
     out.push({ timeMs: minutes * 60000 + seconds * 1000 + ms, text });
   }
   out.sort((a, b) => a.timeMs - b.timeMs);
-  const deduped = [];
+  const deduped: LyricLine[] = [];
   let last = -1;
   for (const line of out) {
     if (line.timeMs !== last) {
@@ -34,7 +36,7 @@ export function parseLRC(raw) {
   return deduped;
 }
 
-export function findActiveIndex(lines, currentMs) {
+export function findActiveIndex(lines: LyricLine[], currentMs: number) {
   let lo = 0;
   let hi = lines.length - 1;
   let ans = -1;

@@ -1,8 +1,12 @@
 <script lang="ts">
   import { notify } from '$lib/notifications';
   import { api } from '$lib/api';
-  import { playback, errorMessage } from '$lib/state';
-  import { updateSongLyrics, seek } from '$lib/core/player-store.js';
+  import { errorMessage } from '$lib/state.svelte';
+  import {
+    player,
+    updateSongLyrics,
+    seek,
+  } from '$lib/core/player-store.svelte';
   import LyricsDisplay from './LyricsDisplay.svelte';
   import { Button } from '$lib/components/ui/button';
   let { visible = true }: { visible?: boolean } = $props();
@@ -11,7 +15,7 @@
   );
   let loading = $state(false),
     saving = $state(false);
-  const song = $derived($playback.song);
+  const song = $derived(player.song);
   const synced = $derived(fetched?.syncedLyrics || song?.syncedLyrics || '');
   $effect(() => {
     const current = song;
@@ -74,7 +78,7 @@
   resetKey={song?.trackId}
   syncedLyrics={synced}
   plainLyrics={song?.lyrics || fetched?.plainLyrics || ''}
-  currentTime={$playback.currentTime}
+  currentTime={player.currentTime}
   emptyMessage={loading
     ? 'Looking for the words…'
     : 'No lyrics for this song yet.'}
