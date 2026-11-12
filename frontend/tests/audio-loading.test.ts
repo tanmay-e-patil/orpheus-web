@@ -106,3 +106,15 @@ it('does not let late loading events replace the paused state', async () => {
     expect(store.getPlayerState().status).toBe('paused');
   }
 });
+
+it('prefetches the next queued song once playback starts', async () => {
+  const fetchMock = vi.fn(async () => new Response('audio'));
+  vi.stubGlobal('fetch', fetchMock);
+  const { audio } = await start();
+  audio.readyState = 3;
+  audio.dispatchEvent(new Event('playing'));
+  expect(fetchMock).toHaveBeenCalledWith(
+    '/api/songs/two/audio',
+    expect.objectContaining({ priority: 'low' }),
+  );
+});

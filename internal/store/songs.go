@@ -38,9 +38,12 @@ var ErrSongUnavailable = fmt.Errorf("song unavailable")
 
 type RedownloadSongsFilter struct {
 	IncludeAvailable bool
-	UpdatedAfter     *time.Time
-	UpdatedBefore    *time.Time
-	Limit            int
+	// AvailableOnly selects songs whose audio file exists, for jobs that reuse
+	// it (update-song-files). It takes precedence over IncludeAvailable.
+	AvailableOnly bool
+	UpdatedAfter  *time.Time
+	UpdatedBefore *time.Time
+	Limit         int
 }
 
 type RedownloadSong struct {
@@ -276,7 +279,10 @@ func (s *Store) RedownloadSongs(ctx context.Context, filter RedownloadSongsFilte
 func buildRedownloadSongsQuery(filter RedownloadSongsFilter) (string, []any) {
 	var args []any
 	predicates := []string{"deleted_at IS NULL"}
-	if !filter.IncludeAvailable {
+	switch {
+	case filter.AvailableOnly:
+		predicates = append(predicates, "coalesce(is_available, false) = true")
+	case !filter.IncludeAvailable:
 		predicates = append(predicates, "coalesce(is_available, false) = false")
 	}
 	if filter.UpdatedAfter != nil {

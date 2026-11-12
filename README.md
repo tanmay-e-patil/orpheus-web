@@ -108,6 +108,13 @@ failing, or a cursor no longer matches the snapshot, requests fall back to SQL.
 `orpheus_library_cache_requests_total{result}` shows hits and fallback reasons.
 Set `LIBRARY_CACHE_ENABLED=false` to disable it.
 
+Audio is served with `Cache-Control: private, no-cache` and an ETag derived
+from the file's modification time and size, so replays revalidate with a 304.
+The player prefetches the next queued song (skipped with Save-Data or 2G) so
+skipping ahead does not wait on the network. Audio files must have the `moov`
+atom first (`ffmpeg -movflags +faststart`); otherwise browsers need extra range
+requests for the end of the file before playback can start.
+
 The pool keeps four warm connections and jitters connection recycling unless
 `pool_min_conns`, `pool_max_conn_lifetime_jitter`, or
 `pool_health_check_period` are set in `DATABASE_URL`. Keep PostgreSQL on the
@@ -177,6 +184,18 @@ go run ./cmd/redownload-library \
   --updated-after 2026-05-01T00:00:00Z \
   --updated-before 2026-05-08T00:00:00Z
 ```
+
+Remux every available song in place without downloading audio again, for
+example to apply new ffmpeg output options such as `+faststart` to existing
+files (requires an `orpheus-consumer` version that writes them):
+
+```sh
+DATABASE_URL='postgres://...' \
+go run ./cmd/redownload-library --action update-song-files
+```
+
+`--action update-song-files` always selects available songs, because it reuses
+the stored audio file; it cannot be combined with `--all`.
 
 The CLI records the same `process-song-data` requests used by imports. It does not
 update `songs.is_available`; the consumer remains responsible for marking

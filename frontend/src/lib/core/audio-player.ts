@@ -9,6 +9,7 @@ import {
   updateSongPlayCount,
 } from './player-store.svelte';
 import { notify } from '../notifications';
+import { prefetchSongAudio, songAudioUrl } from './audio-prefetch';
 import { seconds as parseISODurationSeconds } from '../music';
 import { library } from '../state.svelte';
 import type { PlaybackController, Song } from '../types';
@@ -51,6 +52,8 @@ export function initAudioPlayer() {
     if (!isActive()) return;
     setPlaybackStatus('playing');
     startPolling(isActive);
+    const { queue, currentIndex } = getPlayerState();
+    prefetchSongAudio(queue[currentIndex + 1]);
   });
   audio.addEventListener('canplay', () => {
     if (!isActive()) return;
@@ -105,11 +108,7 @@ export function initAudioPlayer() {
 
   const controller: PlaybackController = {
     load: (song: Song) => {
-      const audioUrl =
-        song?.audioUrl ||
-        (song?.trackId
-          ? `/api/songs/${encodeURIComponent(song.trackId)}/audio`
-          : '');
+      const audioUrl = songAudioUrl(song);
       if (!audioUrl) {
         console.info('No audio URL available for song', {
           trackId: song?.trackId,

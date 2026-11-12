@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 	"time"
+
+	"orpheus-web/internal/store"
 )
 
 func TestParseOptionalTimestampAcceptsRFC3339(t *testing.T) {
@@ -31,5 +33,24 @@ func TestFormatOptionalTimestamp(t *testing.T) {
 	value := time.Date(2026, 5, 7, 19, 0, 0, 0, time.FixedZone("CDT", -5*60*60))
 	if got := formatOptionalTimestamp(&value); got != "2026-05-08T00:00:00Z" {
 		t.Fatalf("got %q, want UTC RFC3339", got)
+	}
+}
+
+func TestValidateAction(t *testing.T) {
+	for _, tc := range []struct {
+		action  string
+		all     bool
+		wantErr bool
+	}{
+		{store.ProcessSongAction, false, false},
+		{store.ProcessSongAction, true, false},
+		{store.UpdateSongFilesAction, false, false},
+		{store.UpdateSongFilesAction, true, true},
+		{store.DeleteSongFilesAction, false, true},
+		{"bogus", false, true},
+	} {
+		if err := validateAction(tc.action, tc.all); (err != nil) != tc.wantErr {
+			t.Errorf("validateAction(%q, all=%t) error = %v, wantErr %t", tc.action, tc.all, err, tc.wantErr)
+		}
 	}
 }
