@@ -85,3 +85,13 @@ func TestBuildRedownloadSongIDsQueryIgnoresNonPositiveLimit(t *testing.T) {
 		t.Fatalf("expected no args, got %v", args)
 	}
 }
+
+func TestBuildRedownloadSongsQueryAvailableOnly(t *testing.T) {
+	query, _ := buildRedownloadSongsQuery(RedownloadSongsFilter{AvailableOnly: true, IncludeAvailable: true})
+	if !strings.Contains(query, "coalesce(is_available, false) = true") {
+		t.Fatalf("query missing available predicate: %s", query)
+	}
+	if strings.Contains(query, "coalesce(is_available, false) = false") {
+		t.Fatalf("query should not select unavailable songs: %s", query)
+	}
+}

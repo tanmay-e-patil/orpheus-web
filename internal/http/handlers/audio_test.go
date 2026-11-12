@@ -91,3 +91,47 @@ func TestLibraryAudioPathUsesStoredLocationDuringRename(t *testing.T) {
 		}
 	}
 }
+
+func TestServeAudioFileRevalidatesWithETag(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "Track.m4a")
+	if err := os.WriteFile(path, []byte("0123456789"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	get := func(header, value string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/api/songs/track/audio", nil)
+		if header != "" {
+			req.Header.Set(header, value)
+		}
+		rec := httptest.NewRecorder()
+		serveAudioFile(rec, req, path)
+		return rec
+	}
+
+	first := get("", "")
+	etag := first.Header().Get("ETag")
+	if first.Code != http.StatusOK || etag == "" {
+		t.Fatalf("status = %d, ETag = %q", first.Code, etag)
+	}
+	if got := first.Header().Get("Cache-Control"); got != "private, no-cache" {
+		t.Fatalf("Cache-Control = %q", got)
+	}
+	if rec := get("If-None-Match", etag); rec.Code != http.StatusNotModified || rec.Body.Len() != 0 {
+		t.Fatalf("revalidation status = %d, body = %d bytes", rec.Code, rec.Body.Len())
+	}
+	if rec := get("Range", "bytes=2-4"); rec.Code != http.StatusPartialContent || rec.Body.String() != "234" {
+		t.Fatalf("range status = %d, body = %q", rec.Code, rec.Body.String())
+	}
+
+	// The consumer replaces files by rename; a new version must not match.
+	replacement := path + ".tmp"
+	if err := os.WriteFile(replacement, []byte("new audio bytes"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(replacement, path); err != nil {
+		t.Fatal(err)
+	}
+	rec := get("If-None-Match", etag)
+	if rec.Code != http.StatusOK || rec.Body.String() != "new audio bytes" || rec.Header().Get("ETag") == etag {
+		t.Fatalf("after replacement status = %d, body = %q, ETag = %q", rec.Code, rec.Body.String(), rec.Header().Get("ETag"))
+	}
+}

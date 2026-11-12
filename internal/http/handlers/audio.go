@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -39,27 +40,41 @@ func StreamSongAudio(db *store.Store, libraryPath string) http.HandlerFunc {
 			Error(w, http.StatusNotFound, "audio_missing", "Audio file missing")
 			return
 		}
-		file, err := os.Open(path)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				Error(w, http.StatusNotFound, "audio_missing", "Audio file missing")
-				return
-			}
-			Error(w, http.StatusInternalServerError, "audio_open_failed", "Could not open audio file")
-			return
-		}
-		defer file.Close()
-		info, err := file.Stat()
-		if err != nil || info.IsDir() {
+		serveAudioFile(w, r, path)
+	}
+}
+
+// serveAudioFile lets browsers keep audio and revalidate it cheaply. The
+// consumer replaces files atomically (rename), so modification time plus size
+// identifies a version; replays get 304 instead of re-downloading the file.
+func serveAudioFile(w http.ResponseWriter, r *http.Request, path string) {
+	file, err := os.Open(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
 			Error(w, http.StatusNotFound, "audio_missing", "Audio file missing")
 			return
 		}
-		w.Header().Set("Content-Type", "audio/mp4")
-		w.Header().Set("Accept-Ranges", "bytes")
-		w.Header().Set("Cache-Control", "private, no-store")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		http.ServeContent(w, r, filepath.Base(path), song.UpdatedAt, file)
+		Error(w, http.StatusInternalServerError, "audio_open_failed", "Could not open audio file")
+		return
 	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || info.IsDir() {
+		Error(w, http.StatusNotFound, "audio_missing", "Audio file missing")
+		return
+	}
+	w.Header().Set("Content-Type", "audio/mp4")
+	w.Header().Set("Accept-Ranges", "bytes")
+	// private: per-user auth; no-cache: always revalidate so deleted or
+	// regenerated songs are never served from a stale browser copy.
+	w.Header().Set("Cache-Control", "private, no-cache")
+	w.Header().Set("ETag", audioETag(info))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	http.ServeContent(w, r, filepath.Base(path), info.ModTime(), file)
+}
+
+func audioETag(info os.FileInfo) string {
+	return `"` + strconv.FormatInt(info.ModTime().UnixNano(), 36) + "-" + strconv.FormatInt(info.Size(), 36) + `"`
 }
 
 func LibraryAudioPath(baseDir string, song types.AudioSong) (string, error) {

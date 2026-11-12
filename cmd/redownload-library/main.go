@@ -26,8 +26,12 @@ func run() error {
 		updatedBeforeRaw = flag.String("updated-before", "", "only queue songs updated at or before this RFC3339 timestamp")
 		dryRun           = flag.Bool("dry-run", false, "print matching track IDs without scheduling jobs")
 		limit            = flag.Int("limit", 0, "maximum songs to queue; 0 means no limit")
+		action           = flag.String("action", store.ProcessSongAction, "job to queue: process-song-data (download audio) or update-song-files (remux existing audio in place; selects available songs)")
 	)
 	flag.Parse()
+	if err := validateAction(*action, *includeAvailable); err != nil {
+		return err
+	}
 	if *limit < 0 {
 		return fmt.Errorf("limit must be greater than or equal to 0")
 	}
@@ -60,6 +64,7 @@ func run() error {
 
 	filter := store.RedownloadSongsFilter{
 		IncludeAvailable: *includeAvailable,
+		AvailableOnly:    *action == store.UpdateSongFilesAction,
 		UpdatedAfter:     updatedAfter,
 		UpdatedBefore:    updatedBefore,
 		Limit:            *limit,
@@ -69,9 +74,9 @@ func run() error {
 		return fmt.Errorf("fetch songs to redownload: %w", err)
 	}
 
-	fmt.Printf("Matched %d songs for redownload\n", len(songs))
-	fmt.Printf("Filters: unavailable_only=%t updated_after=%s updated_before=%s limit=%d\n",
-		!*includeAvailable,
+	fmt.Printf("Matched %d songs for %s\n", len(songs), *action)
+	fmt.Printf("Filters: availability=%s updated_after=%s updated_before=%s limit=%d\n",
+		availabilityLabel(*action, *includeAvailable),
 		formatOptionalTimestamp(updatedAfter),
 		formatOptionalTimestamp(updatedBefore),
 		*limit,
@@ -86,7 +91,7 @@ func run() error {
 	}
 
 	for i, song := range songs {
-		if _, err := db.ScheduleSong(ctx, song.TrackID, store.ProcessSongAction); err != nil {
+		if _, err := db.ScheduleSong(ctx, song.TrackID, *action); err != nil {
 			return fmt.Errorf("schedule job for %s: %w", song.TrackID, err)
 		}
 		if (i+1)%25 == 0 {
@@ -95,6 +100,33 @@ func run() error {
 	}
 	fmt.Printf("Scheduled %d jobs\n", len(songs))
 	return nil
+}
+
+// update-song-files reuses the stored audio file, so it only applies to
+// available songs; unavailable songs need process-song-data instead.
+func validateAction(action string, includeAvailable bool) error {
+	switch action {
+	case store.ProcessSongAction:
+		return nil
+	case store.UpdateSongFilesAction:
+		if includeAvailable {
+			return fmt.Errorf("--all cannot be used with --action %s; it always selects available songs", action)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported action %q: use %s or %s", action, store.ProcessSongAction, store.UpdateSongFilesAction)
+	}
+}
+
+func availabilityLabel(action string, includeAvailable bool) string {
+	switch {
+	case action == store.UpdateSongFilesAction:
+		return "available"
+	case includeAvailable:
+		return "all"
+	default:
+		return "unavailable"
+	}
 }
 
 func parseOptionalTimestamp(name, value string) (*time.Time, error) {
