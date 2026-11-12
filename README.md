@@ -90,6 +90,30 @@ Open `http://localhost:8080`.
 
 See [the local discovery testing guide](docs/discovery-testing.md) for automatic matching, manual mode, confidence rules, and regression cases.
 
+## API latency
+
+First-party API routes target p99 < 5ms time to first byte. Routes that call
+third-party APIs (`/api/discover/*`, `/api/lyrics/lrclib`, album-art refresh)
+and bcrypt password login/registration are excluded. Prometheus records
+`orpheus_http_time_to_first_byte_seconds` with sub-millisecond buckets; the
+Grafana p99 panel uses it so audio streaming is measured to its first byte.
+
+`GET /api/songs` is served from an in-memory library cache. Ordering comes from
+PostgreSQL `ORDER BY` results, so collation and pagination match the SQL path.
+Statement-level triggers (migration `0013_library_change_notify`) `NOTIFY`
+every replica when `songs` or `user_song_plays` change, including writes from
+`orpheus-consumer`; this process's own writes invalidate synchronously so
+clients read their own writes. While the listener is disconnected, a reload is
+failing, or a cursor no longer matches the snapshot, requests fall back to SQL.
+`orpheus_library_cache_requests_total{result}` shows hits and fallback reasons.
+Set `LIBRARY_CACHE_ENABLED=false` to disable it.
+
+The pool keeps four warm connections and jitters connection recycling unless
+`pool_min_conns`, `pool_max_conn_lifetime_jitter`, or
+`pool_health_check_period` are set in `DATABASE_URL`. Keep PostgreSQL on the
+same host or private network as the web container, and avoid tight container
+CPU limits: CFS throttling stalls show up directly in p99.
+
 ## Native iOS passkey sign-in
 
 The iOS client uses the system authentication browser and the existing web passkeys. It does not require Apple's Associated Domains capability or paid Apple membership.

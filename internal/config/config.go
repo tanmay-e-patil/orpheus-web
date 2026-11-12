@@ -19,6 +19,7 @@ type Config struct {
 	YouTubeAPIKey         string
 	RabbitMQURL           string
 	OutboxDispatchEnabled bool
+	LibraryCacheEnabled   bool
 	MusicLibraryPath      string
 	Domain                string
 	Port                  string
@@ -53,6 +54,14 @@ func Load() (Config, error) {
 			return Config{}, errors.New("RABBITMQ_URL is required when outbox dispatch is enabled")
 		}
 		cfg.OutboxDispatchEnabled = enabled
+	}
+	cfg.LibraryCacheEnabled = true
+	if raw, exists := os.LookupEnv("LIBRARY_CACHE_ENABLED"); exists {
+		enabled, err := strconv.ParseBool(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid LIBRARY_CACHE_ENABLED: %w", err)
+		}
+		cfg.LibraryCacheEnabled = enabled
 	}
 	cfg.CookieSecure = cfg.AppEnv == "production"
 

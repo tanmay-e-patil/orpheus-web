@@ -52,6 +52,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	cacheCtx, stopCache := context.WithCancel(ctx)
+	cacheDone := make(chan struct{})
+	if cfg.LibraryCacheEnabled {
+		library := store.NewLibraryCache(db)
+		db.Library = library
+		go func() { defer close(cacheDone); library.Run(cacheCtx) }()
+		slog.Info("library cache enabled")
+	} else {
+		close(cacheDone)
+	}
+	defer func() { stopCache(); <-cacheDone }()
+
 	httpClient := &http.Client{
 		Timeout:   cfg.HTTPTimeout,
 		Transport: otelhttp.NewTransport(http.DefaultTransport),

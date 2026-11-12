@@ -57,6 +57,11 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 	if limit > maxSongLimit {
 		limit = maxSongLimit
 	}
+	if s.Library != nil {
+		if page, ok := s.Library.page(ctx, opts, limit); ok {
+			return page, nil
+		}
+	}
 
 	args := []any{limit + 1, opts.UserID}
 	query := `
@@ -168,6 +173,7 @@ func librarySongAudioURL(trackID, revision string) string {
 // DeleteSong's FOR UPDATE (so a play cannot resurrect a deleted song's row)
 // without blocking on media workers' ordinary row updates.
 func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (RecordedSongPlay, error) {
+	defer s.playsChanged()
 	var isAvailable bool
 	var playCount *int
 	var lastPlayedAt *time.Time
@@ -298,6 +304,7 @@ func buildRedownloadSongsQuery(filter RedownloadSongsFilter) (string, []any) {
 
 // updateSongFileMetadata records file work in the same transaction as the edit.
 func (s *Store) updateSongFileMetadata(ctx context.Context, trackID, query string, args []any, action string) error {
+	defer s.songsChanged()
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return err

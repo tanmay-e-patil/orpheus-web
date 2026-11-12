@@ -35,6 +35,17 @@ var (
 		Help: "HTTP requests served.",
 	}, []string{"method", "route", "status"})
 
+	LibraryCacheRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "orpheus_library_cache_requests_total",
+		Help: "Library page requests by cache outcome (hit, or the reason for falling back to PostgreSQL).",
+	}, []string{"result"})
+
+	LibraryCacheReloadDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "orpheus_library_cache_reload_duration_seconds",
+		Help:    "Duration of library cache reloads from PostgreSQL.",
+		Buckets: latencyBuckets,
+	}, []string{"part"})
+
 	QueuePublishTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "orpheus_queue_publish_total",
 		Help: "RabbitMQ publish attempts.",
@@ -42,7 +53,7 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(HTTPRequestDuration, HTTPTimeToFirstByte, HTTPRequestsTotal, QueuePublishTotal, OutboxPending, OutboxOldestCreated, DeletionPending, DeletionOldestCreated)
+	prometheus.MustRegister(HTTPRequestDuration, HTTPTimeToFirstByte, LibraryCacheRequests, LibraryCacheReloadDuration, HTTPRequestsTotal, QueuePublishTotal, OutboxPending, OutboxOldestCreated, DeletionPending, DeletionOldestCreated)
 }
 
 func ObserveHTTPRequest(method, route string, status int, duration, timeToFirstByte time.Duration) {
@@ -57,4 +68,12 @@ func ObserveHTTPRequest(method, route string, status int, duration, timeToFirstB
 
 func ObserveQueuePublish(queue, result string) {
 	QueuePublishTotal.WithLabelValues(queue, result).Inc()
+}
+
+func ObserveLibraryCache(result string) {
+	LibraryCacheRequests.WithLabelValues(result).Inc()
+}
+
+func ObserveLibraryCacheReload(part string, duration time.Duration) {
+	LibraryCacheReloadDuration.WithLabelValues(part).Observe(duration.Seconds())
 }

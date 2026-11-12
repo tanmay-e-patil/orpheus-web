@@ -19,6 +19,21 @@ var migrationsFS embed.FS
 
 type Store struct {
 	Pool *pgxpool.Pool
+	// Library, when set, serves FetchSongsPage from memory. Write methods call
+	// songsChanged/playsChanged after committing so reads see their own writes.
+	Library *LibraryCache
+}
+
+func (s *Store) songsChanged() {
+	if s.Library != nil {
+		s.Library.SongsChanged()
+	}
+}
+
+func (s *Store) playsChanged() {
+	if s.Library != nil {
+		s.Library.PlaysChanged()
+	}
 }
 
 func Open(ctx context.Context, databaseURL string) (*Store, error) {
