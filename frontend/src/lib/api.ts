@@ -14,6 +14,7 @@ import type {
   PasskeyRequestResponse,
   PasskeyServerOptions,
 } from './core/passkey';
+import type { PlaybackStartReport } from './core/playback-start-timer';
 
 export class APIError extends Error {
   constructor(
@@ -167,6 +168,8 @@ export const api = {
       songPath(trackId),
       { method: 'DELETE' },
     ),
+  reportPlaybackStart: (report: PlaybackStartReport) =>
+    post<null>('/api/metrics/playback-start', report),
   recordSongPlay: (trackId: string) =>
     post<{ trackId: string; playCount: number }>(songPath(trackId, '/plays')),
   updateSongMetadata: (trackId: string, metadata: Record<string, string>) =>

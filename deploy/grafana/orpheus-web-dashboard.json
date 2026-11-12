@@ -115,6 +115,19 @@
       "targets": [{ "query": "{ resource.service.name =~ `orpheus-(web|consumer)` && duration > 1s }", "queryType": "traceql", "refId": "A", "tableType": "traces" }],
       "title": "Slow traces (>1s)",
       "type": "table"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 51 },
+      "id": 13,
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum by (le, trigger) (rate(orpheus_playback_start_duration_seconds_bucket{job=\"orpheus-web\"}[15m])))", "legendFormat": "p50 {{trigger}}", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le, trigger) (rate(orpheus_playback_start_duration_seconds_bucket{job=\"orpheus-web\"}[15m])))", "legendFormat": "p95 {{trigger}}", "refId": "B" },
+        { "expr": "histogram_quantile(0.5, sum by (le, prefetched) (rate(orpheus_playback_start_duration_seconds_bucket{job=\"orpheus-web\"}[15m])))", "legendFormat": "p50 prefetched={{prefetched}}", "refId": "C" }
+      ],
+      "title": "Playback start time (play request → audio playing, browser)",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",
