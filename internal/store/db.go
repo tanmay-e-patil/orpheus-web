@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -26,6 +27,7 @@ func Open(ctx context.Context, databaseURL string) (*Store, error) {
 		return nil, err
 	}
 	cfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithDisableSQLStatementInAttributes())
+	applyPoolLatencyDefaults(cfg, databaseURL)
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -35,6 +37,21 @@ func Open(ctx context.Context, databaseURL string) (*Store, error) {
 		return nil, err
 	}
 	return &Store{Pool: pool}, nil
+}
+
+// applyPoolLatencyDefaults keeps warm connections so requests never pay for a
+// TCP/TLS/auth handshake, and spreads lifetime recycling so connections do not
+// all reconnect at once. Explicit pool_* settings in the URL take precedence.
+func applyPoolLatencyDefaults(cfg *pgxpool.Config, databaseURL string) {
+	if !strings.Contains(databaseURL, "pool_min_conns") && cfg.MinConns < 4 {
+		cfg.MinConns = min(4, cfg.MaxConns)
+	}
+	if !strings.Contains(databaseURL, "pool_max_conn_lifetime_jitter") && cfg.MaxConnLifetimeJitter == 0 {
+		cfg.MaxConnLifetimeJitter = cfg.MaxConnLifetime / 4
+	}
+	if !strings.Contains(databaseURL, "pool_health_check_period") {
+		cfg.HealthCheckPeriod = 15 * time.Second
+	}
 }
 
 func (s *Store) Close() {

@@ -76,7 +76,7 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 			query += ` AND (songs.created_at < $3 or (songs.created_at = $3 and songs.id > $4))`
 			args = append(args, opts.Cursor.CreatedAt, opts.Cursor.TrackID)
 		default:
-			query += ` AND (songs.artist_name > $3 or (songs.artist_name = $3 and songs.id > $4))`
+			query += ` AND (songs.artist_name, songs.id) > ($3, $4)`
 			args = append(args, opts.Cursor.ArtistName, opts.Cursor.TrackID)
 		}
 	}
@@ -164,36 +164,38 @@ func librarySongAudioURL(trackID, revision string) string {
 	return path + "?v=" + url.QueryEscape(revision)
 }
 
+// RecordSongPlay is a single round trip. FOR KEY SHARE serializes with
+// DeleteSong's FOR UPDATE (so a play cannot resurrect a deleted song's row)
+// without blocking on media workers' ordinary row updates.
 func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (RecordedSongPlay, error) {
-	tx, err := s.Pool.Begin(ctx)
-	if err != nil {
-		return RecordedSongPlay{}, err
-	}
-	defer tx.Rollback(ctx)
 	var isAvailable bool
-	err = tx.QueryRow(ctx, `select coalesce(is_available, false) from songs where id = $1 AND deleted_at IS NULL FOR UPDATE`, trackID).Scan(&isAvailable)
+	var playCount *int
+	var lastPlayedAt *time.Time
+	err := s.Pool.QueryRow(ctx, `
+		with song as (
+			select id, coalesce(is_available, false) as is_available
+			from songs where id = $2 and deleted_at is null
+			for key share
+		), play as (
+			insert into user_song_plays (user_id, track_id, play_count, last_played_at, created_at, updated_at)
+			select $1, id, 1, now(), now(), now() from song where is_available
+			on conflict (user_id, track_id)
+			do update set
+			  play_count = user_song_plays.play_count + 1,
+			  last_played_at = now(),
+			  updated_at = now()
+			returning play_count, last_played_at
+		)
+		select song.is_available, play.play_count, play.last_played_at
+		from song left join play on true
+	`, userID, trackID).Scan(&isAvailable, &playCount, &lastPlayedAt)
 	if err != nil {
 		return RecordedSongPlay{}, err
 	}
-	if !isAvailable {
+	if !isAvailable || playCount == nil || lastPlayedAt == nil {
 		return RecordedSongPlay{}, ErrSongUnavailable
 	}
-	var play RecordedSongPlay
-	play.TrackID = trackID
-	err = tx.QueryRow(ctx, `
-		insert into user_song_plays (user_id, track_id, play_count, last_played_at, created_at, updated_at)
-		values ($1, $2, 1, now(), now(), now())
-		on conflict (user_id, track_id)
-		do update set
-		  play_count = user_song_plays.play_count + 1,
-		  last_played_at = now(),
-		  updated_at = now()
-		returning play_count, last_played_at
-	`, userID, trackID).Scan(&play.PlayCount, &play.LastPlayedAt)
-	if err != nil {
-		return RecordedSongPlay{}, err
-	}
-	return play, tx.Commit(ctx)
+	return RecordedSongPlay{TrackID: trackID, PlayCount: *playCount, LastPlayedAt: *lastPlayedAt}, nil
 }
 
 func (s *Store) SongForAudio(ctx context.Context, trackID string) (types.AudioSong, error) {

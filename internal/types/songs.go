@@ -2,6 +2,7 @@ package types
 
 import (
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -62,16 +63,21 @@ type SaveLyricsRequest struct {
 }
 
 func SongPageRevision(songs []LibrarySong) string {
-	out := ""
+	var out strings.Builder
 	for i, song := range songs {
 		if i > 0 {
-			out += "||"
+			out.WriteString("||")
 		}
 		available := "0"
 		if song.IsAvailable {
 			available = "1"
 		}
-		out += song.TrackID + "|" + song.ArtistName + "|" + song.Name + "|" + song.AlbumName + "|" + song.AlbumArt + "|" + song.Duration + "|" + song.YoutubeVideoID + "|" + available + "|" + song.AudioURL + "|" + strconv.Itoa(song.PlayCount)
+		for j, part := range [...]string{song.TrackID, song.ArtistName, song.Name, song.AlbumName, song.AlbumArt, song.Duration, song.YoutubeVideoID, available, song.AudioURL, strconv.Itoa(song.PlayCount)} {
+			if j > 0 {
+				out.WriteByte('|')
+			}
+			out.WriteString(part)
+		}
 	}
-	return out
+	return out.String()
 }
