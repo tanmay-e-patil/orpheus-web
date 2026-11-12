@@ -7,6 +7,7 @@ import (
 )
 
 func (s *Store) UpsertSongAndVideo(ctx context.Context, song types.SongUpsert, video types.YouTubeVideo) error {
+	defer s.songsChanged()
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return err

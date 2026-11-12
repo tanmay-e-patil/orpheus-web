@@ -11,6 +11,8 @@ var ErrSongDeleted = errors.New("song was deleted from the shared library")
 // DeleteSong hides a song and records cleanup atomically. The tombstone retains
 // the outbox/cleanup foreign keys and fences old events and imports indefinitely.
 func (s *Store) DeleteSong(ctx context.Context, trackID string) (bool, error) {
+	defer s.songsChanged()
+	defer s.playsChanged()
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return false, err

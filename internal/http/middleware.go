@@ -39,18 +39,33 @@ func method(method string, next http.HandlerFunc) http.Handler {
 
 type responseLogger struct {
 	http.ResponseWriter
-	status int
-	bytes  int
+	start       time.Time
+	status      int
+	bytes       int
+	firstByteAt time.Duration
+}
+
+func (w *responseLogger) markFirstByte() {
+	if w.firstByteAt == 0 {
+		w.firstByteAt = time.Since(w.start)
+	}
 }
 
 func (w *responseLogger) WriteHeader(status int) {
-	w.status = status
+	if w.status == 0 {
+		w.status = status
+		w.markFirstByte()
+	}
 	w.ResponseWriter.WriteHeader(status)
 }
+
+// Unwrap lets http.ResponseController reach the underlying writer.
+func (w *responseLogger) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 func (w *responseLogger) Write(data []byte) (int, error) {
 	if w.status == 0 {
 		w.status = http.StatusOK
+		w.markFirstByte()
 	}
 	n, err := w.ResponseWriter.Write(data)
 	w.bytes += n
@@ -60,17 +75,18 @@ func (w *responseLogger) Write(data []byte) (int, error) {
 func logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		recorder := &responseLogger{ResponseWriter: w}
+		recorder := &responseLogger{ResponseWriter: w, start: start}
 		next.ServeHTTP(recorder, r)
+		duration := time.Since(start)
 		if recorder.status == 0 {
 			recorder.status = http.StatusOK
+			recorder.firstByteAt = duration
 		}
-		duration := time.Since(start)
 		route := r.Pattern
 		if route == "" {
 			route = "unmatched"
 		}
-		metrics.ObserveHTTPRequest(r.Method, route, recorder.status, duration)
+		metrics.ObserveHTTPRequest(r.Method, route, recorder.status, duration, recorder.firstByteAt)
 		span := trace.SpanFromContext(r.Context())
 		if span.IsRecording() {
 			span.SetName(r.Method + " " + route)
@@ -83,7 +99,8 @@ func logRequests(next http.Handler) http.Handler {
 			"path", r.URL.Path,
 			"status", recorder.status,
 			"response_bytes", recorder.bytes,
-			"duration_ms", duration.Milliseconds(),
+			"duration_ms", float64(duration.Microseconds())/1000,
+			"ttfb_ms", float64(recorder.firstByteAt.Microseconds())/1000,
 		)
 	})
 }

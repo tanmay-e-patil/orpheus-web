@@ -8,7 +8,7 @@ import (
 )
 
 func TestObserveHTTPRequestRegistersCounter(t *testing.T) {
-	ObserveHTTPRequest("GET", "/test", 200, time.Millisecond)
+	ObserveHTTPRequest("GET", "/test", 200, time.Millisecond, time.Millisecond)
 
 	families, err := prometheus.DefaultGatherer.Gather()
 	if err != nil {

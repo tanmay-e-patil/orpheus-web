@@ -53,6 +53,7 @@ func (s *Store) FetchLibrarySong(ctx context.Context, userID, trackID string) (t
 }
 
 func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, in SongMetadataUpdate) (SongEditResponse, error) {
+	defer s.songsChanged()
 	releaseDate, err := normalizeReleaseDate(in.ReleaseDate)
 	if err != nil {
 		return SongEditResponse{}, err
@@ -99,6 +100,7 @@ func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, 
 }
 
 func (s *Store) ReplaceAudioSource(ctx context.Context, userID, trackID string, video types.YouTubeVideo) (SongEditResponse, error) {
+	defer s.songsChanged()
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return SongEditResponse{}, err
@@ -144,6 +146,7 @@ func (s *Store) ReplaceAudioSource(ctx context.Context, userID, trackID string, 
 }
 
 func (s *Store) RegenerateSong(ctx context.Context, userID, trackID string) (SongEditResponse, error) {
+	defer s.songsChanged()
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return SongEditResponse{}, err
