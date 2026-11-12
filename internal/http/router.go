@@ -85,6 +85,7 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("POST /api/songs/{trackId}/audio-source", s.requireAuth(method(http.MethodPost, handlers.ReplaceAudioSource(s.Store, UserIDFromContext))))
 	mux.Handle("POST /api/songs/{trackId}/regenerate", s.requireAuth(method(http.MethodPost, handlers.RegenerateSong(s.Store, UserIDFromContext))))
 	mux.Handle("POST /api/songs/album-art/refresh", s.requireAuth(method(http.MethodPost, handlers.RefreshAlbumArt(s.Store, s.Deezer))))
+	mux.Handle("POST /api/metrics/playback-start", s.requireAuth(method(http.MethodPost, handlers.RecordPlaybackStart)))
 	mux.Handle("POST /api/lyrics/lrclib", s.requireAuth(method(http.MethodPost, handlers.LRCLibExact(s.LRCLib))))
 	mux.Handle("POST /api/lyrics/save", s.requireAuth(method(http.MethodPost, handlers.SaveLyrics(s.Store))))
 

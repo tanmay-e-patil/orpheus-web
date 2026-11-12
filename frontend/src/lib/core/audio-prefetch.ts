@@ -5,6 +5,8 @@ type ConnectionInfo = { saveData?: boolean; effectiveType?: string };
 // Bounded so a long listening session does not grow this forever.
 const MAX_REMEMBERED = 50;
 const prefetched = new Set<string>();
+// URLs whose prefetch finished, so the browser cache holds the whole file.
+const completed = new Set<string>();
 
 export function songAudioUrl(song: Song | null | undefined): string {
   if (!song) return '';
@@ -35,7 +37,10 @@ export function prefetchSongAudio(
   if (!song?.trackId || song.isAvailable === false) return null;
   const url = songAudioUrl(song);
   if (!url || prefetched.has(url) || constrainedConnection()) return null;
-  if (prefetched.size >= MAX_REMEMBERED) prefetched.clear();
+  if (prefetched.size >= MAX_REMEMBERED) {
+    prefetched.clear();
+    completed.clear();
+  }
   prefetched.add(url);
   return fetchImpl(url, {
     credentials: 'same-origin',
@@ -45,6 +50,7 @@ export function prefetchSongAudio(
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       // The body must be read to completion for the cache entry to be complete.
       await response.blob();
+      completed.add(url);
     })
     .catch(() => {
       // Allow a later retry; prefetch failures never affect playback.
@@ -52,6 +58,11 @@ export function prefetchSongAudio(
     });
 }
 
+export function isAudioPrefetched(url: string): boolean {
+  return completed.has(url);
+}
+
 export function resetAudioPrefetch() {
   prefetched.clear();
+  completed.clear();
 }

@@ -115,6 +115,12 @@ skipping ahead does not wait on the network. Audio files must have the `moov`
 atom first (`ffmpeg -movflags +faststart`); otherwise browsers need extra range
 requests for the end of the file before playback can start.
 
+`orpheus_playback_start_duration_seconds` is the latency users feel: measured
+in the browser from a play request (click, next, or auto-advance) until audio
+is playing, labelled `trigger` (`manual`/`auto`) and `prefetched`. The player
+reports one value per song start to `POST /api/metrics/playback-start`;
+resumes, and loads abandoned before audio begins, are not counted.
+
 The pool keeps four warm connections and jitters connection recycling unless
 `pool_min_conns`, `pool_max_conn_lifetime_jitter`, or
 `pool_health_check_period` are set in `DATABASE_URL`. Keep PostgreSQL on the

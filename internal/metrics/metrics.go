@@ -46,6 +46,15 @@ var (
 		Buckets: latencyBuckets,
 	}, []string{"part"})
 
+	// Measured in the browser: from a play request (click, next, auto-advance)
+	// until the audio element fires "playing". This is the latency users feel,
+	// including network transfer and decoding, unlike server-side TTFB.
+	PlaybackStartDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "orpheus_playback_start_duration_seconds",
+		Help:    "Time from a play request until audio starts playing, measured in the browser.",
+		Buckets: []float64{0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10, 30},
+	}, []string{"trigger", "prefetched"})
+
 	QueuePublishTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "orpheus_queue_publish_total",
 		Help: "RabbitMQ publish attempts.",
@@ -53,7 +62,7 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(HTTPRequestDuration, HTTPTimeToFirstByte, LibraryCacheRequests, LibraryCacheReloadDuration, HTTPRequestsTotal, QueuePublishTotal, OutboxPending, OutboxOldestCreated, DeletionPending, DeletionOldestCreated)
+	prometheus.MustRegister(HTTPRequestDuration, PlaybackStartDuration, HTTPTimeToFirstByte, LibraryCacheRequests, LibraryCacheReloadDuration, HTTPRequestsTotal, QueuePublishTotal, OutboxPending, OutboxOldestCreated, DeletionPending, DeletionOldestCreated)
 }
 
 func ObserveHTTPRequest(method, route string, status int, duration, timeToFirstByte time.Duration) {
@@ -76,4 +85,8 @@ func ObserveLibraryCache(result string) {
 
 func ObserveLibraryCacheReload(part string, duration time.Duration) {
 	LibraryCacheReloadDuration.WithLabelValues(part).Observe(duration.Seconds())
+}
+
+func ObservePlaybackStart(trigger string, prefetched bool, duration time.Duration) {
+	PlaybackStartDuration.WithLabelValues(trigger, strconv.FormatBool(prefetched)).Observe(duration.Seconds())
 }

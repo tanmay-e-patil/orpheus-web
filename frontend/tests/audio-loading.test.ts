@@ -118,3 +118,25 @@ it('prefetches the next queued song once playback starts', async () => {
     expect.objectContaining({ priority: 'low' }),
   );
 });
+
+it('reports playback start time for new songs', async () => {
+  const fetchMock = vi.fn(
+    async (_url: string, _init?: RequestInit) =>
+      new Response(null, { status: 204 }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  const { store, audio } = await start();
+  audio.readyState = 3;
+  audio.dispatchEvent(new Event('playing'));
+  const reports = () =>
+    fetchMock.mock.calls
+      .filter(([url]) => url === '/api/metrics/playback-start')
+      .map(([, init]) => JSON.parse(String(init?.body)));
+  expect(reports()).toEqual([
+    expect.objectContaining({ trigger: 'manual', prefetched: false }),
+  ]);
+  audio.dispatchEvent(new Event('ended'));
+  audio.dispatchEvent(new Event('playing'));
+  expect(store.currentSong()?.trackId).toBe('two');
+  expect(reports()[1]).toEqual(expect.objectContaining({ trigger: 'auto' }));
+});

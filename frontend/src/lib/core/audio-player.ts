@@ -9,7 +9,12 @@ import {
   updateSongPlayCount,
 } from './player-store.svelte';
 import { notify } from '../notifications';
-import { prefetchSongAudio, songAudioUrl } from './audio-prefetch';
+import {
+  isAudioPrefetched,
+  prefetchSongAudio,
+  songAudioUrl,
+} from './audio-prefetch';
+import { createPlaybackStartTimer } from './playback-start-timer';
 import { seconds as parseISODurationSeconds } from '../music';
 import { library } from '../state.svelte';
 import type { PlaybackController, Song } from '../types';
@@ -30,6 +35,12 @@ let audio!: HTMLAudioElement;
 let raf = 0;
 let playTracker: PlayTracker | null = null;
 const PLAY_COUNT_SECONDS = 10;
+let loadedAudioUrl = '';
+const playbackStart = createPlaybackStartTimer((report) => {
+  api.reportPlaybackStart(report).catch(() => {
+    // Telemetry must never affect playback.
+  });
+});
 
 export function initAudioPlayer() {
   if (audio) return;
@@ -50,6 +61,7 @@ export function initAudioPlayer() {
   });
   audio.addEventListener('playing', () => {
     if (!isActive()) return;
+    playbackStart.playing();
     setPlaybackStatus('playing');
     startPolling(isActive);
     const { queue, currentIndex } = getPlayerState();
@@ -77,7 +89,7 @@ export function initAudioPlayer() {
   audio.addEventListener('ended', () => {
     if (!isActive()) return;
     stopPolling();
-    next();
+    playbackStart.autoAdvance(() => next());
   });
   audio.addEventListener('error', () => {
     if (!isActive()) return;
@@ -89,7 +101,8 @@ export function initAudioPlayer() {
     notify('Audio playback error. Skipping...', 'error', {
       id: 'audio-playback-error',
     });
-    next();
+    playbackStart.cancel();
+    playbackStart.autoAdvance(() => next());
   });
   audio.addEventListener('timeupdate', () => {
     if (!isActive()) return;
@@ -119,6 +132,8 @@ export function initAudioPlayer() {
       stopPolling();
       resetPlayTracker(song.trackId);
       console.info('Loading song audio', { trackId: song.trackId, audioUrl });
+      loadedAudioUrl = audioUrl;
+      playbackStart.loaded();
       if (audio.src !== new URL(audioUrl, window.location.href).href) {
         audio.src = audioUrl;
       }
@@ -126,9 +141,11 @@ export function initAudioPlayer() {
     },
     play: () => {
       configureAudioSession();
+      playbackStart.playRequested(isAudioPrefetched(loadedAudioUrl));
       const promise = audio.play();
       if (promise?.catch) {
         promise.catch((error: unknown) => {
+          playbackStart.cancel();
           if (!isActive()) return;
           console.warn('Audio play failed', error);
           setPlaybackStatus('paused');
@@ -136,10 +153,12 @@ export function initAudioPlayer() {
       }
     },
     pause: () => {
+      playbackStart.cancel();
       stopPolling();
       audio.pause();
     },
     stop: () => {
+      playbackStart.cancel();
       audio.pause();
       audio.removeAttribute('src');
       audio.load();
