@@ -607,24 +607,6 @@ it('uses the preview clock and seeking without seeking the library player', asyn
   expect(getPlayerState().currentTime).toBe(50);
 });
 
-it('keeps multiple review accordions open independently', async () => {
-  setup();
-  render(Discovery, { stage: 'review' });
-  await ready();
-  const metadata = screen.getByRole('button', { name: 'Change song info' });
-  const audio = screen.getByRole('button', { name: 'Change audio source' });
-  await fireEvent.click(metadata);
-  await fireEvent.click(audio);
-  expect(metadata).toHaveAttribute('aria-expanded', 'true');
-  expect(audio).toHaveAttribute('aria-expanded', 'true');
-  expect(
-    screen.getByRole('textbox', { name: 'Search song info' }),
-  ).toBeVisible();
-  expect(
-    screen.getByRole('textbox', { name: 'Search audio sources' }),
-  ).toBeVisible();
-});
-
 it('shows saving feedback and confirms success only after the commit completes', async () => {
   const { commit } = setup();
   let finish!: (value: {

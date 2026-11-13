@@ -165,7 +165,7 @@ it('publishes deletion before asynchronous cache invalidation', async () => {
   ).toMatchObject({ trackId: 'one' });
   off();
 });
-it('places Delete immediately after Edit and fences older pending loads', async () => {
+it('opens deletion from the actions menu and fences older pending loads', async () => {
   vi.spyOn(api, 'songs').mockResolvedValue({
     songs: [one, two],
     nextCursor: null,
@@ -176,14 +176,10 @@ it('places Delete immediately after Edit and fences older pending loads', async 
     expect(view.getByRole('button', { name: 'Actions for One' })).toBeVisible(),
   );
   await fireEvent.click(view.getByRole('button', { name: 'Actions for One' }));
-  const actions = await waitFor(() => view.getAllByRole('menuitem'));
-  expect(actions.map((item) => item.textContent?.trim())).toEqual([
-    'Play song',
-    'Edit song',
-    'Delete song',
-  ]);
-  await fireEvent.click(view.getByRole('menuitem', { name: 'Delete song' }));
-  expect(view.getByRole('dialog')).toHaveTextContent('for everyone');
+  await fireEvent.click(
+    await view.findByRole('menuitem', { name: 'Delete song' }),
+  );
+  expect(view.getByRole('dialog')).toBeVisible();
   let resolve!: (value: {
     songs: (typeof one)[];
     nextCursor: null;

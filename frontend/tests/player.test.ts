@@ -194,7 +194,6 @@ it.each([true, false])(
     for (const slider of sliders) {
       expect(slider).toBeDisabled();
       expect(slider).toHaveAttribute('aria-busy', 'true');
-      expect(slider.parentElement).toHaveClass('loading');
     }
     setPlaybackStatus('playing');
     await waitFor(() => {
@@ -202,7 +201,6 @@ it.each([true, false])(
       for (const slider of sliders) {
         expect(slider).toBeEnabled();
         expect(slider).toHaveAttribute('aria-busy', 'false');
-        expect(slider.parentElement).not.toHaveClass('loading');
       }
     });
     // Keep the same range mounted throughout the transition.

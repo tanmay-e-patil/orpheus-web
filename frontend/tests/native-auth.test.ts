@@ -107,6 +107,9 @@ describe('native passkey browser bridge', () => {
     mocks.details.mockRejectedValue(new Error('This request has expired.'));
     render(NativeAuth);
     expect(await screen.findByRole('alert')).toHaveTextContent('expired');
+    expect(
+      screen.queryByRole('button', { name: /Continue to Orpheus/ }),
+    ).toBeNull();
     expect(mocks.authorize).not.toHaveBeenCalled();
   });
 });

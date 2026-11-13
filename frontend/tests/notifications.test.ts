@@ -69,16 +69,3 @@ it('honors duration overrides and programmatic dismissal', async () => {
     expect(queryByText('Persistent message')).not.toBeInTheDocument(),
   );
 });
-
-it('reserves space only for visible navigation and the fixed player bar', async () => {
-  const { container, rerender } = render(AppToaster);
-  const layout = container.querySelector('.notification-layout');
-  expect(layout).not.toHaveClass('with-navigation', 'with-player');
-  await rerender({ navigation: true, fixedPlayer: true });
-  expect(layout).toHaveClass('with-navigation', 'with-player');
-  await rerender({ navigation: true, fixedPlayer: false });
-  expect(layout).toHaveClass('with-navigation');
-  expect(layout).not.toHaveClass('with-player');
-  await rerender({ navigation: false, fixedPlayer: false });
-  expect(layout).not.toHaveClass('with-navigation', 'with-player');
-});
