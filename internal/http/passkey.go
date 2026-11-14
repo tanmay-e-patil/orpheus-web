@@ -2,9 +2,11 @@ package apphttp
 
 import (
 	"context"
-	"crypto/rand"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -21,6 +23,7 @@ const challengeCookieName = "orpheus_passkey_challenge"
 type PasskeyService struct {
 	webAuthn *webauthn.WebAuthn
 	store    *store.Store
+	secret   []byte
 }
 
 type webAuthnUser struct {
@@ -80,7 +83,7 @@ func NewPasskeyService(cfg config.Config, db *store.Store) (*PasskeyService, err
 	if err != nil {
 		return nil, fmt.Errorf("webauthn init: %w", err)
 	}
-	return &PasskeyService{webAuthn: wa, store: db}, nil
+	return &PasskeyService{webAuthn: wa, store: db, secret: []byte(cfg.AuthCookieSecret)}, nil
 }
 
 func (ps *PasskeyService) getWebAuthnUser(ctx context.Context, userID string) (*webAuthnUser, error) {
@@ -123,7 +126,7 @@ func (ps *PasskeyService) BeginRegistration(w http.ResponseWriter, r *http.Reque
 		return nil, err
 	}
 
-	if err := setChallengeCookie(w, session); err != nil {
+	if err := ps.setChallengeCookie(w, session); err != nil {
 		return nil, err
 	}
 
@@ -138,7 +141,7 @@ func (ps *PasskeyService) FinishRegistration(w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	session, err := getChallengeCookie(r)
+	session, err := ps.challengeSession(r)
 	if err != nil {
 		return err
 	}
@@ -182,7 +185,7 @@ func (ps *PasskeyService) BeginLogin(w http.ResponseWriter, r *http.Request) (js
 		return nil, err
 	}
 
-	if err := setChallengeCookie(w, session); err != nil {
+	if err := ps.setChallengeCookie(w, session); err != nil {
 		return nil, err
 	}
 
@@ -192,7 +195,7 @@ func (ps *PasskeyService) BeginLogin(w http.ResponseWriter, r *http.Request) (js
 // FinishLogin completes the authentication ceremony.
 // Returns the authenticated user's ID.
 func (ps *PasskeyService) FinishLogin(w http.ResponseWriter, r *http.Request) (string, error) {
-	session, err := getChallengeCookie(r)
+	session, err := ps.challengeSession(r)
 	if err != nil {
 		return "", err
 	}
@@ -228,23 +231,26 @@ func (ps *PasskeyService) FinishLogin(w http.ResponseWriter, r *http.Request) (s
 	return userID, nil
 }
 
-// --- Challenge cookie helpers ---
+// The WebAuthn session (challenge, expiry, user-verification requirement) lives
+// in the client's cookie, so it must be authenticated: an unsigned session lets
+// a client replay an old assertion by choosing its challenge.
+func (ps *PasskeyService) challengeMAC(payload string) []byte {
+	mac := hmac.New(sha256.New, ps.secret)
+	mac.Write([]byte("orpheus-passkey-challenge-v1." + payload))
+	return mac.Sum(nil)
+}
 
-func setChallengeCookie(w http.ResponseWriter, session *webauthn.SessionData) error {
+func (ps *PasskeyService) setChallengeCookie(w http.ResponseWriter, session *webauthn.SessionData) error {
 	data, err := json.Marshal(session)
 	if err != nil {
 		return err
 	}
-	nonce := make([]byte, 12)
-	if _, err := rand.Read(nonce); err != nil {
-		return err
-	}
-	encoded := base64.RawURLEncoding.EncodeToString(append(nonce, data...))
+	payload := base64.RawURLEncoding.EncodeToString(data)
 	http.SetCookie(w, &http.Cookie{
 		Name:     challengeCookieName,
-		Value:    encoded,
+		Value:    payload + "." + base64.RawURLEncoding.EncodeToString(ps.challengeMAC(payload)),
 		Path:     "/",
-		MaxAge:   120, // 2 minutes
+		MaxAge:   120,
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
@@ -252,20 +258,25 @@ func setChallengeCookie(w http.ResponseWriter, session *webauthn.SessionData) er
 	return nil
 }
 
-func getChallengeCookie(r *http.Request) (*webauthn.SessionData, error) {
+func (ps *PasskeyService) challengeSession(r *http.Request) (*webauthn.SessionData, error) {
 	cookie, err := r.Cookie(challengeCookieName)
 	if err != nil {
 		return nil, err
 	}
-	data, err := base64.RawURLEncoding.DecodeString(cookie.Value)
+	payload, encodedMAC, ok := strings.Cut(cookie.Value, ".")
+	if !ok {
+		return nil, errors.New("invalid challenge cookie")
+	}
+	signature, err := base64.RawURLEncoding.DecodeString(encodedMAC)
+	if err != nil || !hmac.Equal(signature, ps.challengeMAC(payload)) {
+		return nil, errors.New("invalid challenge cookie")
+	}
+	data, err := base64.RawURLEncoding.DecodeString(payload)
 	if err != nil {
 		return nil, err
 	}
-	if len(data) < 12 {
-		return nil, fmt.Errorf("challenge cookie too short")
-	}
 	var session webauthn.SessionData
-	if err := json.Unmarshal(data[12:], &session); err != nil {
+	if err := json.Unmarshal(data, &session); err != nil {
 		return nil, err
 	}
 	return &session, nil

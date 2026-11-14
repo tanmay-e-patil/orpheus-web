@@ -81,7 +81,7 @@ func main() {
 	defer func() { stopDispatcher(); <-dispatcherDone }()
 
 	webDir := filepath.Join("web")
-	server := apphttp.NewServer(
+	server, err := apphttp.NewServer(
 		cfg,
 		db,
 		services.NewYouTubeClient(cfg.YouTubeAPIKey, httpClient),
@@ -89,6 +89,10 @@ func main() {
 		services.NewLRCLibClient(httpClient),
 		webDir,
 	)
+	if err != nil {
+		slog.Error("passkey setup failed", "error", err)
+		os.Exit(1)
+	}
 
 	httpServer := &http.Server{
 		Addr:              ":" + cfg.Port,
