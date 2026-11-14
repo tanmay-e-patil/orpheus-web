@@ -18,12 +18,12 @@ Orpheus is a music library/player application implemented as a Go HTTP server wi
 ## Development
 
 ```sh
-npm ci --prefix frontend
-npm run build --prefix frontend
+bun install --cwd frontend --frozen-lockfile
+bun run --cwd frontend build
 go run ./cmd/orpheus
 go test ./...
-npm run check --prefix frontend
-npm test --prefix frontend
+bun run --cwd frontend check
+bun run --cwd frontend test
 ```
 
 Required runtime environment is documented in `README.md`.
@@ -34,4 +34,4 @@ Required runtime environment is documented in `README.md`.
 - Keep browser source in `frontend/src`; use Svelte 5 with TypeScript and the local shadcn-svelte components. Do not edit generated `web/` files.
 - Keep API contracts and existing draft storage keys compatible. Playback must remain mounted across route changes.
 - Use context-aware database calls and return structured JSON errors from HTTP handlers.
-- Do not reintroduce Next.js/Bun/React tooling.
+- Use Bun for every frontend package and script command. Never run npm, npx, yarn, or pnpm; `frontend/package.json` blocks installs from other package managers. Do not reintroduce Next.js or React tooling.

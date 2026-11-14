@@ -30,16 +30,18 @@ jobs:
         run: go test ./...
       - name: Test outbox with PostgreSQL and RabbitMQ
         run: go test -race -tags=integration ./internal/store ./internal/services -count=1
-      - uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 24.22.1
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          bun-version-file: frontend/package.json
       - name: Install frontend dependencies
-        run: npm ci --prefix frontend
+        working-directory: frontend
+        run: bun install --frozen-lockfile
       - name: Check Svelte and TypeScript
-        run: npm run check --prefix frontend
+        working-directory: frontend
+        run: bun run check
       - name: Test frontend
-        run: npm test --prefix frontend
+        working-directory: frontend
+        run: bun run test
       - name: Build frontend
-        run: npm run build --prefix frontend
+        working-directory: frontend
+        run: bun run build

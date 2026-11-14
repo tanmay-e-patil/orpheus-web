@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24.22.1-alpine3.24 AS frontend
+FROM oven/bun:1.4.1-alpine AS frontend
 WORKDIR /src/frontend
-COPY frontend/package.json frontend/package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci
+COPY frontend/package.json frontend/bun.lock ./
+RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile
 COPY frontend/ ./
-RUN npm run build
+RUN bun run build
 
 FROM golang:1.27.4-alpine3.24 AS build
 
