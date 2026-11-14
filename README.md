@@ -57,7 +57,8 @@ Set `AUTH_REGISTRATION_ENABLED=true` to allow more accounts.
 
 `AUTH_EMAIL` (or `AUTH_USERNAME`) plus `AUTH_PASSWORD` or `AUTH_PASSWORD_HASH`
 are optional legacy credentials. On first successful login they are migrated
-to the database and are no longer needed.
+to the database. After that the database password is the only one that works,
+so remove the env values.
 
 Install Node.js 24, then build the frontend and start Go:
 

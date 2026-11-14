@@ -105,3 +105,23 @@ func TestAuthRejectsNoToken(t *testing.T) {
 		t.Fatal("expected missing token to fail")
 	}
 }
+
+func TestAuthRejectsOtherSigningMethod(t *testing.T) {
+	claims := &SessionClaims{
+		UserID:   "user",
+		Username: "user",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+			Issuer:    "orpheus",
+		},
+	}
+	tokenString, err := jwt.NewWithClaims(jwt.SigningMethodHS512, claims).SignedString([]byte("test-secret-key-at-least-32-bytes!"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+tokenString)
+	if _, err := testAuth().SessionFromRequest(req); err == nil {
+		t.Fatal("HS512 token accepted; sessions are issued as HS256 only")
+	}
+}

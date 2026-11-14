@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 
 	"orpheus-web/internal/config"
@@ -49,12 +50,15 @@ func (a *AuthService) ValidateCredentials(email, password string) (*store.User, 
 	// 1. Try DB lookup first (normal path)
 	user, err := a.store.GetUserByEmail(ctx, email)
 	if err == nil {
-		// Found user — check password from account table
 		hash, hashErr := a.store.GetPasswordForUser(ctx, user.ID)
-		if hashErr == nil && hash != "" && bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil {
-			return user, true
+		if hashErr == nil && hash != "" {
+			return user, bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 		}
-		// DB password didn't match — fall through to legacy check
+		// Only an account without a database password may migrate from the
+		// legacy env credentials; otherwise they would be a second password.
+		if hashErr != nil && !errors.Is(hashErr, pgx.ErrNoRows) {
+			return nil, false
+		}
 	}
 
 	// 2. Legacy migration fallback: check env-var credentials
@@ -213,7 +217,7 @@ func (a *AuthService) SessionFromRequest(r *http.Request) (*SessionClaims, error
 
 	token, err := jwt.ParseWithClaims(tokenString, &SessionClaims{}, func(t *jwt.Token) (any, error) {
 		return []byte(a.cfg.AuthCookieSecret), nil
-	})
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil {
 		return nil, err
 	}
