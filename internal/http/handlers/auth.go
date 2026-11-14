@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"orpheus-web/internal/store"
@@ -30,18 +32,25 @@ type registerRequest struct {
 	Password string `json:"password"`
 }
 
-func Login(auth Authenticator) http.HandlerFunc {
+func Login(auth Authenticator, throttle *LoginThrottle) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body loginRequest
 		if err := DecodeJSON(r, &body); err != nil {
 			Error(w, http.StatusBadRequest, "bad_request", "Invalid login request")
 			return
 		}
+		if wait := throttle.retryAfter(body.Email); wait > 0 {
+			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
+			Error(w, http.StatusTooManyRequests, "too_many_attempts", "Too many failed sign-in attempts. Try again later or use a passkey.")
+			return
+		}
 		user, ok := auth.ValidateCredentials(body.Email, body.Password)
 		if !ok {
+			throttle.recordFailure(body.Email)
 			Error(w, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
 			return
 		}
+		throttle.recordSuccess(body.Email)
 		token, err := auth.CreateSessionToken(user.ID, user.DisplayName())
 		if err != nil {
 			Error(w, http.StatusInternalServerError, "session_failed", "Could not create session")

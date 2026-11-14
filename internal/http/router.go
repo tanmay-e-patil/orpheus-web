@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -51,7 +52,7 @@ func (s *Server) Routes() http.Handler {
 
 	// Auth — public
 	mux.Handle("POST /api/auth/register", method(http.MethodPost, handlers.Register(s.Auth)))
-	mux.Handle("POST /api/auth/login", method(http.MethodPost, handlers.Login(s.Auth)))
+	mux.Handle("POST /api/auth/login", method(http.MethodPost, handlers.Login(s.Auth, handlers.NewLoginThrottle(time.Now))))
 	mux.Handle("POST /api/auth/logout", method(http.MethodPost, handlers.Logout(s.Auth)))
 	mux.Handle("GET /api/auth/session", method(http.MethodGet, handlers.Session(s.Auth)))
 
