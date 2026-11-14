@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"orpheus-web/internal/http/handlers"
@@ -23,6 +24,23 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), userIDCtxKey, claims.UserID)
 		ctx = context.WithValue(ctx, usernameCtxKey, claims.Username)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+const (
+	publicAuthBodyLimit = 64 << 10
+	// Discovery commits carry every lyrics candidate for every track.
+	apiBodyLimit = 32 << 20
+)
+
+func limitBodies(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		limit := int64(apiBodyLimit)
+		if strings.HasPrefix(r.URL.Path, "/api/auth/") {
+			limit = publicAuthBodyLimit
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
+		next.ServeHTTP(w, r)
 	})
 }
 
