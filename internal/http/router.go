@@ -97,7 +97,7 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("POST /api/discover/commit", s.requireAuth(method(http.MethodPost, handlers.CommitWorkflow(s.Store))))
 
 	mux.HandleFunc("/", s.staticOrShell)
-	return otelhttp.NewHandler(logRequests(mux), "http.server",
+	return otelhttp.NewHandler(logRequests(limitBodies(mux)), "http.server",
 		otelhttp.WithFilter(func(r *http.Request) bool {
 			return r.URL.Path != "/healthz" && r.URL.Path != "/metrics"
 		}),

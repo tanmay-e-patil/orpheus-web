@@ -94,6 +94,7 @@ func main() {
 		Addr:              ":" + cfg.Port,
 		Handler:           server.Routes(),
 		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       2 * time.Minute,
 	}
 
 	go func() {
