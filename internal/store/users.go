@@ -48,21 +48,6 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error)
 	return &u, nil
 }
 
-func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, error) {
-	var u User
-	err := s.Pool.QueryRow(ctx, `
-		SELECT id, name, email, email_verified, image, username, display_username, created_at, updated_at
-		FROM "user" WHERE username = $1
-	`, username).Scan(
-		&u.ID, &u.Name, &u.Email, &u.EmailVerified, &u.Image,
-		&u.Username, &u.DisplayUsername, &u.CreatedAt, &u.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &u, nil
-}
-
 func (s *Store) GetUserByID(ctx context.Context, id string) (*User, error) {
 	var u User
 	err := s.Pool.QueryRow(ctx, `

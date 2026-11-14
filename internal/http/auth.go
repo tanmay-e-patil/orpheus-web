@@ -112,6 +112,17 @@ func (a *AuthService) provisionFromLegacy(ctx context.Context, email, password s
 	return user, nil
 }
 
+// RegistrationOpen allows the first account on an empty database, and further
+// accounts only when AUTH_REGISTRATION_ENABLED is set: every account can edit
+// and delete songs in the shared library.
+func (a *AuthService) RegistrationOpen(ctx context.Context) (bool, error) {
+	if a.cfg.AuthRegistrationEnabled {
+		return true, nil
+	}
+	exists, err := a.store.UserExists(ctx)
+	return !exists, err
+}
+
 // RegisterUser creates a new user with a bcrypt-hashed password.
 func (a *AuthService) RegisterUser(username, email, password string) (*store.User, error) {
 	ctx := context.Background()

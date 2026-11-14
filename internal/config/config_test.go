@@ -42,3 +42,26 @@ func TestOutboxDispatchConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestRegistrationConfiguration(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/orpheus")
+	t.Setenv("AUTH_COOKIE_SECRET", "test-secret")
+	t.Setenv("DOMAIN", "localhost")
+	t.Setenv("AUTH_RP_ORIGIN", "http://localhost:8080")
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("AUTH_REGISTRATION_ENABLED", "")
+	if err := os.Unsetenv("AUTH_REGISTRATION_ENABLED"); err != nil {
+		t.Fatal(err)
+	}
+	if cfg, err := Load(); err != nil || cfg.AuthRegistrationEnabled {
+		t.Fatalf("default: enabled=%t err=%v, want closed", cfg.AuthRegistrationEnabled, err)
+	}
+	t.Setenv("AUTH_REGISTRATION_ENABLED", "true")
+	if cfg, err := Load(); err != nil || !cfg.AuthRegistrationEnabled {
+		t.Fatalf("explicit: enabled=%t err=%v, want open", cfg.AuthRegistrationEnabled, err)
+	}
+	t.Setenv("AUTH_REGISTRATION_ENABLED", "sometimes")
+	if _, err := Load(); err == nil {
+		t.Fatal("invalid AUTH_REGISTRATION_ENABLED accepted")
+	}
+}

@@ -10,22 +10,23 @@ import (
 )
 
 type Config struct {
-	DatabaseURL           string
-	AuthUsername          string // deprecated: only used for legacy migration
-	AuthPassword          string // deprecated: only used for legacy migration
-	AuthPasswordHash      string // deprecated: only used for legacy migration
-	AuthCookieSecret      string
-	AuthRPOrigin          string
-	YouTubeAPIKey         string
-	RabbitMQURL           string
-	OutboxDispatchEnabled bool
-	LibraryCacheEnabled   bool
-	MusicLibraryPath      string
-	Domain                string
-	Port                  string
-	AppEnv                string
-	CookieSecure          bool
-	HTTPTimeout           time.Duration
+	DatabaseURL             string
+	AuthUsername            string // deprecated: only used for legacy migration
+	AuthPassword            string // deprecated: only used for legacy migration
+	AuthPasswordHash        string // deprecated: only used for legacy migration
+	AuthCookieSecret        string
+	AuthRPOrigin            string
+	AuthRegistrationEnabled bool
+	YouTubeAPIKey           string
+	RabbitMQURL             string
+	OutboxDispatchEnabled   bool
+	LibraryCacheEnabled     bool
+	MusicLibraryPath        string
+	Domain                  string
+	Port                    string
+	AppEnv                  string
+	CookieSecure            bool
+	HTTPTimeout             time.Duration
 }
 
 func Load() (Config, error) {
@@ -54,6 +55,13 @@ func Load() (Config, error) {
 			return Config{}, errors.New("RABBITMQ_URL is required when outbox dispatch is enabled")
 		}
 		cfg.OutboxDispatchEnabled = enabled
+	}
+	if raw, exists := os.LookupEnv("AUTH_REGISTRATION_ENABLED"); exists {
+		enabled, err := strconv.ParseBool(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid AUTH_REGISTRATION_ENABLED: %w", err)
+		}
+		cfg.AuthRegistrationEnabled = enabled
 	}
 	cfg.LibraryCacheEnabled = true
 	if raw, exists := os.LookupEnv("LIBRARY_CACHE_ENABLED"); exists {

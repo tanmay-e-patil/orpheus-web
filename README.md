@@ -51,6 +51,10 @@ committed songs to `orpheus-consumer`; if omitted in development, metadata is
 stored and jobs remain pending until dispatch is enabled. `MUSIC_LIBRARY_PATH` must point at the
 same directory used by the consumer.
 
+`POST /api/auth/register` creates the first account on an empty database and
+then closes, because every account can edit and delete shared-library songs.
+Set `AUTH_REGISTRATION_ENABLED=true` to allow more accounts.
+
 `AUTH_EMAIL` (or `AUTH_USERNAME`) plus `AUTH_PASSWORD` or `AUTH_PASSWORD_HASH`
 are optional legacy credentials. On first successful login they are migrated
 to the database and are no longer needed.

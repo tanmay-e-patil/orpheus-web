@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 
 type Authenticator interface {
 	ValidateCredentials(email, password string) (*store.User, bool)
+	RegistrationOpen(ctx context.Context) (bool, error)
 	RegisterUser(username, email, password string) (*store.User, error)
 	CreateSessionToken(userID, username string) (string, error)
 	SetSessionCookie(w http.ResponseWriter, token string)
@@ -71,6 +73,15 @@ func Login(auth Authenticator) http.HandlerFunc {
 
 func Register(auth Authenticator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		open, err := auth.RegistrationOpen(r.Context())
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "register_failed", "Could not create account")
+			return
+		}
+		if !open {
+			Error(w, http.StatusForbidden, "registration_closed", "Registration is closed")
+			return
+		}
 		var body registerRequest
 		if err := DecodeJSON(r, &body); err != nil {
 			Error(w, http.StatusBadRequest, "bad_request", "Invalid registration request")
