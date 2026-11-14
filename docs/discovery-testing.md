@@ -1,6 +1,6 @@
 # Testing song discovery locally
 
-Run Go on port 8080 with `infisical run --env=dev`, overriding `DATABASE_URL` to the local PostgreSQL database. Set `APP_ENV=development`, `DOMAIN=localhost`, `AUTH_RP_ORIGIN=http://localhost:5173`, `PORT=8080`, `RABBITMQ_URL=''`, and `OUTBOX_DISPATCH_ENABLED=false` **inside** the Infisical command, after `-- env`, so imported secrets cannot override them. Run `npm run dev --prefix frontend -- --port 5173 --strictPort` and open http://localhost:5173.
+Run Go on port 8080 with `infisical run --env=dev`, overriding `DATABASE_URL` to the local PostgreSQL database. Set `APP_ENV=development`, `DOMAIN=localhost`, `AUTH_RP_ORIGIN=http://localhost:5173`, `PORT=8080`, `RABBITMQ_URL=''`, and `OUTBOX_DISPATCH_ENABLED=false` **inside** the Infisical command, after `-- env`, so imported secrets cannot override them. Run `bun run --cwd frontend dev --port 5173 --strictPort` and open http://localhost:5173.
 
 No new database migrations or seed data are needed. An empty migrated database and a signed-in local account are sufficient. YouTube requires `YOUTUBE_API_KEY`. Deezer matching uses the website’s `SearchFull` GraphQL operation with an automatically acquired anonymous token, cached in memory until shortly before expiry. No Deezer account credentials, browser cookies, or stored bearer token are needed. Rejected tokens refresh once; website API failures fall back to REST, with a 30-second pause before retrying GraphQL. LRCLib uses its existing public endpoint. The website API is undocumented, so REST fallback remains necessary. Saving stores metadata and pending jobs locally. Downloaded audio requires a separately configured consumer.
 
@@ -38,9 +38,9 @@ The matching fixtures in `internal/services/song_match_test.go`, `deezer_test.go
 
 ```sh
 go test ./...
-npm run check --prefix frontend
-npm test --prefix frontend
-npm run build --prefix frontend
+bun run --cwd frontend check
+bun run --cwd frontend test
+bun run --cwd frontend build
 ```
 
 ### Review component checks
