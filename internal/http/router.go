@@ -25,13 +25,11 @@ type Server struct {
 	WebDir  string
 }
 
-func NewServer(cfg config.Config, db *store.Store, youtube *services.YouTubeClient, deezer *services.DeezerClient, lrclib *services.LRCLibClient, webDir string) *Server {
+func NewServer(cfg config.Config, db *store.Store, youtube *services.YouTubeClient, deezer *services.DeezerClient, lrclib *services.LRCLibClient, webDir string) (*Server, error) {
 	auth := NewAuthService(cfg, db)
 	passkey, err := NewPasskeyService(cfg, db)
 	if err != nil {
-		// Passkey service requires valid WebAuthn config; log and continue
-		// Registration/login endpoints will return errors if used without valid config
-		passkey = nil
+		return nil, err
 	}
 	return &Server{
 		Config:  cfg,
@@ -42,7 +40,7 @@ func NewServer(cfg config.Config, db *store.Store, youtube *services.YouTubeClie
 		Deezer:  deezer,
 		LRCLib:  lrclib,
 		WebDir:  webDir,
-	}
+	}, nil
 }
 
 func (s *Server) Routes() http.Handler {

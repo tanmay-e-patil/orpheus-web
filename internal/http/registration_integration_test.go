@@ -31,7 +31,11 @@ func registrationServer(t *testing.T, enabled bool) http.Handler {
 		AuthRPOrigin:            "http://localhost:8080",
 		AuthRegistrationEnabled: enabled,
 	}
-	return NewServer(cfg, db, nil, nil, nil, t.TempDir()).Routes()
+	server, err := NewServer(cfg, db, nil, nil, nil, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return server.Routes()
 }
 
 func TestRegistrationClosesAfterFirstAccount(t *testing.T) {
