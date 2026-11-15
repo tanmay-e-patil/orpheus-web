@@ -223,7 +223,6 @@
         )
       )
         continue;
-      // Compare lyric timing to the chosen audio, including any video intro/outro.
       const result = await lyricsRequest(() =>
         api.lyricsOptions(lyricsTrack(match), controller.signal),
       );

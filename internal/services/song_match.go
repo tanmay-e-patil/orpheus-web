@@ -18,7 +18,6 @@ func identityText(s string) string {
 	return strings.TrimSpace(whitespace.ReplaceAllString(presentationWords.ReplaceAllString(CleanString(html.UnescapeString(s)), " "), " "))
 }
 
-// Whole tokens avoid treating names such as "Air" and "Chair" as the same artist.
 func containsIdentity(text, name string) bool {
 	return name != "" && strings.Contains(" "+text+" ", " "+name+" ")
 }
@@ -84,7 +83,6 @@ func recordingTitle(title string) string {
 func scoreTrackMatch(video types.YouTubeVideo, track deezerTrack) (int, *types.MatchEvidence) {
 	title, artist := identityText(track.Title), identityText(track.Artist.Name)
 	source := identityText(video.Title)
-	// Remove a known artist before comparing titles; inspect raw segments before cleaning separators.
 	stripArtist := func(text string) string {
 		if artist != "" && !(text == title && containsIdentity(identityText(video.ChannelTitle), artist)) {
 			return strings.TrimSpace(strings.Replace(" "+text+" ", " "+artist+" ", " ", 1))

@@ -114,7 +114,6 @@ func (c *DeezerClient) searchGraphQL(ctx context.Context, query string) ([]deeze
 		}
 		if errors.Is(err, errDeezerAnonymousAuth) && attempt == 0 {
 			c.authMu.Lock()
-			// Do not discard a newer token refreshed by a concurrent search.
 			if c.anonymousJWT == token {
 				c.anonymousJWT = ""
 			}

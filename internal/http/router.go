@@ -49,31 +49,26 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("GET /healthz", method(http.MethodGet, handlers.Health))
 	mux.Handle("GET /metrics", promhttp.Handler())
 
-	// Auth — public
 	mux.Handle("POST /api/auth/register", method(http.MethodPost, handlers.Register(s.Auth)))
 	mux.Handle("POST /api/auth/login", method(http.MethodPost, handlers.Login(s.Auth)))
 	mux.Handle("POST /api/auth/logout", method(http.MethodPost, handlers.Logout(s.Auth)))
 	mux.Handle("GET /api/auth/session", method(http.MethodGet, handlers.Session(s.Auth)))
 
-	// Native browser authentication: fixed callback, PKCE, one-use database grants.
 	native := newNativeAuth(s.Config, s.Auth, s.Store)
 	mux.HandleFunc("POST /api/auth/native/begin", native.begin)
 	mux.HandleFunc("GET /api/auth/native/details", native.details)
 	mux.HandleFunc("POST /api/auth/native/authorize", native.authorize)
 	mux.HandleFunc("POST /api/auth/native/exchange", native.exchange)
 
-	// Passkey — public (login ceremony)
 	mux.Handle("POST /api/auth/passkey/login-begin", method(http.MethodPost, handlers.PasskeyLoginBegin(s.Passkey)))
 	mux.Handle("POST /api/auth/passkey/login-finish", method(http.MethodPost, handlers.PasskeyLoginFinish(s.Auth, s.Passkey, s.Store)))
 
-	// Passkey — authenticated (registration ceremony)
 	mux.Handle("GET /api/auth/passkey/status", s.requireAuth(method(http.MethodGet, handlers.PasskeyStatus(s.Auth))))
 	mux.Handle("POST /api/auth/passkey/register-begin", s.requireAuth(method(http.MethodPost, handlers.PasskeyRegisterBegin(s.Auth, s.Passkey))))
 	mux.Handle("POST /api/auth/passkey/register-finish", s.requireAuth(method(http.MethodPost, handlers.PasskeyRegisterFinish(s.Auth, s.Passkey))))
 	mux.Handle("GET /api/auth/passkeys", s.requireAuth(method(http.MethodGet, handlers.PasskeyList(s.Auth, s.Store))))
 	mux.Handle("DELETE /api/auth/passkeys/{id}", s.requireAuth(method(http.MethodDelete, handlers.PasskeyDelete(s.Auth, s.Store))))
 
-	// Protected API routes
 	mux.Handle("GET /api/songs", s.requireAuth(method(http.MethodGet, handlers.GetSongs(s.Store, UserIDFromContext))))
 	mux.Handle("DELETE /api/songs/{trackId}", s.requireAuth(method(http.MethodDelete, handlers.DeleteSong(s.Store))))
 	mux.Handle("GET /api/songs/{trackId}", s.requireAuth(method(http.MethodGet, handlers.GetSong(s.Store, UserIDFromContext))))

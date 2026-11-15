@@ -98,7 +98,6 @@ func (ps *PasskeyService) getWebAuthnUser(ctx context.Context, userID string) (*
 	return &webAuthnUser{user: user, passkeys: pks}, nil
 }
 
-// BeginRegistration starts the WebAuthn credential creation ceremony.
 func (ps *PasskeyService) BeginRegistration(w http.ResponseWriter, r *http.Request, userID string) (json.RawMessage, error) {
 	ctx := r.Context()
 	waUser, err := ps.getWebAuthnUser(ctx, userID)
@@ -133,7 +132,6 @@ func (ps *PasskeyService) BeginRegistration(w http.ResponseWriter, r *http.Reque
 	return json.Marshal(options)
 }
 
-// FinishRegistration completes the credential creation ceremony.
 func (ps *PasskeyService) FinishRegistration(w http.ResponseWriter, r *http.Request, userID string, name string) error {
 	ctx := r.Context()
 	waUser, err := ps.getWebAuthnUser(ctx, userID)
@@ -178,7 +176,6 @@ func (ps *PasskeyService) FinishRegistration(w http.ResponseWriter, r *http.Requ
 	return ps.store.CreatePasskey(ctx, pk)
 }
 
-// BeginLogin starts the WebAuthn authentication ceremony (discoverable).
 func (ps *PasskeyService) BeginLogin(w http.ResponseWriter, r *http.Request) (json.RawMessage, error) {
 	options, session, err := ps.webAuthn.BeginDiscoverableLogin()
 	if err != nil {
@@ -192,8 +189,6 @@ func (ps *PasskeyService) BeginLogin(w http.ResponseWriter, r *http.Request) (js
 	return json.Marshal(options)
 }
 
-// FinishLogin completes the authentication ceremony.
-// Returns the authenticated user's ID.
 func (ps *PasskeyService) FinishLogin(w http.ResponseWriter, r *http.Request) (string, error) {
 	session, err := ps.challengeSession(r)
 	if err != nil {
@@ -220,11 +215,10 @@ func (ps *PasskeyService) FinishLogin(w http.ResponseWriter, r *http.Request) (s
 
 	clearChallengeCookie(w)
 
-	// Update mutable credential usage state.
 	ctx := r.Context()
 	pk, err := ps.store.GetPasskeyByCredentialID(ctx, credential.ID)
 	if err != nil {
-		return userID, nil // non-fatal
+		return userID, nil
 	}
 	_ = ps.store.UpdatePasskeyUsage(ctx, pk.ID, int64(credential.Authenticator.SignCount), credential.Flags.BackupState)
 

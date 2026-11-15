@@ -90,8 +90,6 @@ async function setup({ supported = true, rejectOptional = false } = {}) {
   vi.stubGlobal('cancelAnimationFrame', vi.fn());
   const store = await import('../src/lib/core/player-store.svelte');
   const { initAudioPlayer } = await import('../src/lib/core/audio-player');
-  // The media session follows player state through effects; flush them so
-  // assertions observe the synchronized lock-screen state.
   const { flushSync: flush } = await import('svelte');
   initAudioPlayer();
   store.setQueue(songs, 0);

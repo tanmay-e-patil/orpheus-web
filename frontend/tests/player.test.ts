@@ -144,7 +144,6 @@ it('docks automatically, collapses, and adapts to rotation without reloading aud
     view.getByRole('button', { name: 'Open Now Playing: Somebody' }),
   );
   await waitFor(() => expect(view.getByRole('complementary')).toBeVisible());
-  // Explicit expansion remains expanded when the viewport becomes portrait.
   media.matches = false;
   change?.();
   await waitFor(() => expect(view.getByRole('dialog')).toBeVisible());
@@ -203,7 +202,6 @@ it.each([true, false])(
         expect(slider).toHaveAttribute('aria-busy', 'false');
       }
     });
-    // Keep the same range mounted throughout the transition.
     expect(view.getByRole('slider', { name: labels[0] })).toBe(sliders[0]);
     await fireEvent.input(sliders[0], { target: { value: '45' } });
     expect(controller.seekTo).toHaveBeenCalledWith(45);

@@ -40,7 +40,6 @@ export function createPlaybackStartTimer(
         prefetched,
       };
     },
-    /** Play requests made inside `advance` are labelled `auto`. */
     autoAdvance(advance: () => void) {
       autoAdvance = true;
       try {

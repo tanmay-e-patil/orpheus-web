@@ -181,7 +181,6 @@ func rankedTracks(byID map[string]types.MusicTrack, ids []string) []types.MusicT
 		if a.MatchScore != b.MatchScore {
 			return a.MatchScore > b.MatchScore
 		}
-		// Popularity selects between equally supported matches, without changing confidence.
 		if a.Popularity == nil {
 			return false
 		}

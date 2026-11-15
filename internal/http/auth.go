@@ -42,12 +42,9 @@ func NewAuthService(cfg config.Config, db *store.Store) *AuthService {
 	return &AuthService{cfg: cfg, store: db}
 }
 
-// ValidateCredentials checks email + password against the DB.
-// Falls back to legacy env-var credentials for migration, auto-provisioning a DB user.
 func (a *AuthService) ValidateCredentials(email, password string) (*store.User, bool) {
 	ctx := context.Background()
 
-	// 1. Try DB lookup first (normal path)
 	user, err := a.store.GetUserByEmail(ctx, email)
 	if err == nil {
 		hash, hashErr := a.store.GetPasswordForUser(ctx, user.ID)
@@ -61,7 +58,6 @@ func (a *AuthService) ValidateCredentials(email, password string) (*store.User, 
 		}
 	}
 
-	// 2. Legacy migration fallback: check env-var credentials
 	if a.cfg.AuthUsername != "" && (a.cfg.AuthPassword != "" || a.cfg.AuthPasswordHash != "") {
 		if email != a.cfg.AuthUsername {
 			return nil, false
@@ -73,7 +69,6 @@ func (a *AuthService) ValidateCredentials(email, password string) (*store.User, 
 		} else if password != a.cfg.AuthPassword {
 			return nil, false
 		}
-		// Legacy match — auto-provision user in DB
 		user, err = a.provisionFromLegacy(ctx, email, password)
 		if err != nil {
 			slog.ErrorContext(ctx, "legacy user provisioning failed", "component", "auth", "error", err)
@@ -85,25 +80,20 @@ func (a *AuthService) ValidateCredentials(email, password string) (*store.User, 
 	return nil, false
 }
 
-// provisionFromLegacy creates a user row and account row from the old env-var credentials.
-// If the user already exists (e.g. created by better-auth), it just updates the password.
 func (a *AuthService) provisionFromLegacy(ctx context.Context, email, password string) (*store.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if user already exists
 	user, err := a.store.GetUserByEmail(ctx, email)
 	if err == nil {
-		// User exists — just update the password
 		if err := a.store.SetPasswordForUser(ctx, user.ID, string(hash)); err != nil {
 			return nil, err
 		}
 		return user, nil
 	}
 
-	// User doesn't exist — create everything
 	id := generateID()
 	username := strings.Split(email, "@")[0]
 	user, err = a.store.CreateUser(ctx, id, username, email, username)
@@ -127,7 +117,6 @@ func (a *AuthService) RegistrationOpen(ctx context.Context) (bool, error) {
 	return !exists, err
 }
 
-// RegisterUser creates a new user with a bcrypt-hashed password.
 func (a *AuthService) RegisterUser(username, email, password string) (*store.User, error) {
 	ctx := context.Background()
 	id := generateID()
@@ -156,7 +145,6 @@ func generateID() string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
-// CreateSessionToken issues a JWT for the given user.
 func (a *AuthService) CreateSessionToken(userID, username string) (string, error) {
 	now := time.Now().UTC()
 	claims := SessionClaims{
@@ -172,7 +160,6 @@ func (a *AuthService) CreateSessionToken(userID, username string) (string, error
 	return token.SignedString([]byte(a.cfg.AuthCookieSecret))
 }
 
-// SetSessionCookie sets the JWT as an HttpOnly cookie.
 func (a *AuthService) SetSessionCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
@@ -185,7 +172,6 @@ func (a *AuthService) SetSessionCookie(w http.ResponseWriter, token string) {
 	})
 }
 
-// ClearSessionCookie removes the session cookie.
 func (a *AuthService) ClearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
@@ -198,8 +184,6 @@ func (a *AuthService) ClearSessionCookie(w http.ResponseWriter) {
 	})
 }
 
-// SessionFromRequest extracts and verifies a JWT from either a cookie
-// (web) or an Authorization: Bearer header (Expo). Same verification path.
 func (a *AuthService) SessionFromRequest(r *http.Request) (*SessionClaims, error) {
 	var tokenString string
 
@@ -228,7 +212,6 @@ func (a *AuthService) SessionFromRequest(r *http.Request) (*SessionClaims, error
 	return claims, nil
 }
 
-// UserAndUsernameFromRequest returns both userID and username.
 func (a *AuthService) UserAndUsernameFromRequest(r *http.Request) (string, string, error) {
 	claims, err := a.SessionFromRequest(r)
 	if err != nil {
@@ -237,7 +220,6 @@ func (a *AuthService) UserAndUsernameFromRequest(r *http.Request) (string, strin
 	return claims.UserID, claims.Username, nil
 }
 
-// HasPasskey checks if the user has any registered passkeys.
 func (a *AuthService) HasPasskey(userID string) bool {
 	ctx := context.Background()
 	pks, err := a.store.GetPasskeysByUserID(ctx, userID)

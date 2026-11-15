@@ -75,10 +75,7 @@ func (s *Store) Close() {
 	}
 }
 
-// MigrateUp runs all pending up-migrations in order.
-// It uses a schema_migrations table to track which ones have run.
 func (s *Store) MigrateUp(ctx context.Context) error {
-	// Create tracking table if it doesn't exist
 	_, err := s.Pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version TEXT PRIMARY KEY,
@@ -89,7 +86,6 @@ func (s *Store) MigrateUp(ctx context.Context) error {
 		return fmt.Errorf("create schema_migrations: %w", err)
 	}
 
-	// Get already-applied versions
 	applied := make(map[string]bool)
 	rows, err := s.Pool.Query(ctx, `SELECT version FROM schema_migrations`)
 	if err != nil {
@@ -107,7 +103,6 @@ func (s *Store) MigrateUp(ctx context.Context) error {
 		return err
 	}
 
-	// Read and sort migration files
 	entries, err := fs.Glob(migrationsFS, "migrations/*.up.sql")
 	if err != nil {
 		return err
@@ -115,7 +110,6 @@ func (s *Store) MigrateUp(ctx context.Context) error {
 	sort.Strings(entries)
 
 	for _, entry := range entries {
-		// Extract version from filename: "migrations/0004_passkeys.up.sql" → "0004_passkeys"
 		base := strings.TrimSuffix(entry, ".up.sql")
 		version := strings.TrimPrefix(base, "migrations/")
 
@@ -130,7 +124,6 @@ func (s *Store) MigrateUp(ctx context.Context) error {
 
 		slog.InfoContext(ctx, "running database migration", "component", "database", "version", version)
 
-		// Run each statement separately (pgx doesn't support multi-statement in Exec)
 		statements := splitStatements(string(sql))
 		for _, stmt := range statements {
 			stmt = strings.TrimSpace(stmt)
@@ -142,7 +135,6 @@ func (s *Store) MigrateUp(ctx context.Context) error {
 			}
 		}
 
-		// Record as applied
 		_, err = s.Pool.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1)`, version)
 		if err != nil {
 			return fmt.Errorf("record migration %s: %w", version, err)
@@ -162,7 +154,6 @@ func splitStatements(sql string) []string {
 		return parts
 	}
 
-	// Split on semicolons, but skip ones inside strings
 	var statements []string
 	var current strings.Builder
 	inString := false
@@ -184,7 +175,6 @@ func splitStatements(sql string) []string {
 			continue
 		}
 		if ch == '-' && i+1 < len(sql) && sql[i+1] == '-' {
-			// Skip line comment
 			end := strings.IndexByte(sql[i:], '\n')
 			if end == -1 {
 				break

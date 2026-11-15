@@ -79,7 +79,6 @@ func (s *Store) GetPasswordForUser(ctx context.Context, userID string) (string, 
 	return *password, nil
 }
 
-// SetPasswordForUser creates or updates the password in the account table.
 func (s *Store) SetPasswordForUser(ctx context.Context, userID, hashedPassword string) error {
 	var count int
 	err := s.Pool.QueryRow(ctx, `
@@ -95,7 +94,6 @@ func (s *Store) SetPasswordForUser(ctx context.Context, userID, hashedPassword s
 		`, hashedPassword, userID)
 		return err
 	}
-	// Insert a credential account row
 	_, err = s.Pool.Exec(ctx, `
 		INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
 		VALUES (gen_random_uuid()::text, $1, 'credential', $1, $2, now(), now())
@@ -103,7 +101,6 @@ func (s *Store) SetPasswordForUser(ctx context.Context, userID, hashedPassword s
 	return err
 }
 
-// CreateAccountForUser creates a credential account entry for a new user.
 func (s *Store) CreateAccountForUser(ctx context.Context, userID, hashedPassword string) error {
 	_, err := s.Pool.Exec(ctx, `
 		INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)

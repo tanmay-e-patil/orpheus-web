@@ -25,8 +25,6 @@ type OutboxDispatcher struct {
 	Publisher      JobPublisher
 	LeaseDuration  time.Duration
 	PublishTimeout time.Duration
-	// The optional callbacks make crash boundaries deterministic in integration
-	// tests. They are unset in production.
 	afterPublish   func(store.OutboxJob) error
 	onListen       func(uint32)
 	onIdle         func()
@@ -183,7 +181,6 @@ func publicationRetryDelay(attempt int) time.Duration {
 		attempt = 10
 	}
 	base := time.Second * time.Duration(1<<(attempt-1))
-	// Full jitter with a one-second lower bound, capped at five minutes.
 	if base > 5*time.Minute {
 		base = 5 * time.Minute
 	}

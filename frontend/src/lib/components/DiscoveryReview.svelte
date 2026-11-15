@@ -203,7 +203,6 @@
       const option =
         result.selectedOption ||
         result.options.find((row) => (row.confidence || 0) >= 90);
-      // Keep manually edited lyrics on retry. Suggestions are still available below.
       if (
         option &&
         edit &&
@@ -255,8 +254,6 @@
       let chosenMatch: Match | undefined;
       let lookupFailed = false;
       activity = 'Matching the song…';
-      // The source ranking prioritizes the query and requested recording version.
-      // Check at most three sources, stopping as soon as independent metadata agrees.
       for (const video of selected
         ? [selected]
         : draft.selectedVideos.slice(0, 3)) {
@@ -416,7 +413,6 @@
       const submitted = buildCommitItems(draft, draft.saveResults || []).map(
         (item) => ({ ...item, lyricsSearchResult: undefined }),
       );
-      // Edited lyrics are authoritative, including intentionally cleared text.
       const result = await api.commit(submitted);
       if (disposed) return;
       draft.saveResults = mergeCommitResults(

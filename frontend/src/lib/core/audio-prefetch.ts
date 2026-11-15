@@ -2,10 +2,8 @@ import type { Song } from '../types';
 
 type ConnectionInfo = { saveData?: boolean; effectiveType?: string };
 
-// Bounded so a long listening session does not grow this forever.
 const MAX_REMEMBERED = 50;
 const prefetched = new Set<string>();
-// URLs whose prefetch finished, so the browser cache holds the whole file.
 const completed = new Set<string>();
 
 export function songAudioUrl(song: Song | null | undefined): string {
@@ -53,7 +51,6 @@ export function prefetchSongAudio(
       completed.add(url);
     })
     .catch(() => {
-      // Allow a later retry; prefetch failures never affect playback.
       prefetched.delete(url);
     });
 }

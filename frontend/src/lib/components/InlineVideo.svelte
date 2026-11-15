@@ -172,8 +172,6 @@
   }
 
   $effect(() => {
-    // Only `active`, the error, and blocking drive this; activation reads the
-    // player state without subscribing to it.
     if (active) {
       if (!playback && !preparationError && !blocked) untrack(() => activate());
     } else untrack(deactivate);
@@ -183,8 +181,6 @@
     let destroyed = false;
     document.addEventListener('fullscreenchange', fullscreenChanged);
     document.addEventListener('webkitfullscreenchange', fullscreenChanged);
-    // Prepare the iframe as soon as this song enters the queue. Keep it cued
-    // without playing hidden video or taking control away from native audio.
     let generation = 0;
     const mountPlayer = () => {
       const attempt = ++generation;
@@ -238,7 +234,6 @@
               onAutoplayBlocked: () => {
                 if (destroyed || attempt !== generation || !playback) return;
                 clearTimeout(timeout);
-                // Restore native audio and provide a direct gesture retry.
                 landscape.release();
                 playback.fail();
                 playback = undefined;

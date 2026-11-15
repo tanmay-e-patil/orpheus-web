@@ -21,7 +21,6 @@ func cacheHits() float64 {
 	return promtest.ToFloat64(metrics.LibraryCacheRequests.WithLabelValues("hit"))
 }
 
-// startLibraryCache returns a cached store and an uncached store sharing one pool.
 func startLibraryCache(t *testing.T, db *store.Store) (*store.Store, *store.Store) {
 	t.Helper()
 	cached := &store.Store{Pool: db.Pool}
@@ -147,7 +146,6 @@ func TestLibraryCacheFreshness(t *testing.T) {
 	})
 
 	t.Run("other writers arrive through NOTIFY", func(t *testing.T) {
-		// Simulates a media worker or another replica writing directly.
 		if _, err := plain.Pool.Exec(ctx, `UPDATE songs SET artist_name = '1 first' WHERE id = 'song-05'`); err != nil {
 			t.Fatal(err)
 		}
@@ -165,8 +163,6 @@ func TestLibraryCacheFreshness(t *testing.T) {
 		if _, err := plain.Pool.Exec(ctx, `UPDATE songs SET artist_name = '0 first' WHERE id = 'song-02'`); err != nil {
 			t.Fatal(err)
 		}
-		// Whether served by fallback SQL or by the reconnected cache, the
-		// result must be fresh as soon as the write is visible to readers.
 		testutil.Eventually(t, 5*time.Second, func() bool { return first(store.SongSortArtist).TrackID == "song-02" })
 		waitForCacheHit(t, cached)
 		if song := first(store.SongSortArtist); song.TrackID != "song-02" {

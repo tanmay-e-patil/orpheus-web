@@ -49,17 +49,14 @@ it('does not count resumes, rebuffering, or abandoned loads', () => {
   timer.playRequested(false);
   advance(100);
   timer.playing();
-  // Resume and rebuffer of a song that already played.
   timer.playRequested(false);
   advance(5000);
   timer.playing();
-  // Paused before audio began.
   timer.loaded();
   timer.playRequested(false);
   timer.cancel();
   advance(100);
   timer.playing();
-  // Skipped to another song before audio began: timing restarts at its play.
   timer.loaded();
   timer.playRequested(false);
   advance(3000);

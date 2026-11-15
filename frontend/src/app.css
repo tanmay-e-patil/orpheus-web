@@ -2008,7 +2008,6 @@ summary {
   }
 }
 
-/* Now Playing has a fixed header and segmented tabs; each panel owns its body. */
 .now-playing-sheet[data-slot='sheet-content'] {
   height: 100dvh;
   padding: calc(24px + env(safe-area-inset-top))
@@ -2289,7 +2288,6 @@ button.inline-video-loading {
   }
 }
 
-/* The close button and mode switch share one compact header. */
 .now-playing-header {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 44px;
@@ -2407,7 +2405,6 @@ button.inline-video-loading {
   justify-content: space-between;
   align-items: center;
 }
-/* Preserve room for artwork and panels on short or landscape screens. */
 @media (max-height: 700px), (orientation: landscape) {
   .now-playing-actions {
     display: grid;
@@ -2442,7 +2439,6 @@ button.inline-video-loading {
   }
 }
 
-/* Size the artwork area to its cover so spare height stays below the stack. */
 .now-playing-body.artwork-view {
   container-type: inline-size;
 }
@@ -2454,7 +2450,6 @@ button.inline-video-loading {
 .now-playing-body.artwork-view .now-playing-media {
   align-items: flex-end;
 }
-/* Share spare portrait height between the lower rows, keeping metadata by the cover. */
 @media (min-height: 701px) and (orientation: portrait) {
   .now-playing-body.artwork-view .now-playing-controls {
     flex: 1 0 auto;
@@ -2568,7 +2563,6 @@ button.inline-video-loading {
   }
 }
 
-/* Keep browsing and playback side by side when there is room for both. */
 .app-layout {
   --now-playing-width: clamp(320px, 30vw, 420px);
   transition:
@@ -2721,7 +2715,6 @@ button.inline-video-loading {
     padding: 40px 28px;
   }
 }
-/* Portrait uses a compact player, opening a centered, full-screen listening view. */
 @media (orientation: portrait) {
   .player-bar {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -3072,7 +3065,6 @@ button.inline-video-loading {
   }
 }
 
-/* Discovery: one review workspace; corrections stay beside the current choice. */
 .discovery-review {
   max-width: 1120px;
 }
