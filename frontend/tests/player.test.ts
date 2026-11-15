@@ -17,7 +17,11 @@ const controller = {
   pause: vi.fn(),
   stop: vi.fn(),
   seekTo: vi.fn(),
+  getCurrentTime: () => 0,
+  getDuration: () => 0,
   setVolume: vi.fn(),
+  getVolume: () => 100,
+  isMuted: () => false,
 };
 beforeEach(() => {
   vi.mocked(window.matchMedia).mockImplementation((query) => ({

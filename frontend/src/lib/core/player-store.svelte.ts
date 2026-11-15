@@ -28,14 +28,14 @@ export function getPlayerState() {
 }
 
 export const setController = command(
-  (controller: Partial<PlaybackController> | null) => {
-    player.controller = controller as PlaybackController | null;
+  (controller: PlaybackController | null) => {
+    player.controller = controller;
   },
 );
 
 export const clearPlayer = command(() => {
   needsLoad = false;
-  player.controller?.stop?.();
+  player.controller?.stop();
   player.queue = [];
   player.currentIndex = 0;
   player.status = 'idle';
@@ -63,7 +63,7 @@ export const removeQueueSong = command((trackId: string) => {
   }
   player.currentIndex = Math.min(before, player.queue.length - 1);
   if (previous?.trackId === trackId) {
-    player.controller?.stop?.();
+    player.controller?.stop();
     player.currentTime = 0;
     player.duration = parseISODurationSeconds(currentSong()?.duration);
     // Defer loading until the user chooses Play: controller.load may autoplay.
@@ -83,7 +83,7 @@ export const updateQueueSong = command(
     });
     const current = currentSong();
     if (current?.trackId === trackId && current.isAvailable === false) {
-      player.controller?.stop?.();
+      player.controller?.stop();
       player.status = 'unavailable';
     } else if (
       current?.trackId === trackId &&
@@ -92,7 +92,7 @@ export const updateQueueSong = command(
     ) {
       player.currentTime = 0;
       player.status = 'loading';
-      player.controller?.load?.(current);
+      player.controller?.load(current);
     }
   },
 );
@@ -194,7 +194,7 @@ function loadCurrentSong({ autoplay = false } = {}) {
   needsLoad = false;
   const song = currentSong();
   if (!song || !playableSong(song)) {
-    player.controller?.pause?.();
+    player.controller?.pause();
     player.status = 'unavailable';
     player.duration = parseISODurationSeconds(song?.duration);
     console.info('Song is not playable', {
@@ -206,9 +206,9 @@ function loadCurrentSong({ autoplay = false } = {}) {
   }
   player.status = 'loading';
   player.duration = parseISODurationSeconds(song.duration);
-  player.controller?.load?.(song);
+  player.controller?.load(song);
   if (autoplay) {
-    player.controller?.play?.();
+    player.controller?.play();
   }
 }
 

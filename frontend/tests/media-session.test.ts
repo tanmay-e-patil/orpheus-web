@@ -183,7 +183,18 @@ it('keeps playing when optional audio session, position, or action APIs reject c
 it('routes lock-screen controls to the current controller after a video handoff', async () => {
   const { store, audio, handlers } = await setup();
   audio.pause();
-  const video = { play: vi.fn(), pause: vi.fn(), seekTo: vi.fn() };
+  const video = {
+    load: vi.fn(),
+    play: vi.fn(),
+    pause: vi.fn(),
+    stop: vi.fn(),
+    seekTo: vi.fn(),
+    getCurrentTime: () => 0,
+    getDuration: () => 0,
+    setVolume: vi.fn(),
+    getVolume: () => 100,
+    isMuted: () => false,
+  };
   store.setController(video);
   handlers.get('play')!({ action: 'play' });
   handlers.get('seekto')!({ action: 'seekto', seekTime: 55 });
