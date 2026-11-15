@@ -101,7 +101,7 @@ func (a *AuthService) provisionFromLegacy(ctx context.Context, email, password s
 	if err != nil {
 		return nil, err
 	}
-	if err := a.store.CreateAccountForUser(ctx, user.ID, string(hash)); err != nil {
+	if err := a.store.SetPasswordForUser(ctx, user.ID, string(hash)); err != nil {
 		return nil, err
 	}
 	return user, nil
@@ -129,7 +129,7 @@ func (a *AuthService) RegisterUser(username, email, password string) (*store.Use
 	if err != nil {
 		return nil, err
 	}
-	if err := a.store.CreateAccountForUser(ctx, user.ID, string(hash)); err != nil {
+	if err := a.store.SetPasswordForUser(ctx, user.ID, string(hash)); err != nil {
 		return nil, err
 	}
 	return user, nil

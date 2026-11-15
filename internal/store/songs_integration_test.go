@@ -115,3 +115,70 @@ func TestFetchSongsPagePaginatesEverySort(t *testing.T) {
 		})
 	}
 }
+
+func TestEditingReleaseDateUpdatesYear(t *testing.T) {
+	db, _, _ := testutil.Postgres(t)
+	ctx := t.Context()
+	video := types.YouTubeVideo{ID: "video", Title: "Video", ChannelTitle: "Channel", PublishedAt: "2024-01-01"}
+	song := types.SongUpsert{TrackID: "undated", Name: "Undated", ArtistName: "Artist", AlbumName: "Album", Duration: "PT1S", YoutubeVideoID: video.ID}
+	if err := db.UpsertSongAndVideo(ctx, song, video); err != nil {
+		t.Fatal(err)
+	}
+	year := func(t *testing.T) *int {
+		t.Helper()
+		var year *int
+		if err := db.Pool.QueryRow(ctx, `SELECT release_year FROM songs WHERE id = 'undated'`).Scan(&year); err != nil {
+			t.Fatal(err)
+		}
+		return year
+	}
+	if got := year(t); got != nil {
+		t.Fatalf("release_year before edit = %d, want NULL", *got)
+	}
+
+	edit := store.SongMetadataUpdate{Name: "Undated", ArtistName: "Artist", AlbumName: "Album", ReleaseDate: "1999-02-03"}
+	response, err := db.UpdateSongMetadata(ctx, "user", "undated", edit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !response.FileUpdateQueued {
+		t.Fatal("setting a date on an undated song did not queue a file update")
+	}
+	if got := year(t); got == nil || *got != 1999 {
+		t.Fatalf("release_year after edit = %v, want 1999", got)
+	}
+
+	edit.ReleaseDate = "2005"
+	if _, err := db.UpdateSongMetadata(ctx, "user", "undated", edit); err != nil {
+		t.Fatal(err)
+	}
+	if got := year(t); got == nil || *got != 2005 {
+		t.Fatalf("release_year after year-only edit = %v, want 2005", got)
+	}
+}
+
+func TestUpdateLyricsTracksLyricsAvailability(t *testing.T) {
+	db, _, _ := testutil.Postgres(t)
+	ctx := t.Context()
+	testutil.SeedSong(t, db, "song")
+	for _, step := range []struct {
+		plain, synced string
+		want          bool
+	}{
+		{"", "[00:01]line", true},
+		{"", "", false},
+		{"plain", "", true},
+		{"", "", false},
+	} {
+		if err := db.UpdateLyrics(ctx, "song", step.plain, step.synced); err != nil {
+			t.Fatal(err)
+		}
+		song, _, err := db.FetchLibrarySong(ctx, "user", "song")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if song.IsLyricsAvailable == nil || *song.IsLyricsAvailable != step.want {
+			t.Fatalf("lyrics (%q, %q): isLyricsAvailable = %v, want %v", step.plain, step.synced, song.IsLyricsAvailable, step.want)
+		}
+	}
+}

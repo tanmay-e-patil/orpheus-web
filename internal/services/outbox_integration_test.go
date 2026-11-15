@@ -142,6 +142,51 @@ func TestNotificationDrivenOutbox(t *testing.T) {
 		}
 		waitPublished(t, db, 1)
 	})
+	t.Run("its own claim and publish updates do not wake it again", func(t *testing.T) {
+		reset(t)
+		idle := make(chan struct{}, 20)
+		events := make(chan store.OutboxJob, 10)
+		runDispatcher(t, &OutboxDispatcher{Store: db, Publisher: recordingPublisher{events}, testOnIdle: func() { idle <- struct{}{} }})
+		select {
+		case <-idle:
+		case <-time.After(5 * time.Second):
+			t.Fatal("listener not ready")
+		}
+		if _, err := db.ScheduleSong(t.Context(), "Track", store.UpdateSongLyricsAction); err != nil {
+			t.Fatal(err)
+		}
+		receiveEvent(t, events)
+		waitPublished(t, db, 1)
+		select {
+		case <-idle:
+		case <-time.After(5 * time.Second):
+			t.Fatal("dispatcher did not go idle after publishing")
+		}
+		select {
+		case <-idle:
+			t.Fatal("dispatcher woke for its own outbox updates")
+		case <-time.After(300 * time.Millisecond):
+		}
+	})
+	t.Run("operator requeue of a published job wakes it", func(t *testing.T) {
+		reset(t)
+		events := make(chan store.OutboxJob, 10)
+		runDispatcher(t, &OutboxDispatcher{Store: db, Publisher: recordingPublisher{events}})
+		id, err := db.ScheduleSong(t.Context(), "Track", store.DeleteSongFilesAction)
+		if err != nil {
+			t.Fatal(err)
+		}
+		receiveEvent(t, events)
+		waitPublished(t, db, 1)
+		if _, err := db.Pool.Exec(t.Context(), `UPDATE song_job_outbox
+			SET published_at = NULL, available_at = now(), lease_token = NULL, lease_until = NULL, last_error = NULL
+			WHERE id = $1 AND completed_at IS NULL`, id); err != nil {
+			t.Fatal(err)
+		}
+		if event := receiveEvent(t, events); event.ID != id {
+			t.Fatalf("requeued event=%s want=%s", event.ID, id)
+		}
+	})
 	t.Run("burst reaches real RabbitMQ with stable identities", func(t *testing.T) {
 		reset(t)
 		_, messages := observer(t, rabbitURL)

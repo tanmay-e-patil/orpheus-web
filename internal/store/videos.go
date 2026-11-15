@@ -40,10 +40,9 @@ func (s *Store) UpsertSongAndVideo(ctx context.Context, song types.SongUpsert, v
 	tag, err := tx.Exec(ctx, `
 		insert into songs (
 		  id, name, artist_name, album_name, album_art, lyrics, synced_lyrics,
-		  is_lyrics_available, duration, yt_video_id, is_available, release_date,
-		  release_year, created_at, updated_at
+		  duration, yt_video_id, is_available, release_date, created_at, updated_at
 		)
-		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::date, $13, now(), now())
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, nullif($11, '')::date, now(), now())
 		on conflict (id) do update set
 		  name = excluded.name,
 		  artist_name = excluded.artist_name,
@@ -51,15 +50,13 @@ func (s *Store) UpsertSongAndVideo(ctx context.Context, song types.SongUpsert, v
 		  album_art = excluded.album_art,
 		  lyrics = excluded.lyrics,
 		  synced_lyrics = excluded.synced_lyrics,
-		  is_lyrics_available = excluded.is_lyrics_available,
 		  duration = excluded.duration,
 		  yt_video_id = excluded.yt_video_id,
 		  is_available = excluded.is_available,
 		  release_date = excluded.release_date,
-		  release_year = excluded.release_year,
 		  updated_at = now()
 		where songs.deleted_at IS NULL
-	`, song.TrackID, song.Name, song.ArtistName, song.AlbumName, song.AlbumArt, song.Lyrics, song.SyncedLyrics, song.IsLyricsAvailable, song.Duration, song.YoutubeVideoID, song.IsAvailable, song.ReleaseDate, song.ReleaseYear)
+	`, song.TrackID, song.Name, song.ArtistName, song.AlbumName, song.AlbumArt, song.Lyrics, song.SyncedLyrics, song.Duration, song.YoutubeVideoID, song.IsAvailable, song.ReleaseDate)
 	if err != nil {
 		return err
 	}

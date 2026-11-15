@@ -30,7 +30,7 @@ func TestSongDeletion(t *testing.T) {
 	t.Run("atomic scheduling, idempotence, hidden reads and mutation guards", func(t *testing.T) {
 		reset(t)
 		ctx := t.Context()
-		if _, err := db.Pool.Exec(ctx, `INSERT INTO "user"(id,name,email,email_verified,created_at,updated_at) VALUES('user','User','u@example.test',true,now(),now()); UPDATE songs SET lyrics='plain',synced_lyrics='[00:01]line',is_lyrics_available=true WHERE id='deleted'`); err != nil {
+		if _, err := db.Pool.Exec(ctx, `INSERT INTO "user"(id,name,email,email_verified,created_at,updated_at) VALUES('user','User','u@example.test',true,now(),now()); UPDATE songs SET lyrics='plain',synced_lyrics='[00:01]line' WHERE id='deleted'`); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := db.RecordSongPlay(ctx, "user", "deleted"); err != nil {

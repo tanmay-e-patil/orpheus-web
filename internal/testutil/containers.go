@@ -83,8 +83,8 @@ func SeedSong(t *testing.T, db *store.Store, id string) {
 	if _, err := db.Pool.Exec(ctx, `INSERT INTO yt_music_videos (id,title,thumbnail,channel_title,published_at) VALUES ($1,'Video','','Channel','2024-01-01') ON CONFLICT DO NOTHING`, "video-"+id); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Pool.Exec(ctx, `INSERT INTO songs (id,name,artist_name,album_name,album_art,duration,yt_video_id,release_date,release_year,is_available,audio_file_path)
- VALUES ($1,$1,'Artist','Album','','PT1S',$2,'2024-01-01','2024',true,'Artist/Album/' || $1 || '.m4a')`, id, "video-"+id); err != nil {
+	if _, err := db.Pool.Exec(ctx, `INSERT INTO songs (id,name,artist_name,album_name,album_art,duration,yt_video_id,release_date,is_available,audio_file_path)
+ VALUES ($1,$1,'Artist','Album','','PT1S',$2,'2024-01-01',true,'Artist/Album/' || $1 || '.m4a')`, id, "video-"+id); err != nil {
 		t.Fatal(err)
 	}
 }

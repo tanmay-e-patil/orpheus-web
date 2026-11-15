@@ -34,7 +34,7 @@ func TestSongOutboxTransactions(t *testing.T) {
 	t.Run("all producers and no-op edits", func(t *testing.T) {
 		reset(t)
 		video := types.YouTubeVideo{ID: "video", Title: "Video", PublishedAt: "2024-01-01"}
-		song := types.SongUpsert{TrackID: "track", Name: "Track", ArtistName: "Artist", AlbumName: "Album", Duration: "PT1S", YoutubeVideoID: video.ID, ReleaseDate: "2024-01-01", ReleaseYear: "2024"}
+		song := types.SongUpsert{TrackID: "track", Name: "Track", ArtistName: "Artist", AlbumName: "Album", Duration: "PT1S", YoutubeVideoID: video.ID, ReleaseDate: "2024-01-01"}
 		if err := db.UpsertSongAndVideo(t.Context(), song, video); err != nil {
 			t.Fatal(err)
 		}
@@ -93,7 +93,7 @@ func TestSongOutboxTransactions(t *testing.T) {
 		}
 		defer db.Pool.Exec(context.Background(), `ALTER TABLE song_job_outbox DROP CONSTRAINT reject_test_job`)
 		video := types.YouTubeVideo{ID: "rollback-video", Title: "Video", PublishedAt: "2024-01-01"}
-		song := types.SongUpsert{TrackID: "rollback", Name: "Rollback", ArtistName: "Artist", AlbumName: "Album", Duration: "PT1S", YoutubeVideoID: video.ID, ReleaseDate: "2024-01-01", ReleaseYear: "2024"}
+		song := types.SongUpsert{TrackID: "rollback", Name: "Rollback", ArtistName: "Artist", AlbumName: "Album", Duration: "PT1S", YoutubeVideoID: video.ID, ReleaseDate: "2024-01-01"}
 		if err := db.UpsertSongAndVideo(t.Context(), song, video); err == nil {
 			t.Fatal("expected enqueue failure")
 		}
