@@ -121,7 +121,7 @@ func TestNotificationDrivenOutbox(t *testing.T) {
 		reset(t)
 		idle := make(chan struct{}, 20)
 		events := make(chan store.OutboxJob, 10)
-		d := &OutboxDispatcher{Store: db, Publisher: recordingPublisher{events}, onIdle: func() { idle <- struct{}{} }}
+		d := &OutboxDispatcher{Store: db, Publisher: recordingPublisher{events}, testOnIdle: func() { idle <- struct{}{} }}
 		runDispatcher(t, d)
 		select {
 		case <-idle:
@@ -174,7 +174,7 @@ func TestNotificationDrivenOutbox(t *testing.T) {
 		reset(t)
 		pids := make(chan uint32, 10)
 		events := make(chan store.OutboxJob, 10)
-		runDispatcher(t, &OutboxDispatcher{Store: db, Publisher: recordingPublisher{events}, onListen: func(pid uint32) { pids <- pid }, reconnectDelay: 50 * time.Millisecond})
+		runDispatcher(t, &OutboxDispatcher{Store: db, Publisher: recordingPublisher{events}, testOnListen: func(pid uint32) { pids <- pid }, reconnectDelay: 50 * time.Millisecond})
 		var pid uint32
 		select {
 		case pid = <-pids:
@@ -227,7 +227,7 @@ func TestNotificationDrivenOutbox(t *testing.T) {
 		_, messages := observer(t, rabbitURL)
 		ctx, cancel := context.WithCancel(t.Context())
 		done := make(chan error, 1)
-		first := &OutboxDispatcher{Store: db, Publisher: NewQueuePublisher(rabbitURL), LeaseDuration: 400 * time.Millisecond, afterPublish: func(store.OutboxJob) error { cancel(); return errors.New("simulated crash after confirmation") }}
+		first := &OutboxDispatcher{Store: db, Publisher: NewQueuePublisher(rabbitURL), LeaseDuration: 400 * time.Millisecond, testAfterPublish: func(store.OutboxJob) error { cancel(); return errors.New("simulated crash after confirmation") }}
 		go func() { done <- first.Run(ctx) }()
 		t.Cleanup(cancel)
 		id, err := db.ScheduleSong(t.Context(), "Track", store.UpdateSongLyricsAction)
