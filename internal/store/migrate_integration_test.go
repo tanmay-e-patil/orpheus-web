@@ -5,6 +5,7 @@ package store_test
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"slices"
 	"sync"
@@ -120,5 +121,61 @@ func TestConcurrentMigrateOnFreshDatabase(t *testing.T) {
 	}
 	if got := appliedVersions(t, db); !slices.Equal(got, []string{"0000_things", "0001_more"}) {
 		t.Fatalf("applied versions = %v", got)
+	}
+}
+
+func migrationsBefore(t *testing.T, version string) fstest.MapFS {
+	t.Helper()
+	embedded := store.EmbeddedMigrations()
+	entries, err := fs.Glob(embedded, "*.up.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected := fstest.MapFS{}
+	for _, entry := range entries {
+		if entry >= version {
+			continue
+		}
+		data, err := fs.ReadFile(embedded, entry)
+		if err != nil {
+			t.Fatal(err)
+		}
+		selected[entry] = &fstest.MapFile{Data: data}
+	}
+	return selected
+}
+
+func TestMigrationsConvertLegacyRows(t *testing.T) {
+	db := emptyDatabase(t)
+	ctx := t.Context()
+	if err := store.Migrate(ctx, db, migrationsBefore(t, "0014")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Pool.Exec(ctx, `
+		INSERT INTO "user" (id, name, email, email_verified, created_at, updated_at)
+		VALUES ('owner', 'Owner', 'Owner@Example.com', true, '2024-01-01', '2024-01-01');
+		INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at) VALUES
+		  ('stale', 'owner', 'credential', 'owner', 'stale-hash', '2024-01-01', '2024-01-01'),
+		  ('fresh', 'owner', 'credential', 'owner', 'fresh-hash', '2024-01-01', '2024-06-01');
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := db.MigrateUp(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	var credentials int
+	if err := db.Pool.QueryRow(ctx, `SELECT count(*) FROM account WHERE user_id = 'owner'`).Scan(&credentials); err != nil {
+		t.Fatal(err)
+	}
+	if credentials != 1 {
+		t.Fatalf("credential rows = %d, want 1", credentials)
+	}
+	if got, err := db.GetPasswordForUser(ctx, "owner"); err != nil || got != "fresh-hash" {
+		t.Fatalf("kept password = %q, err = %v; want the most recently updated", got, err)
+	}
+	if user, err := db.GetUserByEmail(ctx, "owner@example.com"); err != nil || user.ID != "owner" {
+		t.Fatalf("lookup by lower-case email = %+v, err = %v", user, err)
 	}
 }

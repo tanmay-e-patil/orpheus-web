@@ -37,7 +37,7 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error)
 	var u User
 	err := s.Pool.QueryRow(ctx, `
 		SELECT id, name, email, email_verified, image, username, display_username, created_at, updated_at
-		FROM "user" WHERE email = $1
+		FROM "user" WHERE lower(email) = lower($1)
 	`, email).Scan(
 		&u.ID, &u.Name, &u.Email, &u.EmailVerified, &u.Image,
 		&u.Username, &u.DisplayUsername, &u.CreatedAt, &u.UpdatedAt,
@@ -80,31 +80,11 @@ func (s *Store) GetPasswordForUser(ctx context.Context, userID string) (string, 
 }
 
 func (s *Store) SetPasswordForUser(ctx context.Context, userID, hashedPassword string) error {
-	var count int
-	err := s.Pool.QueryRow(ctx, `
-		SELECT COUNT(*) FROM account WHERE user_id = $1 AND provider_id = 'credential'
-	`, userID).Scan(&count)
-	if err != nil {
-		return err
-	}
-	if count > 0 {
-		_, err = s.Pool.Exec(ctx, `
-			UPDATE account SET password = $1, updated_at = now()
-			WHERE user_id = $2 AND provider_id = 'credential'
-		`, hashedPassword, userID)
-		return err
-	}
-	_, err = s.Pool.Exec(ctx, `
-		INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
-		VALUES (gen_random_uuid()::text, $1, 'credential', $1, $2, now(), now())
-	`, userID, hashedPassword)
-	return err
-}
-
-func (s *Store) CreateAccountForUser(ctx context.Context, userID, hashedPassword string) error {
 	_, err := s.Pool.Exec(ctx, `
-		INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
-		VALUES (gen_random_uuid()::text, $1, 'credential', $1, $2, now(), now())
+		INSERT INTO account (id, provider_id, user_id, password, created_at, updated_at)
+		VALUES (gen_random_uuid()::text, 'credential', $1, $2, now(), now())
+		ON CONFLICT (user_id, provider_id) DO UPDATE
+		SET password = excluded.password, updated_at = now()
 	`, userID, hashedPassword)
 	return err
 }
