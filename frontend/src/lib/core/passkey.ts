@@ -5,8 +5,7 @@ type Base64URL = string;
 type ServerCredential = { id: Base64URL; type: PublicKeyCredentialType };
 
 export type PasskeyServerOptions = {
-  publicKey?: Record<string, unknown>;
-  [key: string]: unknown;
+  publicKey: Record<string, unknown>;
 };
 
 export type PasskeyCreationResponse = {
@@ -28,9 +27,6 @@ export type PasskeyRequestResponse = {
   type: string;
 };
 
-const unwrap = (response: PasskeyServerOptions) =>
-  (response.publicKey || response) as Record<string, unknown>;
-
 const decodeCredentials = (credentials: unknown) =>
   ((credentials as ServerCredential[] | undefined) || []).map((c) => ({
     ...c,
@@ -45,7 +41,7 @@ export const Passkey = {
   async register(
     responseFromServer: PasskeyServerOptions,
   ): Promise<PasskeyCreationResponse> {
-    const options = unwrap(responseFromServer);
+    const options = responseFromServer.publicKey;
     const user = options.user as { id: Base64URL; [key: string]: unknown };
     const publicKey = {
       ...options,
@@ -71,7 +67,7 @@ export const Passkey = {
   async authenticate(
     responseFromServer: PasskeyServerOptions,
   ): Promise<PasskeyRequestResponse> {
-    const options = unwrap(responseFromServer);
+    const options = responseFromServer.publicKey;
     const publicKey = {
       ...options,
       challenge: decode(options.challenge as Base64URL),
