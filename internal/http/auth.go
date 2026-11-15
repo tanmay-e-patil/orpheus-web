@@ -58,15 +58,16 @@ func (a *AuthService) ValidateCredentials(email, password string) (*store.User, 
 		}
 	}
 
-	if a.cfg.AuthUsername != "" && (a.cfg.AuthPassword != "" || a.cfg.AuthPasswordHash != "") {
-		if email != a.cfg.AuthUsername {
+	legacy := a.cfg.LegacyAuth
+	if legacy.Email != "" && (legacy.Password != "" || legacy.PasswordHash != "") {
+		if email != legacy.Email {
 			return nil, false
 		}
-		if a.cfg.AuthPasswordHash != "" {
-			if bcrypt.CompareHashAndPassword([]byte(a.cfg.AuthPasswordHash), []byte(password)) != nil {
+		if legacy.PasswordHash != "" {
+			if bcrypt.CompareHashAndPassword([]byte(legacy.PasswordHash), []byte(password)) != nil {
 				return nil, false
 			}
-		} else if password != a.cfg.AuthPassword {
+		} else if password != legacy.Password {
 			return nil, false
 		}
 		user, err = a.provisionFromLegacy(ctx, email, password)
