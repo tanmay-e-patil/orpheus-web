@@ -39,8 +39,6 @@ type LibraryCache struct {
 
 	memoMu sync.Mutex
 	memo   map[string]*mostPlayedOrder
-
-	onListen func()
 }
 
 type songsSnapshot struct {
@@ -108,9 +106,6 @@ func (c *LibraryCache) listen(ctx context.Context) error {
 	c.songs.invalidate()
 	c.plays.invalidate()
 	c.listening.Store(true)
-	if c.onListen != nil {
-		c.onListen()
-	}
 	for {
 		n, err := conn.WaitForNotification(ctx)
 		if err != nil {
