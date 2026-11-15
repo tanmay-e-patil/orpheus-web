@@ -77,7 +77,7 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 			}
 		}
 	})
-	run := func(args ...string) string {
+	run := func(t *testing.T, args ...string) string {
 		t.Helper()
 		code, output, err := consumer.Exec(ctx, args, tcexec.Multiplexed())
 		if err != nil {
@@ -92,7 +92,7 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 		}
 		return string(data)
 	}
-	read := func(path string) string {
+	read := func(t *testing.T, path string) string {
 		t.Helper()
 		stream, err := consumer.CopyFileFromContainer(ctx, path)
 		if err != nil {
@@ -109,8 +109,8 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 	if _, err := db.Pool.Exec(ctx, `UPDATE songs SET synced_lyrics='[00:01]original' WHERE id='Track'`); err != nil {
 		t.Fatal(err)
 	}
-	run("mkdir", "-p", "/music/Artist/Album")
-	run("ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.1", "-c:a", "aac", "-y", "/music/Artist/Album/Track.m4a")
+	run(t, "mkdir", "-p", "/music/Artist/Album")
+	run(t, "ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.1", "-c:a", "aac", "-y", "/music/Artist/Album/Track.m4a")
 	dispatcherCtx, stopDispatcher := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
@@ -124,7 +124,7 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 			t.Error("dispatcher failed to shut down")
 		}
 	})
-	waitCompleted := func(n int) {
+	waitCompleted := func(t *testing.T, n int) {
 		t.Helper()
 		testutil.Eventually(t, 15*time.Second, func() bool {
 			var count int
@@ -132,35 +132,7 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 			return err == nil && count == n
 		})
 	}
-	userID := func(context.Context) (string, bool) { return "user", true }
-	request := httptest.NewRequest(http.MethodPatch, "/api/songs/Track/metadata", strings.NewReader(`{"name":"Renamed","artistName":"New Artist","albumName":"New Album","albumArt":"","releaseDate":"2025-02-03"}`))
-	request.SetPathValue("trackId", "Track")
-	response := httptest.NewRecorder()
-	handlers.UpdateSongMetadata(db, userID).ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("metadata save: %d %s", response.Code, response.Body.String())
-	}
-	waitCompleted(1)
-	newAudio := "/music/New Artist/New Album/Renamed.m4a"
-	newLyrics := "/music/New Artist/New Album/Renamed.lrc"
-	run("test", "-f", newAudio)
-	testutil.Eventually(t, 5*time.Second, func() bool {
-		var count int
-		err := db.Pool.QueryRow(ctx, `SELECT count(*) FROM song_file_cleanup`).Scan(&count)
-		return err == nil && count == 0
-	})
-	run("test", "!", "-e", "/music/Artist/Album/Track.m4a")
-	if got := read(newLyrics); got != "[00:01]original\n" {
-		t.Fatalf("renamed sidecar=%q", got)
-	}
-	tags := run("ffprobe", "-v", "error", "-show_entries", "format_tags=title,artist,album,date", "-of", "json", newAudio)
-	for _, want := range []string{"Renamed", "New Artist", "New Album", "2025-02-03"} {
-		if !strings.Contains(tags, want) {
-			t.Fatalf("missing tag %q: %s", want, tags)
-		}
-	}
-	originalHash := strings.Fields(run("sha256sum", newAudio))[0]
-	saveLyrics := func(plain, synced string) {
+	saveLyrics := func(t *testing.T, plain, synced string) {
 		t.Helper()
 		body, _ := json.Marshal(map[string]string{"trackId": "Track", "plainLyrics": plain, "syncedLyrics": synced})
 		response := httptest.NewRecorder()
@@ -169,60 +141,108 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 			t.Fatalf("lyrics save: %d %s", response.Code, response.Body.String())
 		}
 	}
+	step := func(name string, fn func(t *testing.T)) {
+		if !t.Run(name, fn) {
+			t.FailNow()
+		}
+	}
+	newAudio := "/music/New Artist/New Album/Renamed.m4a"
+	newLyrics := "/music/New Artist/New Album/Renamed.lrc"
 	stopTimeout := time.Second
-	if err := consumer.Stop(ctx, &stopTimeout); err != nil {
-		t.Fatal(err)
-	}
-	saveLyrics("plain", "[00:02]updated")
-	testutil.Eventually(t, 5*time.Second, func() bool {
-		var n int
-		err := db.Pool.QueryRow(ctx, `SELECT count(*) FROM song_job_outbox WHERE published_at IS NOT NULL`).Scan(&n)
-		return err == nil && n == 2
-	})
-	if err := consumer.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
-	waitCompleted(2)
-	if got := read(newLyrics); got != "[00:02]updated\n" {
-		t.Fatalf("updated sidecar=%q", got)
-	}
-	if got := strings.Fields(run("sha256sum", newAudio))[0]; got != originalHash {
-		t.Fatal("lyrics edit modified audio")
-	}
-	saveLyrics("", "")
-	waitCompleted(3)
-	run("test", "!", "-e", newLyrics)
-	if got := strings.Fields(run("sha256sum", newAudio))[0]; got != originalHash {
-		t.Fatal("lyrics removal modified audio")
-	}
-	saveLyrics("plain", "[00:03]delete me")
-	waitCompleted(4)
-	if err := broker.Stop(ctx, &stopTimeout); err != nil {
-		t.Fatal(err)
-	}
-	deletionRequest := httptest.NewRequest(http.MethodDelete, "/api/songs/Track", nil)
-	deletionRequest.SetPathValue("trackId", "Track")
-	deletionResponse := httptest.NewRecorder()
-	handlers.DeleteSong(db).ServeHTTP(deletionResponse, deletionRequest)
-	if deletionResponse.Code != http.StatusAccepted {
-		t.Fatalf("delete: %d %s", deletionResponse.Code, deletionResponse.Body.String())
-	}
-	if _, err := db.SongForAudio(ctx, "Track"); err == nil {
-		t.Fatal("deleted song is still readable")
-	}
-	run("test", "-f", newAudio)
-	run("test", "-f", newLyrics)
-	if err := broker.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
-	waitCompleted(5)
-	run("test", "!", "-e", newAudio)
-	run("test", "!", "-e", newLyrics)
-	if _, err := db.Pool.Exec(ctx, `INSERT INTO song_job_outbox(song_id,action) VALUES('Track',$1)`, store.ProcessSongAction); err != nil {
-		t.Fatal(err)
-	}
-	waitCompleted(6)
-	run("test", "!", "-e", newAudio)
-	run("test", "!", "-e", newLyrics)
+	var originalHash string
 
+	step("metadata edit moves and retags audio and sidecar", func(t *testing.T) {
+		userID := func(context.Context) (string, bool) { return "user", true }
+		request := httptest.NewRequest(http.MethodPatch, "/api/songs/Track/metadata", strings.NewReader(`{"name":"Renamed","artistName":"New Artist","albumName":"New Album","albumArt":"","releaseDate":"2025-02-03"}`))
+		request.SetPathValue("trackId", "Track")
+		response := httptest.NewRecorder()
+		handlers.UpdateSongMetadata(db, userID).ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("metadata save: %d %s", response.Code, response.Body.String())
+		}
+		waitCompleted(t, 1)
+		run(t, "test", "-f", newAudio)
+		testutil.Eventually(t, 5*time.Second, func() bool {
+			var count int
+			err := db.Pool.QueryRow(ctx, `SELECT count(*) FROM song_file_cleanup`).Scan(&count)
+			return err == nil && count == 0
+		})
+		run(t, "test", "!", "-e", "/music/Artist/Album/Track.m4a")
+		if got := read(t, newLyrics); got != "[00:01]original\n" {
+			t.Fatalf("renamed sidecar=%q", got)
+		}
+		tags := run(t, "ffprobe", "-v", "error", "-show_entries", "format_tags=title,artist,album,date", "-of", "json", newAudio)
+		for _, want := range []string{"Renamed", "New Artist", "New Album", "2025-02-03"} {
+			if !strings.Contains(tags, want) {
+				t.Fatalf("missing tag %q: %s", want, tags)
+			}
+		}
+		originalHash = strings.Fields(run(t, "sha256sum", newAudio))[0]
+	})
+
+	step("published lyrics job waits for a stopped consumer to restart", func(t *testing.T) {
+		if err := consumer.Stop(ctx, &stopTimeout); err != nil {
+			t.Fatal(err)
+		}
+		saveLyrics(t, "plain", "[00:02]updated")
+		testutil.Eventually(t, 5*time.Second, func() bool {
+			var n int
+			err := db.Pool.QueryRow(ctx, `SELECT count(*) FROM song_job_outbox WHERE published_at IS NOT NULL`).Scan(&n)
+			return err == nil && n == 2
+		})
+		if err := consumer.Start(ctx); err != nil {
+			t.Fatal(err)
+		}
+		waitCompleted(t, 2)
+		if got := read(t, newLyrics); got != "[00:02]updated\n" {
+			t.Fatalf("updated sidecar=%q", got)
+		}
+		if got := strings.Fields(run(t, "sha256sum", newAudio))[0]; got != originalHash {
+			t.Fatal("lyrics edit modified audio")
+		}
+	})
+
+	step("clearing lyrics removes the sidecar and keeps audio", func(t *testing.T) {
+		saveLyrics(t, "", "")
+		waitCompleted(t, 3)
+		run(t, "test", "!", "-e", newLyrics)
+		if got := strings.Fields(run(t, "sha256sum", newAudio))[0]; got != originalHash {
+			t.Fatal("lyrics removal modified audio")
+		}
+	})
+
+	step("deletion committed during a broker outage is delivered by retry", func(t *testing.T) {
+		saveLyrics(t, "plain", "[00:03]delete me")
+		waitCompleted(t, 4)
+		if err := broker.Stop(ctx, &stopTimeout); err != nil {
+			t.Fatal(err)
+		}
+		deletionRequest := httptest.NewRequest(http.MethodDelete, "/api/songs/Track", nil)
+		deletionRequest.SetPathValue("trackId", "Track")
+		deletionResponse := httptest.NewRecorder()
+		handlers.DeleteSong(db).ServeHTTP(deletionResponse, deletionRequest)
+		if deletionResponse.Code != http.StatusAccepted {
+			t.Fatalf("delete: %d %s", deletionResponse.Code, deletionResponse.Body.String())
+		}
+		if _, err := db.SongForAudio(ctx, "Track"); err == nil {
+			t.Fatal("deleted song is still readable")
+		}
+		run(t, "test", "-f", newAudio)
+		run(t, "test", "-f", newLyrics)
+		if err := broker.Start(ctx); err != nil {
+			t.Fatal(err)
+		}
+		waitCompleted(t, 5)
+		run(t, "test", "!", "-e", newAudio)
+		run(t, "test", "!", "-e", newLyrics)
+	})
+
+	step("delayed process job for a deleted song completes without recreating files", func(t *testing.T) {
+		if _, err := db.Pool.Exec(ctx, `INSERT INTO song_job_outbox(song_id,action) VALUES('Track',$1)`, store.ProcessSongAction); err != nil {
+			t.Fatal(err)
+		}
+		waitCompleted(t, 6)
+		run(t, "test", "!", "-e", newAudio)
+		run(t, "test", "!", "-e", newLyrics)
+	})
 }

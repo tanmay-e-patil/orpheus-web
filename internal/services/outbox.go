@@ -21,15 +21,15 @@ type JobPublisher interface {
 }
 
 type OutboxDispatcher struct {
-	Store          *store.Store
-	Publisher      JobPublisher
-	LeaseDuration  time.Duration
-	PublishTimeout time.Duration
-	afterPublish   func(store.OutboxJob) error
-	onListen       func(uint32)
-	onIdle         func()
-	retryDelay     func(int) time.Duration
-	reconnectDelay time.Duration
+	Store            *store.Store
+	Publisher        JobPublisher
+	LeaseDuration    time.Duration
+	PublishTimeout   time.Duration
+	testAfterPublish func(store.OutboxJob) error
+	testOnListen     func(uint32)
+	testOnIdle       func()
+	retryDelay       func(int) time.Duration
+	reconnectDelay   time.Duration
 }
 
 func (d *OutboxDispatcher) Run(ctx context.Context) error {
@@ -67,8 +67,8 @@ func (d *OutboxDispatcher) listenAndDispatch(ctx context.Context) error {
 	if _, err := conn.Exec(ctx, "LISTEN song_jobs_ready"); err != nil {
 		return err
 	}
-	if d.onListen != nil {
-		d.onListen(conn.PgConn().PID())
+	if d.testOnListen != nil {
+		d.testOnListen(conn.PgConn().PID())
 	}
 	// LISTEN must be committed before the initial scan, including on reconnect.
 	maintenanceAt := time.Now()
@@ -113,8 +113,8 @@ func (d *OutboxDispatcher) listenAndDispatch(ctx context.Context) error {
 		if deadline.Before(time.Now().Add(50 * time.Millisecond)) {
 			deadline = time.Now().Add(50 * time.Millisecond)
 		}
-		if d.onIdle != nil {
-			d.onIdle()
+		if d.testOnIdle != nil {
+			d.testOnIdle()
 		}
 		waitCtx, cancel := context.WithDeadline(ctx, deadline)
 		_, err = conn.WaitForNotification(waitCtx)
@@ -161,8 +161,8 @@ func (d *OutboxDispatcher) drain(ctx context.Context) error {
 			slog.WarnContext(ctx, "outbox publication deferred", "component", "outbox", "event_id", job.ID, "attempt", job.Attempts, "retry_in", delay, "error", err)
 			continue
 		}
-		if d.afterPublish != nil {
-			if err := d.afterPublish(*job); err != nil {
+		if d.testAfterPublish != nil {
+			if err := d.testAfterPublish(*job); err != nil {
 				return err
 			}
 		}

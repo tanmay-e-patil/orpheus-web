@@ -9,11 +9,15 @@ import (
 	"time"
 )
 
+type LegacyAuthConfig struct {
+	Email        string
+	Password     string
+	PasswordHash string
+}
+
 type Config struct {
 	DatabaseURL             string
-	AuthUsername            string
-	AuthPassword            string
-	AuthPasswordHash        string
+	LegacyAuth              LegacyAuthConfig
 	AuthCookieSecret        string
 	AuthRPOrigin            string
 	AuthRegistrationEnabled bool
@@ -31,10 +35,12 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
-		DatabaseURL:      os.Getenv("DATABASE_URL"),
-		AuthUsername:     envOr([]string{"AUTH_EMAIL", "AUTH_USERNAME"}),
-		AuthPassword:     os.Getenv("AUTH_PASSWORD"),
-		AuthPasswordHash: os.Getenv("AUTH_PASSWORD_HASH"),
+		DatabaseURL: os.Getenv("DATABASE_URL"),
+		LegacyAuth: LegacyAuthConfig{
+			Email:        envOr([]string{"AUTH_EMAIL", "AUTH_USERNAME"}),
+			Password:     os.Getenv("AUTH_PASSWORD"),
+			PasswordHash: os.Getenv("AUTH_PASSWORD_HASH"),
+		},
 		AuthCookieSecret: os.Getenv("AUTH_COOKIE_SECRET"),
 		AuthRPOrigin:     os.Getenv("AUTH_RP_ORIGIN"),
 		YouTubeAPIKey:    os.Getenv("YOUTUBE_API_KEY"),
