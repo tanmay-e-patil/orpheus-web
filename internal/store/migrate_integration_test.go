@@ -161,6 +161,9 @@ func TestMigrationsConvertLegacyRows(t *testing.T) {
 		INSERT INTO songs (id, name, artist_name, album_name, album_art, duration, yt_video_id, is_available, release_date, release_year, lyrics, is_lyrics_available) VALUES
 		  ('placeholder', 'Placeholder', 'Artist', 'Album', '', 'PT1S', 'video', NULL, '1970-01-01', '1970', 'words', NULL),
 		  ('dated', 'Dated', 'Artist', 'Album', '', 'PT1S', 'video', true, '2020-03-04', 'Unknown', '', true);
+		UPDATE songs SET created_at = '2024-01-02 03:04:05', updated_at = '2024-01-02 03:04:05';
+		INSERT INTO user_song_plays (user_id, track_id, play_count, last_played_at, created_at, updated_at)
+		VALUES ('owner', 'dated', 1, '2024-01-02 03:04:05', '2024-01-02 03:04:05', '2024-01-02 03:04:05');
 	`); err != nil {
 		t.Fatal(err)
 	}
@@ -213,5 +216,46 @@ func TestMigrationsConvertLegacyRows(t *testing.T) {
 	}
 	if dated.lyricsPresent == nil || *dated.lyricsPresent {
 		t.Fatalf("song without lyrics has is_lyrics_available=%v", dated.lyricsPresent)
+	}
+
+	rows, err := db.Pool.Query(ctx, `
+		SELECT table_name || '.' || column_name FROM information_schema.columns
+		WHERE table_schema = 'public' AND data_type = 'timestamp without time zone'
+		ORDER BY 1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	naive, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(naive) > 0 {
+		t.Fatalf("columns without a time zone remain: %v", naive)
+	}
+
+	// Legacy values were written as UTC; they must read back as those instants
+	// whatever the session time zone is.
+	var total, preserved int
+	if err := pgx.BeginFunc(ctx, db.Pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SET LOCAL TIME ZONE 'America/New_York'`); err != nil {
+			return err
+		}
+		return tx.QueryRow(ctx, `
+			SELECT count(*), count(*) FILTER (WHERE actual = expected::timestamptz) FROM (
+			  SELECT created_at, '2024-01-01 00:00:00+00' FROM "user"
+			  UNION ALL SELECT updated_at, '2024-01-01 00:00:00+00' FROM "user"
+			  UNION ALL SELECT created_at, '2024-01-01 00:00:00+00' FROM account
+			  UNION ALL SELECT updated_at, '2024-06-01 00:00:00+00' FROM account
+			  UNION ALL SELECT created_at, '2024-01-02 03:04:05+00' FROM songs
+			  UNION ALL SELECT updated_at, '2024-01-02 03:04:05+00' FROM songs
+			  UNION ALL SELECT last_played_at, '2024-01-02 03:04:05+00' FROM user_song_plays
+			  UNION ALL SELECT created_at, '2024-01-02 03:04:05+00' FROM user_song_plays
+			  UNION ALL SELECT updated_at, '2024-01-02 03:04:05+00' FROM user_song_plays
+			) AS converted(actual, expected)`).Scan(&total, &preserved)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if total != 11 || preserved != total {
+		t.Fatalf("%d of %d legacy timestamps kept their instant, want 11 of 11", preserved, total)
 	}
 }
