@@ -28,7 +28,6 @@ export type PasskeyRequestResponse = {
   type: string;
 };
 
-// Server returns { publicKey: { challenge, ... } } or the options directly.
 const unwrap = (response: PasskeyServerOptions) =>
   (response.publicKey || response) as Record<string, unknown>;
 

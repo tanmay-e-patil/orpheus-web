@@ -34,7 +34,6 @@ export type SongsCursor = {
   createdAt?: string;
 };
 
-// 401s from these endpoints are expected and mean "not signed in yet".
 const anonymousPaths = [
   '/api/auth/session',
   '/api/auth/login',
@@ -42,7 +41,6 @@ const anonymousPaths = [
 ];
 const unauthorizedListeners = new Set<() => void>();
 
-/** Called when an authenticated request is rejected because the session ended. */
 export function onUnauthorized(listener: () => void) {
   unauthorizedListeners.add(listener);
   return () => {

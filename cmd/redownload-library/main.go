@@ -102,8 +102,6 @@ func run() error {
 	return nil
 }
 
-// update-song-files reuses the stored audio file, so it only applies to
-// available songs; unavailable songs need process-song-data instead.
 func validateAction(action string, includeAvailable bool) error {
 	switch action {
 	case store.ProcessSongAction:

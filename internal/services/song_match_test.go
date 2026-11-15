@@ -175,7 +175,6 @@ func TestPopularityBreaksTiesWithoutOverridingIdentity(t *testing.T) {
 	if ok, _ := trackDecision(matches); !ok {
 		t.Fatal("equivalent releases should still allow automatic selection")
 	}
-	// Popularity must not resolve an identity ambiguity between distinct recordings.
 	alternative := album
 	alternative.ID = "different"
 	alternative.Name = "Firework (Alternate)"

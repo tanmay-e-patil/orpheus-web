@@ -11,9 +11,9 @@ import (
 
 type Config struct {
 	DatabaseURL             string
-	AuthUsername            string // deprecated: only used for legacy migration
-	AuthPassword            string // deprecated: only used for legacy migration
-	AuthPasswordHash        string // deprecated: only used for legacy migration
+	AuthUsername            string
+	AuthPassword            string
+	AuthPasswordHash        string
 	AuthCookieSecret        string
 	AuthRPOrigin            string
 	AuthRegistrationEnabled bool

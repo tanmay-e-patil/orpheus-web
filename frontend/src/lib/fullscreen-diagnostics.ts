@@ -64,7 +64,6 @@ function errorDetails(error: unknown) {
   };
 }
 
-// Observe the native API without imposing a timeout on it or changing playback.
 export function requestFullscreenWithDiagnostics(element: FullscreenElement) {
   const request = element.requestFullscreen ?? element.webkitRequestFullscreen;
   if (!request) {

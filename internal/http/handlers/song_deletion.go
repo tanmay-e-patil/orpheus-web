@@ -10,7 +10,6 @@ import (
 	"orpheus-web/internal/store"
 )
 
-// DeleteSong runs behind requireAuth, like the other shared-library mutations.
 func DeleteSong(db *store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		trackID := r.PathValue("trackId")

@@ -128,8 +128,6 @@ func TestNotificationDrivenOutbox(t *testing.T) {
 		case <-time.After(5 * time.Second):
 			t.Fatal("listener not ready")
 		}
-		// This is an observation window, not a sleep used to wait for work. Any idle
-		// rescan during it is a test failure.
 		select {
 		case <-idle:
 			t.Fatal("dispatcher queried again while idle")
@@ -295,8 +293,6 @@ func TestNotificationDrivenOutbox(t *testing.T) {
 			t.Fatal(err)
 		}
 		publisher.current.Store(NewQueuePublisher(newURL))
-		// Wait for broker readiness before attaching an observer; the dispatcher's
-		// retry timer continues independently and may already have published.
 		testutil.Eventually(t, 15*time.Second, func() bool {
 			conn, err := amqp.Dial(newURL)
 			if err != nil {

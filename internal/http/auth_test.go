@@ -25,7 +25,6 @@ func TestAuthSessionTokenRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test via cookie
 	recorder := httptest.NewRecorder()
 	auth.SetSessionCookie(recorder, token)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

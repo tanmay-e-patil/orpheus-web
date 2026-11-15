@@ -84,7 +84,6 @@
     { value: 'artist', label: 'Artist A–Z' },
     { value: 'mostPlayed', label: 'Most played' },
   ];
-  // Apply plays recorded while this page was open without refetching.
   const counted = $derived(
     library.playCounts.size
       ? songs.map((song) => {

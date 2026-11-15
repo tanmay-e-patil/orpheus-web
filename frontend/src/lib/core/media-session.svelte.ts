@@ -16,7 +16,6 @@ export function configureAudioSession() {
   }
 }
 
-/** Mirrors the player onto the lock screen. Returns a cleanup function. */
 export function initMediaSession() {
   const session = navigator.mediaSession;
   if (!session) return () => {};

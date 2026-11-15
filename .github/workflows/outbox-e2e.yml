@@ -28,7 +28,6 @@ jobs:
         with:
           go-version-file: orpheus-web/go.mod
           cache: true
-          # Refresh the cache when either module or the test workflow changes.
           cache-dependency-path: |
             orpheus-web/go.mod
             orpheus-web/go.sum

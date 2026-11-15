@@ -30,7 +30,6 @@ type PlayTracker = {
   lastTick: number;
 };
 
-// Assigned once by initAudioPlayer; the other functions run only after that.
 let audio!: HTMLAudioElement;
 let raf = 0;
 let playTracker: PlayTracker | null = null;

@@ -27,7 +27,6 @@ export function getPlayerState() {
   return player;
 }
 
-// Accept partial controllers: callers only invoke the methods they need.
 export const setController = command(
   (controller: Partial<PlaybackController> | null) => {
     player.controller = controller as PlaybackController | null;
@@ -51,7 +50,6 @@ export const setQueue = command((queue: Song[], currentIndex: number) => {
   loadCurrentSong({ autoplay: true });
 });
 
-// Remove all occurrences without interrupting an unrelated current song.
 export const removeQueueSong = command((trackId: string) => {
   const previous = currentSong();
   if (!player.queue.some((song) => song.trackId === trackId)) return;

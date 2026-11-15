@@ -46,9 +46,6 @@ var (
 		Buckets: latencyBuckets,
 	}, []string{"part"})
 
-	// Measured in the browser: from a play request (click, next, auto-advance)
-	// until the audio element fires "playing". This is the latency users feel,
-	// including network transfer and decoding, unlike server-side TTFB.
 	PlaybackStartDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "orpheus_playback_start_duration_seconds",
 		Help:    "Time from a play request until audio starts playing, measured in the browser.",

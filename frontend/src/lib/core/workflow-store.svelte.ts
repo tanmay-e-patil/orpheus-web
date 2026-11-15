@@ -7,7 +7,6 @@ const DRAFTS_STORAGE_KEY = 'orpheus-workflow-drafts';
 // reactive `workflows` getters below re-read it.
 let revision = $state(0);
 
-/** Reactive view of the active workflow and named drafts. */
 export const workflows = {
   get active() {
     void revision;

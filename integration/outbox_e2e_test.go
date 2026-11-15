@@ -27,8 +27,6 @@ import (
 	"orpheus-web/internal/testutil"
 )
 
-// This suite uses the actual consumer binary and ffmpeg. All audio is generated
-// locally; YouTube, Deezer, and LRCLIB are deliberately outside this workflow.
 func TestSongFileOutboxEndToEnd(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	defer cancel()
@@ -171,8 +169,6 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 			t.Fatalf("lyrics save: %d %s", response.Code, response.Body.String())
 		}
 	}
-	// Stop the real process to verify that already-published work survives until
-	// the consumer starts again, independently of the dispatcher's lifetime.
 	stopTimeout := time.Second
 	if err := consumer.Stop(ctx, &stopTimeout); err != nil {
 		t.Fatal(err)
@@ -199,8 +195,6 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 	if got := strings.Fields(run("sha256sum", newAudio))[0]; got != originalHash {
 		t.Fatal("lyrics removal modified audio")
 	}
-	// Deletion commits while the broker is unavailable; the existing retry
-	// timer must deliver it without another HTTP request once RabbitMQ returns.
 	saveLyrics("plain", "[00:03]delete me")
 	waitCompleted(4)
 	if err := broker.Stop(ctx, &stopTimeout); err != nil {
@@ -224,8 +218,6 @@ func TestSongFileOutboxEndToEnd(t *testing.T) {
 	waitCompleted(5)
 	run("test", "!", "-e", newAudio)
 	run("test", "!", "-e", newLyrics)
-	// A delayed process request uses the real outbox and consumer, but must be
-	// completed as a no-op rather than recreate the deleted song's audio.
 	if _, err := db.Pool.Exec(ctx, `INSERT INTO song_job_outbox(song_id,action) VALUES('Track',$1)`, store.ProcessSongAction); err != nil {
 		t.Fatal(err)
 	}

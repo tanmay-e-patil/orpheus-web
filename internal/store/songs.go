@@ -308,7 +308,6 @@ func buildRedownloadSongsQuery(filter RedownloadSongsFilter) (string, []any) {
 	return query.String(), args
 }
 
-// updateSongFileMetadata records file work in the same transaction as the edit.
 func (s *Store) updateSongFileMetadata(ctx context.Context, trackID, query string, args []any, action string) error {
 	defer s.songsChanged()
 	tx, err := s.Pool.Begin(ctx)

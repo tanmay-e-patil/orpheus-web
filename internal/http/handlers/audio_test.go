@@ -122,7 +122,6 @@ func TestServeAudioFileRevalidatesWithETag(t *testing.T) {
 		t.Fatalf("range status = %d, body = %q", rec.Code, rec.Body.String())
 	}
 
-	// The consumer replaces files by rename; a new version must not match.
 	replacement := path + ".tmp"
 	if err := os.WriteFile(replacement, []byte("new audio bytes"), 0600); err != nil {
 		t.Fatal(err)

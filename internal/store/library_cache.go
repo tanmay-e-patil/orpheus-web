@@ -17,10 +17,8 @@ import (
 )
 
 const (
-	librarySongsChannel = "library_songs_changed"
-	libraryPlaysChannel = "library_plays_changed"
-	// A reader whose data is stale waits at most this long for a reload before
-	// falling back to PostgreSQL.
+	librarySongsChannel  = "library_songs_changed"
+	libraryPlaysChannel  = "library_plays_changed"
 	libraryFreshnessWait = 250 * time.Millisecond
 )
 
@@ -42,7 +40,6 @@ type LibraryCache struct {
 	memoMu sync.Mutex
 	memo   map[string]*mostPlayedOrder
 
-	// onListen is a test hook invoked after LISTEN succeeds.
 	onListen func()
 }
 
@@ -207,7 +204,6 @@ func (c *LibraryCache) loadPlays(ctx context.Context) (*playsSnapshot, error) {
 	return snap, rows.Err()
 }
 
-// page returns ok=false whenever the SQL path must answer instead.
 func (c *LibraryCache) page(ctx context.Context, opts FetchSongsOptions, limit int) (types.SongsPageResponse, bool) {
 	if !c.listening.Load() {
 		metrics.ObserveLibraryCache("not_listening")
@@ -329,7 +325,7 @@ type reloadable[T any] struct {
 
 	mu      sync.Mutex
 	value   T
-	want    uint64 // bumped by invalidate
+	want    uint64
 	have    uint64 // generation the current value reflects
 	failing bool
 	changed chan struct{} // closed after each successful load

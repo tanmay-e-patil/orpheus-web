@@ -2,7 +2,7 @@
 
 Run Go on port 8080 with `infisical run --env=dev`, overriding `DATABASE_URL` to the local PostgreSQL database. Set `APP_ENV=development`, `DOMAIN=localhost`, `AUTH_RP_ORIGIN=http://localhost:5173`, `PORT=8080`, `RABBITMQ_URL=''`, and `OUTBOX_DISPATCH_ENABLED=false` **inside** the Infisical command, after `-- env`, so imported secrets cannot override them. Run `bun run --cwd frontend dev --port 5173 --strictPort` and open http://localhost:5173.
 
-No new database migrations or seed data are needed. An empty migrated database and a signed-in local account are sufficient. YouTube requires `YOUTUBE_API_KEY`. Deezer matching uses the website’s `SearchFull` GraphQL operation with an automatically acquired anonymous token, cached in memory until shortly before expiry. No Deezer account credentials, browser cookies, or stored bearer token are needed. Rejected tokens refresh once; website API failures fall back to REST, with a 30-second pause before retrying GraphQL. LRCLib uses its existing public endpoint. The website API is undocumented, so REST fallback remains necessary. Saving stores metadata and pending jobs locally. Downloaded audio requires a separately configured consumer.
+No new database migrations or seed data are needed. An empty migrated database and a signed-in local account are sufficient. YouTube requires `YOUTUBE_API_KEY`. Deezer matching uses the website's `SearchFull` GraphQL operation with an automatically acquired anonymous token, cached in memory until shortly before expiry. No Deezer account credentials, browser cookies, or stored bearer token are needed. Rejected tokens refresh once; website API failures fall back to REST, with a 30-second pause before retrying GraphQL. LRCLib uses its existing public endpoint. The website API is undocumented, so REST fallback remains necessary. Saving stores metadata and pending jobs locally. Downloaded audio requires a separately configured consumer.
 
 ## Default flow: search, then review
 
@@ -17,7 +17,7 @@ Existing drafts from the old multi-stage flow remain compatible with their previ
 ## Cases to exercise
 
 - A known song, such as **Firework Katy Perry**: expect an audio source and the full-length Katy Perry catalogue recording. Equally scoring releases prefer the higher GraphQL popularity; incorrect artists remain excluded from automatic suggestions.
-- A remembered lyric: search `sia bulletproof`. YouTube relevance should lead to David Guetta / Sia’s `Titanium`, above the lower-ranked literal-title upload `Sia - Bulletproof`. Discovery preserves provider order; the frontend makes bounded format/token adjustments instead of requiring every query word in the title.
+- A remembered lyric: search `sia bulletproof`. YouTube relevance should lead to David Guetta / Sia's `Titanium`, above the lower-ranked literal-title upload `Sia - Bulletproof`. Discovery preserves provider order; the frontend makes bounded format/token adjustments instead of requiring every query word in the title.
 - An explicit live, acoustic, remix, or cover request: the requested version should affect source ranking. An unrequested cover should rank below a relevant original audio upload.
 - Missing or uncertain catalogue information: stay on review with a visible explanation and editable metadata. Confirm that manual fields can be saved without inventing a Deezer ID.
 - An empty audio search or a provider error: recovery stays inside review and does not require navigating through earlier stages.
@@ -27,10 +27,8 @@ Existing drafts from the old multi-stage flow remain compatible with their previ
 - Change metadata or retry lyrics after manual edits. Reload and verify the draft resumes without repeating completed automatic selection.
 - Clear selected lyrics, save, and inspect the stored song: the old suggestion must not reappear.
 - Test real audio playback and synced-line seeking. Check half-second shifts, player cleanup when switching sources/closing preview, and the external link when embedding fails.
-- At desktop and phone widths, check reading order, wrapping, Save-bar clearance above the app player/navigation, keyboard focus, and disclosure controls. This layout has not yet been visually verified by the agent because browser automation was unavailable.
+- At desktop and phone widths, check reading order, wrapping, Save-bar clearance above the app player/navigation, keyboard focus, and disclosure controls.
 - Save, refresh the library, and verify persistence. Jobs remain pending while dispatch is disabled.
-
-See [the usability review](discovery-ux-review.md) for source evidence and verification limits.
 
 ## Repeatable regression checks
 

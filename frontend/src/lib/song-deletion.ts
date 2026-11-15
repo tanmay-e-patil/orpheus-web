@@ -40,9 +40,7 @@ export function listenForSongDeletions() {
     try {
       const value = JSON.parse(event.newValue);
       if (typeof value.trackId === 'string') void applyDeletion(value.trackId);
-    } catch {
-      /* Ignore malformed storage events. */
-    }
+    } catch {}
   };
   window.addEventListener('storage', handler);
   return () => window.removeEventListener('storage', handler);
