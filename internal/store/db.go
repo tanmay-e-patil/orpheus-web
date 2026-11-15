@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/exaring/otelpgx"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -76,74 +77,76 @@ func (s *Store) Close() {
 }
 
 func (s *Store) MigrateUp(ctx context.Context) error {
-	_, err := s.Pool.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS schema_migrations (
-			version TEXT PRIMARY KEY,
-			run_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("create schema_migrations: %w", err)
-	}
-
-	applied := make(map[string]bool)
-	rows, err := s.Pool.Query(ctx, `SELECT version FROM schema_migrations`)
+	migrations, err := fs.Sub(migrationsFS, "migrations")
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var v string
-		if err := rows.Scan(&v); err != nil {
-			return err
-		}
-		applied[v] = true
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
+	return s.migrate(ctx, migrations)
+}
 
-	entries, err := fs.Glob(migrationsFS, "migrations/*.up.sql")
+// migrationLockKey is an arbitrary advisory-lock key shared by every process
+// that migrates this database.
+const migrationLockKey int64 = 0x6f72706865757300
+
+func (s *Store) migrate(ctx context.Context, fsys fs.FS) error {
+	entries, err := fs.Glob(fsys, "*.up.sql")
 	if err != nil {
 		return err
 	}
 	sort.Strings(entries)
-
 	for _, entry := range entries {
-		base := strings.TrimSuffix(entry, ".up.sql")
-		version := strings.TrimPrefix(base, "migrations/")
+		if err := s.applyMigration(ctx, fsys, entry); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-		if applied[version] {
-			continue
+// applyMigration runs one migration file and records its version in a single
+// transaction. The advisory lock serializes concurrent instances, so the
+// applied check and the schema_migrations CREATE both happen under it.
+func (s *Store) applyMigration(ctx context.Context, fsys fs.FS, entry string) error {
+	version := strings.TrimSuffix(entry, ".up.sql")
+	return pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, migrationLockKey); err != nil {
+			return fmt.Errorf("lock migrations: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS schema_migrations (
+				version TEXT PRIMARY KEY,
+				run_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+			)
+		`); err != nil {
+			return fmt.Errorf("create schema_migrations: %w", err)
+		}
+		var applied bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)`, version).Scan(&applied); err != nil {
+			return err
+		}
+		if applied {
+			return nil
 		}
 
-		sql, err := migrationsFS.ReadFile(entry)
+		sql, err := fs.ReadFile(fsys, entry)
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", entry, err)
 		}
-
 		slog.InfoContext(ctx, "running database migration", "component", "database", "version", version)
-
-		statements := splitStatements(string(sql))
-		for _, stmt := range statements {
+		for _, stmt := range splitStatements(string(sql)) {
 			stmt = strings.TrimSpace(stmt)
 			if stmt == "" {
 				continue
 			}
-			if _, err := s.Pool.Exec(ctx, stmt); err != nil {
+			if _, err := tx.Exec(ctx, stmt); err != nil {
 				return fmt.Errorf("migration %s failed: %w", version, err)
 			}
 		}
-
-		_, err = s.Pool.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1)`, version)
-		if err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1)`, version); err != nil {
 			return fmt.Errorf("record migration %s: %w", version, err)
 		}
-
 		slog.InfoContext(ctx, "database migration complete", "component", "database", "version", version)
-	}
-
-	return nil
+		return nil
+	})
 }
 
 // splitStatements splits SQL on the --> statement-breakpoint marker
