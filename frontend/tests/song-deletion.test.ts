@@ -33,6 +33,12 @@ const controller = {
   load: vi.fn(),
   play: vi.fn(),
   pause: vi.fn(),
+  seekTo: vi.fn(),
+  getCurrentTime: () => 0,
+  getDuration: () => 0,
+  setVolume: vi.fn(),
+  getVolume: () => 100,
+  isMuted: () => false,
 };
 beforeEach(() => {
   setController(controller);
