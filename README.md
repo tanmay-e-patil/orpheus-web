@@ -10,9 +10,14 @@ Orpheus is a self-hosted music library. You search for a song by title and artis
 | --- | --- |
 | ![Library with the docked player](docs/media/library.png) | ![Synced lyrics highlight the current line](docs/media/lyrics.png) |
 
-| Add a song | Phone |
-| --- | --- |
-| ![Review the matched song info, audio source, and lyrics before saving](docs/media/add-song.png) | ![Library on a phone](docs/media/mobile-library.png) ![Now Playing on a phone](docs/media/mobile-now-playing.png) |
+| Add a song |
+| --- |
+| ![Review the matched song info, audio source, and lyrics before saving](docs/media/add-song.png) |
+
+<p align="center">
+  <img src="docs/media/mobile-library.png" alt="Library on a phone" width="260">
+  <img src="docs/media/mobile-now-playing.png" alt="Now Playing on a phone" width="260">
+</p>
 
 ## What it does
 
