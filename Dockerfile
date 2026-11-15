@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM oven/bun:1.4.1-alpine AS frontend
+FROM oven/bun:1.4.4-alpine AS frontend
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile
