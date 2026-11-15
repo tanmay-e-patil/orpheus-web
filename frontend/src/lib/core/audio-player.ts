@@ -30,7 +30,7 @@ type PlayTracker = {
   lastTick: number;
 };
 
-let audio!: HTMLAudioElement;
+let initialized = false;
 let raf = 0;
 let playTracker: PlayTracker | null = null;
 const PLAY_COUNT_SECONDS = 10;
@@ -42,8 +42,9 @@ const playbackStart = createPlaybackStartTimer((report) => {
 });
 
 export function initAudioPlayer() {
-  if (audio) return;
-  audio = new Audio();
+  if (initialized) return;
+  initialized = true;
+  const audio = new Audio();
   audio.preload = 'metadata';
   configureAudioSession();
   initMediaSession();
@@ -53,16 +54,16 @@ export function initAudioPlayer() {
       setPlaybackStatus('loading');
   });
   audio.addEventListener('loadedmetadata', () => {
-    if (isActive()) syncDuration();
+    if (isActive()) syncDuration(audio);
   });
   audio.addEventListener('durationchange', () => {
-    if (isActive()) syncDuration();
+    if (isActive()) syncDuration(audio);
   });
   audio.addEventListener('playing', () => {
     if (!isActive()) return;
     playbackStart.playing();
     setPlaybackStatus('playing');
-    startPolling(isActive);
+    startPolling(audio, isActive);
     const { queue, currentIndex } = getPlayerState();
     prefetchSongAudio(queue[currentIndex + 1]);
   });
@@ -114,7 +115,7 @@ export function initAudioPlayer() {
       audio.readyState >= 3
     ) {
       setPlaybackStatus('playing');
-      startPolling(isActive);
+      startPolling(audio, isActive);
     }
   });
 
@@ -186,7 +187,7 @@ export function initAudioPlayer() {
   setController(controller);
 }
 
-function syncDuration() {
+function syncDuration(audio: HTMLAudioElement) {
   const duration = Number.isFinite(audio.duration)
     ? audio.duration
     : parseISODurationSeconds(
@@ -195,7 +196,10 @@ function syncDuration() {
   setDuration(duration || 0);
 }
 
-function startPolling(isActive: () => boolean | undefined) {
+function startPolling(
+  audio: HTMLAudioElement,
+  isActive: () => boolean | undefined,
+) {
   if (raf) return;
   let last = 0;
   const step = () => {
@@ -207,8 +211,8 @@ function startPolling(isActive: () => boolean | undefined) {
     if (now - last > 250) {
       last = now;
       setTime(audio.currentTime || 0);
-      syncDuration();
-      trackListeningInterval();
+      syncDuration(audio);
+      trackListeningInterval(audio);
     }
     raf = requestAnimationFrame(step);
   };
@@ -226,7 +230,7 @@ function resetPlayTracker(trackId: string) {
   playTracker = { trackId, listenedSeconds: 0, recorded: false, lastTick: 0 };
 }
 
-function trackListeningInterval() {
+function trackListeningInterval(audio: HTMLAudioElement) {
   if (!playTracker || playTracker.recorded || audio.paused || audio.ended)
     return;
   const now = performance.now();
