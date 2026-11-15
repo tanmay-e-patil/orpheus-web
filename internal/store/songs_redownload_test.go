@@ -13,7 +13,7 @@ func TestBuildRedownloadSongIDsQueryDefaultsToUnavailableOnly(t *testing.T) {
 	if !strings.HasPrefix(query, "select id, name, artist_name from songs") {
 		t.Fatalf("query should select dry-run display fields: %s", query)
 	}
-	if !strings.Contains(query, "coalesce(is_available, false) = false") {
+	if !strings.Contains(query, "is_available = false") {
 		t.Fatalf("query missing unavailable predicate: %s", query)
 	}
 	if !strings.Contains(query, "order by updated_at asc, id asc") {
@@ -45,7 +45,7 @@ func TestBuildRedownloadSongIDsQueryCombinesTimestampFiltersWithAnd(t *testing.T
 	})
 
 	wantFragments := []string{
-		"coalesce(is_available, false) = false",
+		"is_available = false",
 		" and updated_at >= $1",
 		" and updated_at <= $2",
 	}
@@ -88,10 +88,10 @@ func TestBuildRedownloadSongIDsQueryIgnoresNonPositiveLimit(t *testing.T) {
 
 func TestBuildRedownloadSongsQueryAvailableOnly(t *testing.T) {
 	query, _ := buildRedownloadSongsQuery(RedownloadSongsFilter{AvailableOnly: true, IncludeAvailable: true})
-	if !strings.Contains(query, "coalesce(is_available, false) = true") {
+	if !strings.Contains(query, "is_available = true") {
 		t.Fatalf("query missing available predicate: %s", query)
 	}
-	if strings.Contains(query, "coalesce(is_available, false) = false") {
+	if strings.Contains(query, "is_available = false") {
 		t.Fatalf("query should not select unavailable songs: %s", query)
 	}
 }

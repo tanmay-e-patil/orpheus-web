@@ -69,7 +69,7 @@ func (s *Store) FetchSongsPage(ctx context.Context, opts FetchSongsOptions) (typ
 	args := []any{limit + 1, opts.UserID}
 	query := `
 		select songs.id, songs.name, songs.artist_name, songs.album_name, songs.album_art, songs.duration, songs.yt_video_id,
-		       songs.lyrics, songs.synced_lyrics, songs.is_lyrics_available, coalesce(songs.is_available, false),
+		       songs.lyrics, songs.synced_lyrics, songs.is_lyrics_available, songs.is_available,
 		       coalesce(usp.play_count, 0), songs.created_at
 		from songs
 		left join user_song_plays usp on usp.track_id = songs.id and usp.user_id = $2
@@ -182,7 +182,7 @@ func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (Rec
 	var lastPlayedAt *time.Time
 	err := s.Pool.QueryRow(ctx, `
 		with song as (
-			select id, coalesce(is_available, false) as is_available
+			select id, is_available
 			from songs where id = $2 and deleted_at is null
 			for key share
 		), play as (
@@ -210,7 +210,7 @@ func (s *Store) RecordSongPlay(ctx context.Context, userID, trackID string) (Rec
 func (s *Store) SongForAudio(ctx context.Context, trackID string) (types.AudioSong, error) {
 	var song types.AudioSong
 	err := s.Pool.QueryRow(ctx, `
-		select id, name, artist_name, album_name, coalesce(is_available, false), updated_at, coalesce(audio_file_path, '')
+		select id, name, artist_name, album_name, is_available, updated_at, coalesce(audio_file_path, '')
 		from songs
 		where id = $1 AND deleted_at IS NULL
 	`, trackID).Scan(&song.TrackID, &song.Name, &song.ArtistName, &song.AlbumName, &song.IsAvailable, &song.UpdatedAt, &song.AudioFilePath)
@@ -281,9 +281,9 @@ func buildRedownloadSongsQuery(filter RedownloadSongsFilter) (string, []any) {
 	predicates := []string{"deleted_at IS NULL"}
 	switch {
 	case filter.AvailableOnly:
-		predicates = append(predicates, "coalesce(is_available, false) = true")
+		predicates = append(predicates, "is_available = true")
 	case !filter.IncludeAvailable:
-		predicates = append(predicates, "coalesce(is_available, false) = false")
+		predicates = append(predicates, "is_available = false")
 	}
 	if filter.UpdatedAfter != nil {
 		args = append(args, *filter.UpdatedAfter)
@@ -336,9 +336,8 @@ func (s *Store) UpdateAlbumArt(ctx context.Context, trackID, albumArt string) er
 }
 
 func (s *Store) UpdateLyrics(ctx context.Context, trackID, plainLyrics, syncedLyrics string) error {
-	isAvailable := plainLyrics != "" || syncedLyrics != ""
 	return s.updateSongFileMetadata(ctx, trackID, `
-  update songs set lyrics = $1, synced_lyrics = $2, is_lyrics_available = $3, updated_at = now()
-  where id = $4 and (lyrics is distinct from $1 or synced_lyrics is distinct from $2 or is_lyrics_available is distinct from $3)
- `, []any{plainLyrics, syncedLyrics, isAvailable, trackID}, UpdateSongLyricsAction)
+  update songs set lyrics = $1, synced_lyrics = $2, updated_at = now()
+  where id = $3 and (lyrics is distinct from $1 or synced_lyrics is distinct from $2)
+ `, []any{plainLyrics, syncedLyrics, trackID}, UpdateSongLyricsAction)
 }

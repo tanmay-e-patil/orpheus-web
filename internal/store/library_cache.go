@@ -128,7 +128,7 @@ func (c *LibraryCache) PlaysChanged() { c.plays.invalidate() }
 func (c *LibraryCache) loadSongs(ctx context.Context) (*songsSnapshot, error) {
 	rows, err := c.db.Pool.Query(ctx, `
 		select id, name, artist_name, album_name, album_art, duration, yt_video_id,
-		       lyrics, synced_lyrics, is_lyrics_available, coalesce(is_available, false), created_at,
+		       lyrics, synced_lyrics, is_lyrics_available, is_available, created_at,
 		       row_number() over (order by created_at desc, id asc) - 1
 		from songs
 		where deleted_at is null

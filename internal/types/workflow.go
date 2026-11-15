@@ -39,17 +39,15 @@ type CommitResponse struct {
 }
 
 type SongUpsert struct {
-	TrackID           string
-	Name              string
-	ArtistName        string
-	AlbumName         string
-	AlbumArt          string
-	Lyrics            string
-	SyncedLyrics      string
-	IsLyricsAvailable bool
-	Duration          string
-	YoutubeVideoID    string
-	IsAvailable       bool
-	ReleaseDate       string
-	ReleaseYear       string
+	TrackID        string
+	Name           string
+	ArtistName     string
+	AlbumName      string
+	AlbumArt       string
+	Lyrics         string
+	SyncedLyrics   string
+	Duration       string
+	YoutubeVideoID string
+	IsAvailable    bool
+	ReleaseDate    string
 }

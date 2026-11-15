@@ -65,27 +65,19 @@ func commitItemToSong(item types.CommitItem) (types.SongUpsert, error) {
 		syncedLyrics = item.Edits.SyncedLyrics
 	}
 
-	releaseDate := normalizeReleaseDate(firstNonEmpty(item.Edits.ReleaseDate, item.Song.ReleaseDate))
-	releaseYear := "Unknown"
-	if len(releaseDate) >= 4 {
-		releaseYear = releaseDate[:4]
-	}
-
 	duration := firstNonEmpty(item.Edits.TrackDuration, stringValue(item.Video.Duration), "00:00")
 	song := types.SongUpsert{
-		TrackID:           item.Song.ID,
-		Name:              firstNonEmpty(item.Edits.TrackName, item.Song.Name),
-		ArtistName:        firstNonEmpty(item.Edits.ArtistName, item.Song.Artist),
-		AlbumName:         firstNonEmpty(item.Edits.AlbumName, item.Song.Album),
-		AlbumArt:          firstNonEmpty(item.Edits.AlbumArt, item.Song.AlbumImageURL),
-		Lyrics:            plainLyrics,
-		SyncedLyrics:      syncedLyrics,
-		IsLyricsAvailable: plainLyrics != "" || syncedLyrics != "",
-		Duration:          duration,
-		YoutubeVideoID:    item.Video.ID,
-		IsAvailable:       false,
-		ReleaseDate:       releaseDate,
-		ReleaseYear:       releaseYear,
+		TrackID:        item.Song.ID,
+		Name:           firstNonEmpty(item.Edits.TrackName, item.Song.Name),
+		ArtistName:     firstNonEmpty(item.Edits.ArtistName, item.Song.Artist),
+		AlbumName:      firstNonEmpty(item.Edits.AlbumName, item.Song.Album),
+		AlbumArt:       firstNonEmpty(item.Edits.AlbumArt, item.Song.AlbumImageURL),
+		Lyrics:         plainLyrics,
+		SyncedLyrics:   syncedLyrics,
+		Duration:       duration,
+		YoutubeVideoID: item.Video.ID,
+		IsAvailable:    false,
+		ReleaseDate:    normalizeReleaseDate(firstNonEmpty(item.Edits.ReleaseDate, item.Song.ReleaseDate)),
 	}
 	if song.TrackID == "" {
 		return song, errString("song id required")
@@ -101,10 +93,6 @@ func commitItemToSong(item types.CommitItem) (types.SongUpsert, error) {
 	}
 	if song.YoutubeVideoID == "" {
 		return song, errString("youtube video id required")
-	}
-	if song.ReleaseDate == "" {
-		song.ReleaseDate = "1970-01-01"
-		song.ReleaseYear = "1970"
 	}
 	return song, nil
 }

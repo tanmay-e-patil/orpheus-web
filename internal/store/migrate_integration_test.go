@@ -157,6 +157,10 @@ func TestMigrationsConvertLegacyRows(t *testing.T) {
 		INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at) VALUES
 		  ('stale', 'owner', 'credential', 'owner', 'stale-hash', '2024-01-01', '2024-01-01'),
 		  ('fresh', 'owner', 'credential', 'owner', 'fresh-hash', '2024-01-01', '2024-06-01');
+		INSERT INTO yt_music_videos (id, title, thumbnail, channel_title, published_at) VALUES ('video', 'Video', '', 'Channel', '2024-01-01');
+		INSERT INTO songs (id, name, artist_name, album_name, album_art, duration, yt_video_id, is_available, release_date, release_year, lyrics, is_lyrics_available) VALUES
+		  ('placeholder', 'Placeholder', 'Artist', 'Album', '', 'PT1S', 'video', NULL, '1970-01-01', '1970', 'words', NULL),
+		  ('dated', 'Dated', 'Artist', 'Album', '', 'PT1S', 'video', true, '2020-03-04', 'Unknown', '', true);
 	`); err != nil {
 		t.Fatal(err)
 	}
@@ -177,5 +181,37 @@ func TestMigrationsConvertLegacyRows(t *testing.T) {
 	}
 	if user, err := db.GetUserByEmail(ctx, "owner@example.com"); err != nil || user.ID != "owner" {
 		t.Fatalf("lookup by lower-case email = %+v, err = %v", user, err)
+	}
+
+	type songState struct {
+		available     *bool
+		releaseDate   *time.Time
+		releaseYear   *int
+		lyricsPresent *bool
+	}
+	song := func(id string) songState {
+		var s songState
+		if err := db.Pool.QueryRow(ctx, `SELECT is_available, release_date, release_year, is_lyrics_available FROM songs WHERE id = $1`, id).
+			Scan(&s.available, &s.releaseDate, &s.releaseYear, &s.lyricsPresent); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	placeholder := song("placeholder")
+	if placeholder.available == nil || *placeholder.available {
+		t.Fatalf("NULL is_available became %v, want false", placeholder.available)
+	}
+	if placeholder.releaseDate != nil || placeholder.releaseYear != nil {
+		t.Fatalf("1970-01-01 placeholder became date=%v year=%v, want NULL", placeholder.releaseDate, placeholder.releaseYear)
+	}
+	if placeholder.lyricsPresent == nil || !*placeholder.lyricsPresent {
+		t.Fatalf("song with lyrics has is_lyrics_available=%v", placeholder.lyricsPresent)
+	}
+	dated := song("dated")
+	if dated.releaseDate == nil || !dated.releaseDate.Equal(time.Date(2020, 3, 4, 0, 0, 0, 0, time.UTC)) || dated.releaseYear == nil || *dated.releaseYear != 2020 {
+		t.Fatalf("dated song became date=%v year=%v", dated.releaseDate, dated.releaseYear)
+	}
+	if dated.lyricsPresent == nil || *dated.lyricsPresent {
+		t.Fatalf("song without lyrics has is_lyrics_available=%v", dated.lyricsPresent)
 	}
 }

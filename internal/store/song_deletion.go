@@ -40,7 +40,7 @@ func (s *Store) DeleteSong(ctx context.Context, trackID string) (bool, error) {
 		return false, err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE songs SET deleted_at = now(), is_available = false,
- lyrics = '', synced_lyrics = '', is_lyrics_available = false, updated_at = now() WHERE id = $1`, trackID); err != nil {
+ lyrics = '', synced_lyrics = '', updated_at = now() WHERE id = $1`, trackID); err != nil {
 		return false, err
 	}
 	if _, err := tx.Exec(ctx, `DELETE FROM user_song_plays WHERE track_id = $1`, trackID); err != nil {

@@ -65,20 +65,22 @@ func (s *Store) UpdateSongMetadata(ctx context.Context, userID, trackID string, 
 	defer tx.Rollback(ctx)
 
 	var current SongMetadataUpdate
-	var currentDate time.Time
+	var currentDate *time.Time
 	err = tx.QueryRow(ctx, `select name, artist_name, album_name, album_art, release_date from songs where id = $1 AND deleted_at IS NULL for update`, trackID).
 		Scan(&current.Name, &current.ArtistName, &current.AlbumName, &current.AlbumArt, &currentDate)
 	if err != nil {
 		return SongEditResponse{}, err
 	}
-	current.ReleaseDate = currentDate.Format("2006-01-02")
+	if currentDate != nil {
+		current.ReleaseDate = currentDate.Format("2006-01-02")
+	}
 	in.ReleaseDate = releaseDate
 	fileUpdate := metadataRequiresFileUpdate(current, in)
 	args := []any{in.Name, in.ArtistName, in.AlbumName, in.AlbumArt, trackID}
 	query := `update songs set name = $1, artist_name = $2, album_name = $3, album_art = $4, updated_at = now()`
 	if releaseDate != "" {
 		args = append(args, releaseDate)
-		query += fmt.Sprintf(`, release_date = $%d::text::date, release_year = left($%d::text, 4)`, len(args), len(args))
+		query += fmt.Sprintf(`, release_date = $%d::text::date`, len(args))
 	}
 	query += ` where id = $5`
 	if _, err := tx.Exec(ctx, query, args...); err != nil {
@@ -192,7 +194,7 @@ func normalizeReleaseDate(value string) (string, error) {
 func librarySongSelect() string {
 	return `
 		select songs.id, songs.name, songs.artist_name, songs.album_name, songs.album_art, songs.duration, songs.yt_video_id,
-		       songs.lyrics, songs.synced_lyrics, songs.is_lyrics_available, coalesce(songs.is_available, false),
+		       songs.lyrics, songs.synced_lyrics, songs.is_lyrics_available, songs.is_available,
 		       coalesce(usp.play_count, 0),
 		       yt_music_videos.id, yt_music_videos.title, yt_music_videos.thumbnail, yt_music_videos.channel_title,
 		       yt_music_videos.published_at, yt_music_videos.duration, yt_music_videos.view_count
