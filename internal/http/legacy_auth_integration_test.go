@@ -14,8 +14,10 @@ func legacyAuth(t *testing.T) *AuthService {
 	db, _, _ := testutil.Postgres(t)
 	return NewAuthService(config.Config{
 		AuthCookieSecret: "test-secret-key-at-least-32-bytes!",
-		AuthUsername:     "owner@example.com",
-		AuthPassword:     "env-password",
+		LegacyAuth: config.LegacyAuthConfig{
+			Email:    "owner@example.com",
+			Password: "env-password",
+		},
 	}, db)
 }
 
