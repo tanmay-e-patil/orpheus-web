@@ -1477,9 +1477,11 @@ summary {
   padding: 45px 60px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   position: relative;
   overflow: hidden;
+}
+.login-story > div {
+  margin-block: auto;
 }
 .login-story h1 {
   font-size: 66px;
