@@ -31,7 +31,7 @@
     "@testing-library/svelte": "^5.4.2",
     "@types/node": "^26.6.5",
     "jsdom": "31.0.0",
-    "prettier": "^3.9.10",
+    "prettier": "^3.10.1",
     "prettier-plugin-svelte": "^3.5.2",
     "svelte-check": "4.7.8",
     "tailwindcss": "^4.3.3",
